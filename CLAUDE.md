@@ -1,1 +1,1 @@
-/Users/saeed/Projects/muxy-new/AGENTS.md
+Follow [AGENTS.md](AGENTS.md) for repository instructions.

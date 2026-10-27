@@ -2,6 +2,8 @@
 
 Documentation for Muxy 2.
 
+For fork changes and maintenance, see [Codesh notes](codesh/README.md).
+
 | Section | Pages |
 | --- | --- |
 | User guide | [Getting started](user-guide/getting-started.md) · [Settings](user-guide/settings.md) · [Keyboard shortcuts](user-guide/keyboard-shortcuts.md) · [Troubleshooting](user-guide/troubleshooting.md) |

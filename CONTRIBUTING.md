@@ -1,77 +1,47 @@
-# Contributing to Muxy
+# Contributing to Codesh
 
-Thank you for your interest in contributing to Muxy! This guide will help you get started.
+Issues and pull requests are welcome at [hugocxl/codesh](https://github.com/hugocxl/codesh).
+Keep changes focused. Read the [fork rules](AGENTS.md) and
+[Codesh notes](docs/codesh/README.md), then the inherited
+[product](docs/product/README.md) and [technical](docs/tech/README.md) guides.
+Anything submitted upstream must follow Muxy's humans-only policy in AGENTS.md.
 
-## Humans Only Policy
+## Prerequisites
 
-Muxy is a community project and we want communication to stay between humans. You are welcome to use AI to help you write code, but **only humans may**:
+- macOS 14+ for the desktop app, or Linux for the CLI and server.
+- [Rust](https://rustup.rs), using the version pinned in [rust-toolchain.toml](rust-toolchain.toml).
+- [Zig](https://ziglang.org) 0.15.2 to build the Ghostty terminal library.
 
-- Create commits and push changes
-- Open issues or pull requests
-- Interact with issues or pull requests, including comments, reviews, and replies
+On macOS 26/27, Zig 0.15.2 cannot link natively against the affected SDK.
+Use the [SDK workaround and Metal toolchain setup](docs/codesh/building-on-macos-27.md).
 
-These actions must be done without AI assistance. AI agents must not perform them, even when a human asks. Write commit messages and all GitHub text yourself, in your own words, without AI help. This includes issue and PR titles, descriptions, summaries, comments, discussion replies, and code review comments.
-
-Issues and PRs opened by AI or containing AI-generated text will be closed without review.
-
-## Getting Started
-
-Read [docs/product](docs/product/README.md) and [docs/tech](docs/tech/README.md) first. They describe how Muxy works and how it is built.
-
-### Prerequisites
-
-- macOS 14+ for the desktop app, or Linux for the CLI and server
-- [Rust](https://rustup.rs) (`rustup` installs the version pinned in `rust-toolchain.toml`)
-- [Zig](https://ziglang.org) 0.15.2, used to build the Ghostty terminal library
-
-### Setup
+## Setup
 
 ```bash
-git clone https://github.com/muxy-app/muxy.git
-cd muxy
+git clone https://github.com/hugocxl/codesh.git
+cd codesh
+git checkout codesh
+git switch -c task/my-change
 ```
 
-On macOS, build the whole workspace with `cargo build --workspace`. On Linux,
-build the CLI and server with `cargo build -p muxy-cli -p muxy-server`; the
-desktop app is macOS only.
+On macOS, build with `cargo build --workspace`. On Linux, build the CLI and
+server with `cargo build -p muxy-cli -p muxy-server`.
+For packaging, see the [README](README.md#install).
 
-### Running
+## Running
 
 ```bash
-cargo run -p muxy-app     # desktop app (macOS)
+cargo run -p muxy-app     # desktop app
 cargo run -p muxy-cli     # muxy terminal UI
 ```
 
-Build as in [Setup](#setup) first, so `muxy-server` sits next to the binary you
-run.
-Development builds keep their data in a separate `Muxy Dev` profile (`muxy-dev`
-on Linux).
-
-## Development Workflow
-
-1. Fork the repository and create a branch from `main`
-2. Make your changes
-3. Run checks before committing (on Linux, see [Checks](#checks)):
-
-```bash
-cargo fmt --all
-cargo xcheck              # clippy with warnings as errors
-cargo xtest               # all tests
-```
-
-4. Commit your changes, push your branch, and open a pull request yourself
-
-## Code Standards
-
-- **No comments in the codebase** — all code must be self-explanatory and cleanly structured
-- **Early returns** over nested conditionals
-- **Fix root causes**, not symptoms
-- **Follow existing patterns** but suggest refactors if they improve quality
-- **Security first** — no command injection, XSS, or other vulnerabilities
+Build as in [Setup](#setup) first so `muxy-server` sits next to the binary you
+run. Development builds use a separate `Codesh Dev` profile (`codesh-dev` on
+Linux); see [identity](docs/codesh/identity.md).
 
 ## Checks
 
-All PRs must pass CI. Run its main checks locally:
+Run before submitting changes:
 
 ```bash
 cargo fmt --all --check
@@ -80,26 +50,19 @@ cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
-On Linux, CI runs two checks. `scripts/check-headless.py` covers the CLI, the
-server, and the crates they depend on. It needs glibc 2.35; elsewhere, run Clippy
-and tests with `-p` for each package that
-`python3 scripts/check-headless.py --packages` lists, instead of `--workspace`.
-`scripts/check-desktop-linux.py` covers the whole workspace, including the
-[experimental desktop app](docs/tech/constraints.md), on Ubuntu 24.04.
+On Linux, `scripts/check-headless.py` checks the CLI, server and dependencies
+and requires glibc 2.35. Elsewhere, select the packages listed by
+`python3 scripts/check-headless.py --packages` for Clippy and tests.
+`scripts/check-desktop-linux.py` checks the whole workspace, including the
+[experimental Linux desktop](docs/tech/constraints.md), on Ubuntu 24.04.
 
-## Pull Request Guidelines
+## Code standards
 
-- Keep PRs focused on a single change
-- Write a clear title and description yourself, in your own words, explaining the "why"
-- Ensure all checks pass before requesting review
-- Link any related issues
-- If you used AI to help write code, name the LLM in your own PR description
-
-## Reporting Issues
-
-- Report bugs and ideas on [GitHub Issues](https://github.com/muxy-app/muxy/issues)
-- Search existing issues before creating a new one
+Keep code self-explanatory without comments, prefer early returns, fix root
+causes, follow existing patterns, and prevent security vulnerabilities. Test
+real risks and watch GPUI's CPU and memory use. New dependencies need owner
+approval; see [AGENTS.md](AGENTS.md).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+Contributions are licensed under the [MIT License](LICENSE).
