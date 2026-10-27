@@ -32,6 +32,7 @@ mod views {
     pub(crate) mod disconnected;
     pub(crate) mod font_picker;
     pub(crate) mod git;
+    pub(crate) mod git_panel;
     pub(crate) mod menu;
     pub(crate) mod native_modal;
     pub(crate) mod new_tab;
