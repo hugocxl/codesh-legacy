@@ -159,6 +159,12 @@ pub enum GitAction {
         #[n(2)]
         expected_tree: String,
     },
+    /// Amend HEAD using the staged changes; an empty message keeps its message.
+    #[n(37)]
+    Amend {
+        #[n(0)]
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode)]
@@ -495,6 +501,9 @@ impl GitRequest {
                 validate_hash(hash)
             }
             GitAction::Commit { message, .. } => validate_message(message, 64 * 1024),
+            GitAction::Amend { message } if !message.is_empty() => {
+                validate_message(message, 64 * 1024)
+            }
             GitAction::Log { max_count, .. } if *max_count > 1000 => Err(ErrorCode::BadRequest),
             GitAction::Diff(request) => {
                 if !request.raw && request.path.is_none() {

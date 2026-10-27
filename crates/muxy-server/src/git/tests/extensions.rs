@@ -18,6 +18,90 @@ pub(super) fn commit(repo: &Repo, message: &str) -> String {
 }
 
 #[test]
+fn amend_replaces_head_message_and_staged_tree_while_preserving_parent() {
+    let repo = Repo::new(true);
+    let parent = repo.summary().head.unwrap();
+    std::fs::write(repo.path.join("file"), "original\n").unwrap();
+    let original = commit(&repo, "original");
+    std::fs::write(repo.path.join("file"), "staged\n").unwrap();
+    repo.git(GitAction::Stage(vec![])).unwrap();
+    std::fs::write(repo.path.join("file"), "unstaged\n").unwrap();
+
+    let GitReply::Commit(amended) = repo
+        .git(GitAction::Amend {
+            message: "amended π\n\nbody".into(),
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_ne!(amended, original);
+    assert_eq!(repo.summary().head.as_deref(), Some(amended.as_str()));
+    assert_eq!(
+        text(&run(&repo.path, &["rev-parse", "HEAD^"]).unwrap()).unwrap(),
+        parent
+    );
+    assert_eq!(
+        run(&repo.path, &["log", "-1", "--format=%B"]).unwrap(),
+        "amended π\n\nbody\n\n".as_bytes()
+    );
+    assert_eq!(
+        run(&repo.path, &["show", "HEAD:file"]).unwrap(),
+        b"staged\n"
+    );
+    assert_eq!(
+        std::fs::read(repo.path.join("file")).unwrap(),
+        b"unstaged\n"
+    );
+}
+
+#[test]
+fn amend_with_empty_message_preserves_previous_message() {
+    let repo = Repo::new(true);
+    std::fs::write(repo.path.join("file"), "original\n").unwrap();
+    let original = commit(&repo, "original π\n\nbody");
+    let message = run(&repo.path, &["log", "-1", "--format=%B"]).unwrap();
+    let parent = run(&repo.path, &["rev-parse", "HEAD^"]).unwrap();
+    std::fs::write(repo.path.join("file"), "amended\n").unwrap();
+    repo.git(GitAction::Stage(vec![])).unwrap();
+    let GitReply::Commit(amended) = repo
+        .git(GitAction::Amend {
+            message: String::new(),
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_ne!(amended, original);
+    assert_eq!(
+        run(&repo.path, &["log", "-1", "--format=%B"]).unwrap(),
+        message
+    );
+    assert_eq!(run(&repo.path, &["rev-parse", "HEAD^"]).unwrap(), parent);
+    assert_eq!(
+        run(&repo.path, &["show", "HEAD:file"]).unwrap(),
+        b"amended\n"
+    );
+}
+
+#[test]
+fn amend_rejects_invalid_messages_and_missing_repositories_without_changing_head() {
+    let repo = Repo::new(true);
+    let head = repo.summary().head;
+    for message in [" ".into(), "nul\0message".into(), "x".repeat(64 * 1024 + 1)] {
+        assert!(repo.git(GitAction::Amend { message }).is_err());
+        assert_eq!(repo.summary().head, head);
+    }
+    std::fs::remove_dir_all(repo.path.join(".git")).unwrap();
+    assert!(
+        repo.git(GitAction::Amend {
+            message: String::new()
+        })
+        .is_err()
+    );
+}
+
+#[test]
 fn init_stage_all_unstage_all_commit_and_history_cover_unborn_repositories() {
     let repo = Repo::new(false);
     std::fs::remove_dir_all(repo.path.join(".git")).unwrap();

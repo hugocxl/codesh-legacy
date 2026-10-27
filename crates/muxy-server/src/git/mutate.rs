@@ -14,6 +14,20 @@ pub(super) fn apply(repository: &Path, action: &GitAction) -> Result<GitReply> {
                 &["rev-parse", "HEAD"],
             )?)?));
         }
+        GitAction::Amend { message } => {
+            if !run(repository, &["ls-files", "--unmerged", "-z"])?.is_empty() {
+                return Err(error("Resolve merge conflicts before committing"));
+            }
+            if message.is_empty() {
+                run(repository, &["commit", "--amend", "--no-edit"])?;
+            } else {
+                run(repository, &["commit", "--amend", "-m", message.trim()])?;
+            }
+            return Ok(GitReply::Commit(text(&run(
+                repository,
+                &["rev-parse", "HEAD"],
+            )?)?));
+        }
         GitAction::Push { set_upstream } => push(repository, *set_upstream)?,
         GitAction::Pull => {
             command::network(repository, &["pull"])?;

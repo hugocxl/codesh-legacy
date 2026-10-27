@@ -204,6 +204,7 @@ impl Registry {
             | GitAction::SwitchToBase(_) => review(directory, action),
             GitAction::PullRequest(action) => self.git.github.apply(directory, action),
             GitAction::Commit { .. }
+            | GitAction::Amend { .. }
             | GitAction::Push { .. }
             | GitAction::Pull
             | GitAction::Checkout(_)
