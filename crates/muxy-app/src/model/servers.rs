@@ -465,7 +465,7 @@ impl AppModel {
         if server.is_local() {
             self.stop_extension_tasks(cx);
         }
-        self.disconnect_extensions(server);
+        self.disconnect_side_client(server);
         let current = self.state.current_project().server_id == server;
         if current {
             self.git.reset_context();

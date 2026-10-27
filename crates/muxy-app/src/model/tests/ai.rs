@@ -88,6 +88,6 @@ fn confirming_a_stale_branch_does_not_start_work(cx: &mut TestAppContext) {
     assert!(
         !requests
             .try_iter()
-            .any(|(_, work)| matches!(work, Work::ExtensionClient(_)))
+            .any(|(_, work)| matches!(work, Work::LendClient(_)))
     );
 }

@@ -361,7 +361,7 @@ impl AppModel {
         let (sender, receiver) = async_channel::bounded(1);
         self.send(
             self.project_server_or_local(project),
-            Work::ExtensionClient(sender),
+            Work::LendClient(sender),
             cx,
         );
         cx.spawn(async move |this, cx| {

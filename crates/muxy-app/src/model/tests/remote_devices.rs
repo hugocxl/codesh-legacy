@@ -252,13 +252,13 @@ fn remote_add_project(cx: &mut TestAppContext) -> Result {
     });
     wait(cx, &view, |model, _| {
         model.state.server_home(remote).is_some()
-            && model.extensions.client(remote).is_some()
+            && model.side_clients.client(remote).is_some()
             && matches!(model.overlay, Some(Overlay::Projects(_)))
     })?;
     let (client, home) = view.read_with(cx, |model, _| {
         let home = model.state.server_home(remote).expect("Home");
         (
-            model.extensions.client(remote).expect("client"),
+            model.side_clients.client(remote).expect("client"),
             (home.id, home.directory.to_string_lossy().into_owned()),
         )
     });

@@ -345,8 +345,7 @@ impl AppModel {
         if !self.ready(server) || !self.confirmed(server) {
             return Err(tr!("%@ isn't connected.", &name).to_string());
         }
-        let Some(client) = self.extensions.client(server) else {
-            self.extension_client(server, cx);
+        let Some(client) = self.side_client(server, cx) else {
             return Err(tr!("Still connecting to %@. Try again in a moment.", &name).to_string());
         };
         let home = self
@@ -373,7 +372,7 @@ impl AppModel {
     /// there, as this computer's are checked on disk. A project whose folder
     /// is gone shows as failed.
     pub(crate) fn check_remote_projects(&mut self, server: ServerId, cx: &mut Context<Self>) {
-        if server.is_local() || !self.ready(server) || self.extensions.client(server).is_none() {
+        if server.is_local() || !self.ready(server) || self.side_clients.client(server).is_none() {
             return;
         }
         let Ok(files) = self.remote_files(server, cx) else {

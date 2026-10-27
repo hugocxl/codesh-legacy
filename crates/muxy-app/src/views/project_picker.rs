@@ -590,13 +590,13 @@ impl AppModel {
             .server_home(server)
             .map(|home| (home.id, home.directory.to_string_lossy().into_owned()));
         let ready = self.server_ready(server);
-        let client = self.extensions.client(server);
+        let client = self.side_clients.client(server);
         let (Some((project, home)), true, true, Some(client)) =
             (home, ready, self.confirmed(server), client)
         else {
             self.pending_remote = Some(PendingRemote::new(server, RemoteIntent::AddProject));
-            if ready && self.extensions.client(server).is_none() {
-                self.extension_client(server, cx);
+            if ready && self.side_clients.client(server).is_none() {
+                self.connect_side_client(server, cx);
             } else {
                 self.connect_remote_server(server, cx);
             }

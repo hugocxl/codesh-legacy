@@ -526,8 +526,7 @@ impl AppModel {
             model
                 .state
                 .project_server(project)
-                .and_then(|server| model.extensions.clients.get(&server))
-                .cloned()
+                .and_then(|server| model.side_clients.client(server))
         };
         desired.retain(|project| client(self, *project).is_some());
         if desired == self.extensions.events.watched {
@@ -550,6 +549,7 @@ impl AppModel {
         );
         let requests: Vec<_> = removed
             .into_iter()
+            .filter(|project| !self.side_clients.watches(*project))
             .map(|project| (project, FilesAction::Unwatch))
             .chain(
                 added

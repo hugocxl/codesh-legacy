@@ -24,6 +24,7 @@ pub(crate) use remote_servers::{
 };
 mod server_status;
 mod servers;
+pub(crate) mod side_client;
 pub(crate) use server_status::ServerStatus;
 mod tabs;
 pub(crate) mod tips;
@@ -108,6 +109,7 @@ struct CloseRequest {
 
 pub(crate) struct AppModel {
     pub(crate) extensions: extensions::Runtime,
+    pub(crate) side_clients: side_client::SideClients,
     pub(crate) sidebar_filter_input: Entity<muxy_ui::text_input::TextInput>,
     /// Lowercased once per edit, shared by all project comparisons.
     pub(crate) sidebar_filter: String,
@@ -515,6 +517,7 @@ impl AppModel {
             sidebar_filter_input,
             sidebar_filter: String::new(),
             _sidebar_filter_subscription: sidebar_filter_subscription,
+            side_clients: side_client::SideClients::default(),
             extensions: extensions::Runtime::new(
                 boot.state_path
                     .parent()
@@ -2129,7 +2132,7 @@ impl AppModel {
         if !self.send(server, Work::Colors(self.palette.terminal_colors()), cx) {
             return;
         }
-        self.extension_client(server, cx);
+        self.connect_side_client(server, cx);
         self.refresh_activity(server, cx);
         self.sync_references(cx);
         if let Some(runtime) = self.servers.get_mut(server) {
@@ -2607,11 +2610,10 @@ impl AppModel {
                 self.receive_progress(server, session, progress, cx);
             }
             ClientEvent::FilesChanged { project, changes } => {
-                self.extension_files_changed(project, changes, cx);
+                self.files_changed(project, changes, cx);
             }
             ClientEvent::GitChanged { project } => {
-                self.extension_git_changed(project, cx);
-                self.git_invalidated(project, cx);
+                self.git_changed(project, cx);
             }
             ClientEvent::SessionsChanged { revision } => {
                 if let Some(runtime) = self.servers.get_mut(server) {
@@ -2800,6 +2802,7 @@ mod tests {
     mod servers;
     mod session_ownership;
     mod shortcut_hints;
+    mod side_client;
     mod splits;
     mod tab_groups;
     mod tab_menu;

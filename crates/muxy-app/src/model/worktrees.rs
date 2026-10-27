@@ -412,7 +412,7 @@ impl AppModel {
             let generation = self.generation(server);
             let local = server.is_local();
             let (sender, receiver) = async_channel::bounded(1);
-            if !self.send(server, Work::ExtensionClient(sender), cx) {
+            if !self.send(server, Work::LendClient(sender), cx) {
                 waiting.push(root);
                 break;
             }

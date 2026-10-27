@@ -313,8 +313,7 @@ impl AppModel {
         let client = self
             .state
             .project_server(request.project)
-            .and_then(|server| self.extensions.clients.get(&server))
-            .cloned()
+            .and_then(|server| self.side_clients.client(server))
             .ok_or("server is disconnected")?;
         Ok(cx
             .background_executor()

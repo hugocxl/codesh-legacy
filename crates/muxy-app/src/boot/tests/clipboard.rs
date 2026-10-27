@@ -14,7 +14,7 @@ fn clipboard_notifications_stay_coalesced_through_worker_and_ui_queues() -> Test
     assert!(matches!(updates.recv_blocking()?.2, Update::ServerInfo(..)));
     assert!(matches!(updates.recv_blocking()?.2, Update::Connected(_)));
     let (reply, client) = async_channel::bounded(1);
-    work.send((1, Work::ExtensionClient(reply)))?;
+    work.send((1, Work::LendClient(reply)))?;
     let client = client
         .recv_blocking()?
         .ok_or("missing client")?

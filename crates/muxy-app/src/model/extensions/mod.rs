@@ -43,15 +43,6 @@ pub(crate) struct Runtime {
     local_revision: u64,
     pub epoch: u64,
     epochs: HashMap<String, u64>,
-    /// Each server's extension connection, kept apart from the app's own.
-    clients: HashMap<ServerId, muxy_client::Client>,
-    /// Which install each server's connection is, so events from one that was
-    /// replaced are ignored.
-    installs: HashMap<ServerId, u64>,
-    next_install: u64,
-    /// Connections being opened, by server and connection generation, so
-    /// only one opens at a time.
-    opening: HashSet<(ServerId, u64)>,
     scripts: HashMap<u64, scripts::Running>,
     backgrounds: HashMap<String, background::Background>,
     loading_scripts: usize,
@@ -89,10 +80,6 @@ impl Runtime {
             local_revision: 0,
             epoch: 1,
             epochs: HashMap::new(),
-            clients: HashMap::new(),
-            installs: HashMap::new(),
-            next_install: 0,
-            opening: HashSet::new(),
             scripts: HashMap::new(),
             backgrounds: HashMap::new(),
             loading_scripts: 0,
@@ -116,20 +103,6 @@ impl Runtime {
 
     fn epoch_for(&self, owner: &str) -> u64 {
         self.epochs.get(owner).copied().unwrap_or(0)
-    }
-
-    /// The server's extension connection, which other app work that must not
-    /// queue behind terminals, such as listing folders, may share.
-    pub(crate) fn client(&self, server: ServerId) -> Option<muxy_client::Client> {
-        self.clients.get(&server).cloned()
-    }
-}
-
-impl Drop for Runtime {
-    fn drop(&mut self) {
-        for (_, client) in self.clients.drain() {
-            client.disconnect();
-        }
     }
 }
 
@@ -187,121 +160,18 @@ struct Call {
 }
 
 impl AppModel {
-    /// Opens `server`'s extension connection, through its worker, unless one
-    /// is already opening for this connection.
-    pub(crate) fn extension_client(&mut self, server: ServerId, cx: &mut Context<Self>) {
-        let (sender, receiver) = async_channel::bounded(1);
-        let generation = self.generation(server);
-        if self.extensions.opening.contains(&(server, generation)) {
-            return;
-        }
-        if !self.send(server, crate::boot::Work::ExtensionConnection(sender), cx) {
-            return;
-        }
-        self.extensions.opening.insert((server, generation));
-        cx.spawn(async move |model, cx| {
-            let connected = receiver.recv().await;
-            let _ = model.update(cx, |model, _| {
-                model.extensions.opening.remove(&(server, generation));
-            });
-            let Ok(connected) = connected else {
-                return;
-            };
-            let connected = connected.and_then(|client| {
-                let events = client.events().ok_or("extension events already taken")?;
-                let (sender, receiver) = async_channel::bounded(64);
-                std::thread::Builder::new()
-                    .name("extension-events".into())
-                    .spawn(move || {
-                        for event in events {
-                            if matches!(
-                                event,
-                                muxy_client::ClientEvent::FilesChanged { .. }
-                                    | muxy_client::ClientEvent::Disconnected
-                            ) && sender.send_blocking(event).is_err()
-                            {
-                                break;
-                            }
-                        }
-                    })
-                    .map_err(|error| error.to_string())?;
-                Ok((client, receiver))
-            });
-            let (client, events) = match connected {
-                Ok(connected) => connected,
-                Err(error) => {
-                    let _ = model.update(cx, |model, _| {
-                        let message = model.server_message(server, &error);
-                        model.extension_log("", format!("[muxy] {message}"));
-                    });
-                    return;
-                }
-            };
-            let installed = model
-                .update(cx, |model, cx| {
-                    if model.generation(server) != generation || !model.ready(server) {
-                        return None;
-                    }
-                    model.disconnect_extensions(server);
-                    model.extensions.next_install += 1;
-                    let install = model.extensions.next_install;
-                    model.extensions.clients.insert(server, client.clone());
-                    model.extensions.installs.insert(server, install);
-                    model.sync_extension_events(cx);
-                    model.resume_remote(server, cx);
-                    model.check_remote_projects(server, cx);
-                    Some(install)
-                })
-                .ok()
-                .flatten();
-            let Some(install) = installed else {
-                client.disconnect();
-                return;
-            };
-            drop(client);
-            while let Ok(event) = events.recv().await {
-                if model
-                    .update(cx, |model, cx| {
-                        if model.generation(server) != generation
-                            || model.extensions.installs.get(&server) != Some(&install)
-                        {
-                            return;
-                        }
-                        match event {
-                            muxy_client::ClientEvent::FilesChanged { project, changes } => {
-                                model.extension_files_changed(project, changes, cx);
-                            }
-                            muxy_client::ClientEvent::Disconnected => {
-                                model.disconnect_extensions(server);
-                                let message = model
-                                    .server_message(server, "extension server connection closed");
-                                model.extension_log("", format!("[muxy] {message}"));
-                                if model.ready(server) && model.quitting == super::Quitting::Idle {
-                                    model.extension_client(server, cx);
-                                }
-                            }
-                            _ => (),
-                        }
-                    })
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        })
-        .detach();
-    }
-
-    /// Closes `server`'s extension connection. Its file watches end with it.
-    pub(super) fn disconnect_extensions(&mut self, server: ServerId) {
-        self.extensions.installs.remove(&server);
-        if let Some(client) = self.extensions.clients.remove(&server) {
-            client.disconnect();
-        }
+    /// Extension file watches end with `server`'s side connection.
+    pub(super) fn forget_extension_watches(&mut self, server: ServerId) {
         let state = &self.state;
         self.extensions
             .events
             .forget_watches(|project| state.project_server(project) == Some(server));
+    }
+
+    /// Whether an extension watches `project`'s files over its server's side
+    /// connection.
+    pub(super) fn extension_watches(&self, project: ProjectId) -> bool {
+        self.extensions.events.watched.contains(&project)
     }
 
     /// The server an extension call acts on: its project's.
@@ -312,10 +182,7 @@ impl AppModel {
     }
 
     fn call_client(&self, call: &Call) -> Option<muxy_client::Client> {
-        self.extensions
-            .clients
-            .get(&self.call_server(call))
-            .cloned()
+        self.side_clients.client(self.call_server(call))
     }
 
     /// Asks the script and page backends whether what they load at run time

@@ -362,7 +362,7 @@ fn pending_extension_replies_do_not_block_app_requests_or_flush() -> TestResult 
     assert!(matches!(updates.recv_blocking()?.2, Update::ServerInfo(..)));
     assert!(matches!(updates.recv_blocking()?.2, Update::Connected(_)));
     let (reply, client) = async_channel::bounded(1);
-    work.send((1, Work::ExtensionClient(reply)))?;
+    work.send((1, Work::LendClient(reply)))?;
     let client = client.recv_blocking()?.ok_or("missing client")?;
     let project = muxy_protocol::ProjectId::new();
     let files = client.files_async(muxy_protocol::FilesRequest {

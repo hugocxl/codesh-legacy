@@ -112,7 +112,7 @@ fn remote_terminal<'a>(
         acknowledge_catalog(model, cx);
     });
     wait(cx, &view, |model, _| {
-        model.state.server_home(remote).is_some() && model.extensions.client(remote).is_some()
+        model.state.server_home(remote).is_some() && model.side_clients.client(remote).is_some()
     })?;
     let folder = machine.path("app");
     let pane = view.update(cx, |model, cx| {

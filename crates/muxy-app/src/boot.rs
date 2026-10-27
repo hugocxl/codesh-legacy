@@ -278,10 +278,10 @@ impl std::fmt::Debug for Workers {
 #[derive(Debug)]
 pub(crate) enum Work {
     /// Lends the worker's client.
-    ExtensionClient(async_channel::Sender<Option<Client>>),
-    /// Opens a separate connection to the same server, so extension work
-    /// never queues behind the app's requests or terminal frames.
-    ExtensionConnection(async_channel::Sender<Result<Client, String>>),
+    LendClient(async_channel::Sender<Option<Client>>),
+    /// Opens a separate connection to the same server, the side connection,
+    /// so its work never queues behind the app's requests or terminal frames.
+    SideConnection(async_channel::Sender<Result<Client, String>>),
     WriteInput {
         channel: ChannelId,
         bytes: Vec<u8>,
@@ -381,8 +381,8 @@ pub(crate) enum Work {
 impl Work {
     pub(crate) fn name(&self) -> &'static str {
         match self {
-            Self::ExtensionClient(..) => "ExtensionClient",
-            Self::ExtensionConnection(..) => "ExtensionConnection",
+            Self::LendClient(..) => "LendClient",
+            Self::SideConnection(..) => "SideConnection",
             Self::WriteInput { .. } => "WriteInput",
             Self::ReadActivity => "ReadActivity",
             Self::AcknowledgeActivity(..) => "AcknowledgeActivity",
@@ -636,11 +636,11 @@ pub(crate) fn worker(
                         }
                     }
                     _ if requested != generation => Vec::new(),
-                    Work::ExtensionClient(reply) => {
+                    Work::LendClient(reply) => {
                         let _ = reply.try_send(client.clone());
                         Vec::new()
                     }
-                    Work::ExtensionConnection(reply) => {
+                    Work::SideConnection(reply) => {
                         if let Some(client) = &client {
                             open_connection(&target, client.server_info().instance, reply);
                         }
@@ -1154,8 +1154,8 @@ fn perform(work: Work, client: &Client, target: &Target) -> Option<Update> {
         | Work::Disconnect
         | Work::ReconnectAfterUpdate(_)
         | Work::Connected(_)
-        | Work::ExtensionClient(_)
-        | Work::ExtensionConnection(_)
+        | Work::LendClient(_)
+        | Work::SideConnection(_)
         | Work::Event(_)
         | Work::Stop
         | Work::Completed(_)

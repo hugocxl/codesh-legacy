@@ -18,7 +18,7 @@ impl Sent {
     fn syncs(&mut self) -> usize {
         self.take()
             .iter()
-            .filter(|work| matches!(work, Work::ExtensionClient(_)))
+            .filter(|work| matches!(work, Work::LendClient(_)))
             .count()
     }
 }
