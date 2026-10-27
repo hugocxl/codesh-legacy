@@ -4,7 +4,6 @@ use muxy_app_core::settings::KeyChord;
 use muxy_core::capability::Feature;
 use muxy_core::shortcuts::ShortcutSettings;
 use muxy_ui::command_palette::{Command, Registry};
-use muxy_ui::l10n::tr_key;
 use muxy_ui::tr;
 
 use super::AppModel;
@@ -223,18 +222,6 @@ impl AppModel {
                 registry.register(item);
             }
         }
-        let manage: Handler = std::rc::Rc::new(|model, _, cx| {
-            model.show_settings(cx);
-            if let Some(settings) = &model.settings_window {
-                settings
-                    .view
-                    .update(cx, crate::views::settings::SettingsView::show_extensions);
-            }
-        });
-        registry.register(
-            Command::new("extensions.manage", tr!("Manage Extensions"), manage)
-                .keywords(tr_key!("Manage Extensions")),
-        );
     }
 }
 

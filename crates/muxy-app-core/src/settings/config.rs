@@ -331,7 +331,8 @@ impl Default for OpenerSettings {
     fn default() -> Self {
         Self {
             url: "system.browser".into(),
-            file: "system.editor".into(),
+            // Codesh: terminal file links open in the built-in Files editor.
+            file: "files:editor".into(),
             project_target: None,
         }
     }

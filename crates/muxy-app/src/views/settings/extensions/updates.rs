@@ -52,7 +52,9 @@ impl ExtensionsView {
         let installed: Vec<_> = registry
             .extensions
             .values()
-            .filter(|extension| !registry.is_unpacked(&extension.name))
+            .filter(|extension| {
+                !registry.is_unpacked(&extension.name) && !registry.is_builtin(&extension.name)
+            })
             .cloned()
             .collect();
         if installed.is_empty() {

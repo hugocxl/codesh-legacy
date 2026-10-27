@@ -70,7 +70,8 @@ pub(crate) enum Category {
 }
 
 impl Category {
-    pub(crate) const ALL: [Self; 13] = [
+    /// Codesh hides Extensions: its built-in extensions are always on.
+    pub(crate) const ALL: [Self; 12] = [
         Self::General,
         Self::QuickTerminal,
         Self::Composer,
@@ -81,7 +82,6 @@ impl Category {
         Self::Browser,
         Self::Server,
         Self::Mobile,
-        Self::Extensions,
         Self::Ai,
         Self::Backup,
     ];
@@ -575,6 +575,9 @@ impl SettingsView {
             cx.emit(SettingsEvent::Change(Change::Field(id, value)));
         }
     }
+
+    /// Codesh has no marketplace, so it offers no language packs to browse.
+    const BROWSE_LANGUAGES: bool = false;
 
     /// Shows Extensions → Browse limited to language packs.
     fn browse_languages(&mut self, cx: &mut Context<Self>) {

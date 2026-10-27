@@ -142,8 +142,12 @@ fn block_label(gate: Gate) -> SharedString {
 
 impl AppModel {
     /// What the saved rules decide for a gated call, and the deciding rule.
-    /// Without readable rules every gated call is denied.
+    /// Without readable rules every gated call is denied. Codesh's built-in
+    /// extensions are always allowed.
     fn consent(&self, owner: &str, request: &Request) -> (Consent, Option<String>) {
+        if self.extensions.registry.is_builtin(owner) {
+            return (Consent::Allow, Some("builtin".into()));
+        }
         match &self.extensions.grants {
             Ok(grants) => grants
                 .rule(owner, request)

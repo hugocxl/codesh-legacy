@@ -287,3 +287,24 @@ fn marketplace_packages_install_and_enable_without_modifying_the_packages() {
         assert!(registry.enabled(name).is_some(), "{name} did not enable");
     }
 }
+
+#[test]
+fn builtin_extensions_load_from_their_bundled_manifests() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("builtin-extensions");
+    for name in muxy_app_core::extensions::builtin::BUILTINS {
+        let extension = muxy_app_core::extensions::Extension::load(&root.join(name)).unwrap();
+        assert_eq!(extension.name, name);
+        assert!(!extension.manifest.commands.is_empty(), "{name}");
+    }
+}
+
+#[test]
+fn builtin_extensions_install_enabled_into_a_new_profile() {
+    let profile = tempfile::tempdir().unwrap();
+    super::builtin::install(profile.path());
+    let registry = muxy_app_core::extensions::Registry::load(profile.path());
+    assert!(registry.errors.is_empty(), "{:?}", registry.errors);
+    for name in muxy_app_core::extensions::builtin::BUILTINS {
+        assert!(registry.enabled(name).is_some(), "{name} is not enabled");
+    }
+}

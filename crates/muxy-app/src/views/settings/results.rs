@@ -163,7 +163,6 @@ impl SettingsView {
                 Category::Browser,
                 Category::Server,
                 Category::Mobile,
-                Category::Extensions,
                 Category::Ai,
                 Category::Backup,
             ]

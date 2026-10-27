@@ -4,6 +4,7 @@ mod permissions;
 mod storage;
 
 pub mod api;
+pub mod builtin;
 pub use audit::{AUDIT_LOG, AuditEntry, AuditLog, timestamp};
 pub use manifest::{
     Action, BarItem, Command, Extension, FileOpener, HomeView, Icon, Localization, Manifest,
@@ -136,21 +137,30 @@ impl Registry {
         self.unpacked.contains_key(id)
     }
 
+    /// Codesh's bundled extensions, which are always on. A developer folder
+    /// reusing one of their names gets no such treatment.
+    pub fn is_builtin(&self, id: &str) -> bool {
+        builtin::is_builtin(id) && !self.is_unpacked(id)
+    }
+
     pub fn enabled(&self, id: &str) -> Option<&Extension> {
         self.extensions
             .get(id)
-            .filter(|_| self.enabled.contains(id))
+            .filter(|_| self.enabled.contains(id) || self.is_builtin(id))
     }
 
     pub fn active(&self) -> impl Iterator<Item = &Extension> {
-        self.extensions
-            .values()
-            .filter(|extension| self.enabled.contains(&extension.name))
+        self.extensions.values().filter(|extension| {
+            self.enabled.contains(&extension.name) || self.is_builtin(&extension.name)
+        })
     }
 
     pub fn set_enabled(&mut self, id: &str, enabled: bool) -> Result<(), String> {
         if !self.extensions.contains_key(id) {
             return Err("extension is not installed".into());
+        }
+        if !enabled && self.is_builtin(id) {
+            return Err("built-in extensions cannot be disabled".into());
         }
         let mut active = self.enabled.clone();
         if enabled {
@@ -168,6 +178,9 @@ impl Registry {
 
     /// Forget developer folders without deleting their contents.
     pub fn remove(&mut self, id: &str) -> Result<(), String> {
+        if self.is_builtin(id) {
+            return Err("built-in extensions cannot be removed".into());
+        }
         self.set_enabled(id, false)?;
         if self.is_unpacked(id) {
             let mut folders = self.unpacked.clone();

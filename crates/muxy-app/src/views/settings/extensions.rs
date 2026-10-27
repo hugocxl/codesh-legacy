@@ -880,7 +880,7 @@ impl ExtensionsView {
                     registry
                         .extensions
                         .keys()
-                        .any(|name| !registry.is_unpacked(name))
+                        .any(|name| !registry.is_unpacked(name) && !registry.is_builtin(name))
                 }),
                 |actions| {
                     actions.child(self.button(
