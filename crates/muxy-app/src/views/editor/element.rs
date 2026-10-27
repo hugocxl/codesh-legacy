@@ -93,7 +93,7 @@ pub(super) struct Layout {
     reason = "Visible row indices map to GPUI pixel coordinates."
 )]
 impl Layout {
-    pub fn position(&self, position: Point<Pixels>, scroll: Point<Pixels>) -> Position {
+    pub(super) fn position(&self, position: Point<Pixels>, scroll: Point<Pixels>) -> Position {
         let row = ((f32::from(position.y - self.bounds.top() + scroll.y)
             / f32::from(self.line_height))
         .floor()
@@ -105,7 +105,7 @@ impl Layout {
             .map_or(0, |line| line.column(x));
         Position { row, column }
     }
-    pub fn point(&self, p: Position, scroll: Point<Pixels>) -> Point<Pixels> {
+    pub(super) fn point(&self, p: Position, scroll: Point<Pixels>) -> Point<Pixels> {
         let x = self
             .lines
             .get(p.row.wrapping_sub(self.first))
@@ -168,7 +168,7 @@ impl Element for EditorElement {
         _: Option<&GlobalElementId>,
         _: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut (),
+        (): &mut (),
         window: &mut Window,
         cx: &mut App,
     ) -> Prepaint {
@@ -400,7 +400,7 @@ impl Element for EditorElement {
         _: Option<&GlobalElementId>,
         _: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut (),
+        (): &mut (),
         prepaint: &mut Prepaint,
         window: &mut Window,
         cx: &mut App,

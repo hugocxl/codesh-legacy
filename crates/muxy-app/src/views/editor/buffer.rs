@@ -44,7 +44,7 @@ pub(super) struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(text: &str) -> Self {
+    pub(super) fn new(text: &str) -> Self {
         let (lines, crlf) = split_lines(text);
         let newline = if crlf[0] { "\r\n" } else { "\n" };
         let indent = lines
@@ -73,30 +73,30 @@ impl Buffer {
         }
     }
 
-    pub fn text(&self) -> String {
+    pub(super) fn text(&self) -> String {
         self.slice(Position::default()..self.end())
     }
-    pub fn dirty(&self) -> bool {
+    pub(super) fn dirty(&self) -> bool {
         self.revision != self.saved
     }
-    pub fn mark_saved(&mut self) {
+    pub(super) fn mark_saved(&mut self) {
         self.saved = self.revision;
         self.break_typing();
     }
-    pub fn caret(&self) -> Position {
+    pub(super) fn caret(&self) -> Position {
         self.selection.caret
     }
-    pub fn anchor(&self) -> Position {
+    pub(super) fn anchor(&self) -> Position {
         self.selection.anchor
     }
-    pub fn end(&self) -> Position {
+    pub(super) fn end(&self) -> Position {
         let row = self.lines.len() - 1;
         Position {
             row,
             column: self.lines[row].len(),
         }
     }
-    pub fn clamp(&self, mut p: Position) -> Position {
+    pub(super) fn clamp(&self, mut p: Position) -> Position {
         p.row = p.row.min(self.lines.len() - 1);
         p.column = p.column.min(self.lines[p.row].len());
         while !self.lines[p.row].is_char_boundary(p.column) {
@@ -104,7 +104,7 @@ impl Buffer {
         }
         p
     }
-    pub fn select(&mut self, target: Position, extend: bool) {
+    pub(super) fn select(&mut self, target: Position, extend: bool) {
         let target = self.clamp(target);
         if !extend {
             self.selection.anchor = target;
@@ -112,10 +112,10 @@ impl Buffer {
         self.selection.caret = target;
         self.break_typing();
     }
-    pub fn range(&self) -> Range<Position> {
+    pub(super) fn range(&self) -> Range<Position> {
         self.anchor().min(self.caret())..self.anchor().max(self.caret())
     }
-    pub fn slice(&self, range: Range<Position>) -> String {
+    pub(super) fn slice(&self, range: Range<Position>) -> String {
         if range.start.row == range.end.row {
             return self.lines[range.start.row][range.start.column..range.end.column].to_owned();
         }
@@ -130,13 +130,13 @@ impl Buffer {
         }
         result
     }
-    pub fn selected(&self) -> String {
+    pub(super) fn selected(&self) -> String {
         self.slice(self.range())
     }
-    pub fn break_typing(&mut self) {
+    pub(super) fn break_typing(&mut self) {
         self.typing = None;
     }
-    pub fn after(at: Position, text: &str) -> Position {
+    pub(super) fn after(at: Position, text: &str) -> Position {
         let count = text.bytes().filter(|b| *b == b'\n').count();
         if count == 0 {
             Position {
@@ -162,7 +162,7 @@ impl Buffer {
         self.lines.splice(range.start.row..=range.end.row, lines);
         self.crlf.splice(range.start.row..=range.end.row, crlf);
     }
-    pub fn replace(&mut self, range: Range<Position>, text: &str, typing: bool) -> usize {
+    pub(super) fn replace(&mut self, range: Range<Position>, text: &str, typing: bool) -> usize {
         self.finish_composition();
         let text = text.to_owned();
         let removed = self.slice(range.clone());
@@ -208,10 +208,10 @@ impl Buffer {
         self.typing = typing.then(Instant::now);
         range.start.row
     }
-    pub fn insert(&mut self, text: &str, typing: bool) -> usize {
+    pub(super) fn insert(&mut self, text: &str, typing: bool) -> usize {
         self.replace(self.range(), text, typing)
     }
-    pub fn compose(&mut self, range: Range<Position>, text: &str) -> usize {
+    pub(super) fn compose(&mut self, range: Range<Position>, text: &str) -> usize {
         if self.composition.is_none() {
             self.composition = Some(Edit {
                 at: range.start,
@@ -239,7 +239,7 @@ impl Buffer {
         self.break_typing();
         range.start.row
     }
-    pub fn finish_composition(&mut self) {
+    pub(super) fn finish_composition(&mut self) {
         if let Some(edit) = self.composition.take() {
             if edit.removed == edit.inserted {
                 self.revision = edit.revision;
@@ -249,7 +249,7 @@ impl Buffer {
             }
         }
     }
-    pub fn undo(&mut self) -> Option<usize> {
+    pub(super) fn undo(&mut self) -> Option<usize> {
         self.finish_composition();
         let edit = self.undo.pop()?;
         self.replace_raw(edit.at..Self::after(edit.at, &edit.inserted), &edit.removed);
@@ -260,7 +260,7 @@ impl Buffer {
         self.break_typing();
         Some(row)
     }
-    pub fn redo(&mut self) -> Option<usize> {
+    pub(super) fn redo(&mut self) -> Option<usize> {
         let edit = self.redo.pop()?;
         self.replace_raw(edit.at..Self::after(edit.at, &edit.removed), &edit.inserted);
         self.selection = edit.after;
@@ -270,7 +270,7 @@ impl Buffer {
         self.break_typing();
         Some(row)
     }
-    pub fn previous(&self, p: Position) -> Position {
+    pub(super) fn previous(&self, p: Position) -> Position {
         if p.column > 0 {
             Position {
                 column: self.lines[p.row][..p.column]
@@ -288,7 +288,7 @@ impl Buffer {
             p
         }
     }
-    pub fn next(&self, p: Position) -> Position {
+    pub(super) fn next(&self, p: Position) -> Position {
         if p.column < self.lines[p.row].len() {
             Position {
                 column: p.column
@@ -310,7 +310,7 @@ impl Buffer {
     fn char_at(&self, p: Position) -> char {
         self.lines[p.row][p.column..].chars().next().unwrap_or('\n')
     }
-    pub fn word_left(&self, mut p: Position) -> Position {
+    pub(super) fn word_left(&self, mut p: Position) -> Position {
         while p != Position::default() && self.char_at(self.previous(p)).is_whitespace() {
             p = self.previous(p);
         }
@@ -320,7 +320,7 @@ impl Buffer {
         }
         p
     }
-    pub fn word_right(&self, mut p: Position) -> Position {
+    pub(super) fn word_right(&self, mut p: Position) -> Position {
         let class = word_class(self.char_at(p));
         while p != self.end() && word_class(self.char_at(p)) == class {
             p = self.next(p);
@@ -330,7 +330,7 @@ impl Buffer {
         }
         p
     }
-    pub fn word_range(&self, p: Position) -> Range<Position> {
+    pub(super) fn word_range(&self, p: Position) -> Range<Position> {
         let class = word_class(self.char_at(p));
         let mut start = p;
         let mut end = p;
@@ -342,7 +342,7 @@ impl Buffer {
         }
         start..end
     }
-    pub fn newline(&self) -> String {
+    pub(super) fn newline(&self) -> String {
         let p = self.range().start;
         let prefix = &self.lines[p.row][..p.column];
         let indent: String = prefix
@@ -356,14 +356,14 @@ impl Buffer {
         };
         format!("{}{indent}{extra}", self.newline)
     }
-    pub fn utf16(&self, p: Position) -> usize {
+    pub(super) fn utf16(&self, p: Position) -> usize {
         self.lines[..p.row]
             .iter()
             .map(|s| s.encode_utf16().count() + 1)
             .sum::<usize>()
             + self.lines[p.row][..p.column].encode_utf16().count()
     }
-    pub fn position_from_utf16(&self, mut offset: usize) -> Position {
+    pub(super) fn position_from_utf16(&self, mut offset: usize) -> Position {
         for (row, line) in self.lines.iter().enumerate() {
             for (column, ch) in line.char_indices() {
                 if offset < ch.len_utf16() {

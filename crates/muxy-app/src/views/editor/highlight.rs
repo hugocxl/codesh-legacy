@@ -51,7 +51,7 @@ fn color(value: Hsla) -> Color {
 }
 
 impl Highlights {
-    pub fn new(path: &str, theme: &Theme) -> Self {
+    pub(super) fn new(path: &str, theme: &Theme) -> Self {
         let set = syntaxes();
         let syntax = std::path::Path::new(path)
             .extension()
@@ -72,13 +72,13 @@ impl Highlights {
             count: 0,
         }
     }
-    pub fn set_theme(&mut self, theme: &Theme) {
+    pub(super) fn set_theme(&mut self, theme: &Theme) {
         self.theme = syntax_theme(theme);
         self.lines.clear();
         self.next = 0;
         self.through = 0;
     }
-    pub fn invalidate(&mut self, first: usize, through: usize, count: usize) {
+    pub(super) fn invalidate(&mut self, first: usize, through: usize, count: usize) {
         // Changed line counts shift parser checkpoints; retain only the valid prefix.
         if count != self.count {
             self.lines.truncate(first);
@@ -87,7 +87,7 @@ impl Highlights {
         self.next = self.next.min(first);
         self.through = self.through.max(through);
     }
-    pub fn prepare(&mut self, lines: &[String], end: usize, budget: usize) -> bool {
+    pub(super) fn prepare(&mut self, lines: &[String], end: usize, budget: usize) -> bool {
         let set = syntaxes();
         self.count = lines.len();
         let end = end.min(lines.len());
@@ -156,7 +156,7 @@ impl Highlights {
         }
         self.next < end
     }
-    pub fn tokens(&self, row: usize) -> Option<&[(usize, Hsla)]> {
+    pub(super) fn tokens(&self, row: usize) -> Option<&[(usize, Hsla)]> {
         self.lines
             .get(row)
             .filter(|_| row < self.next)
