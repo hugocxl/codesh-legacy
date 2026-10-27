@@ -10,6 +10,7 @@ authors.workspace = true
 publish.workspace = true
 
 [dependencies]
+syntect = { version = "5.3", default-features = false, features = ["default-syntaxes", "regex-fancy"] }
 zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "ico"] }
 muxy-core = { path = "../muxy-core" }
