@@ -7,7 +7,7 @@ appearance choices still apply, except the sidebar always stays opaque.
 
 ## Tokens and geometry
 
-`views/codesh/style.rs` owns 12px grid inset/gutter, 10px card radius, 1px border,
+`views/codesh/style.rs` owns 8px grid inset/gutter, 10px card radius, 1px border,
 36px header, 12px body padding and 16px sidebar padding. Headers use 13px semibold
 text, 16px glyphs and 8px control gaps. Cards blend 2.5% theme foreground over
 background (about `#161616`); borders blend 95% theme border over background
@@ -28,7 +28,7 @@ Only the shared edge is snapped, including for extents smaller than the gutter.
 Resize divides pointer delta by `max(E - 12, 1)`. The 10px grip is centred in the
 gutter, which shows a subtle 1px accent line on hover/drag. Both pane-drop
 walkers reuse `split_bounds()`; nested ratios remain owned by the layout model.
-The whole grid receives one 12px inset, inside auxiliary panel composition.
+The whole grid receives one 8px inset, inside auxiliary panel composition.
 
 ## Hooks
 

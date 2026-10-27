@@ -1,7 +1,7 @@
 use gpui::{Hsla, Rgba};
 use muxy_ui::theme::Theme;
 
-pub(crate) const GUTTER: f32 = 12.0;
+pub(crate) const GUTTER: f32 = 8.0;
 pub(crate) const RADIUS: f32 = 10.0;
 pub(crate) const HEADER: f32 = 36.0;
 // Upstream terminal padding is absorbed by the card body inset.
