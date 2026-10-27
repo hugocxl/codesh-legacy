@@ -1,11 +1,11 @@
 # Protocol
 
-How apps and the server talk. The exact messages live in `crates/muxy-protocol`.
+How apps and the server talk. The exact messages live in `crates/codesh-protocol`.
 
 ## Connection
 
 - The connection is a reliable byte stream: a Unix socket on the same computer,
-  SSH to `muxy stdio` on another computer, or TLS for
+  SSH to `codesh stdio` on another computer, or TLS for
   [paired phones](./mobile.md).
 - Traffic is split into channels. Channel 0 carries control messages, and each
   attached session gets its own channel for screen updates and input.
@@ -81,7 +81,7 @@ values neutrally.
 | Change a type or meaning, make a field required, or change screen rows or the header | Yes |
 
 Encoded samples of each version are kept in
-`crates/muxy-protocol/tests/fixtures/v<N>` and are only ever added to. CI
+`crates/codesh-protocol/tests/fixtures/v<N>` and are only ever added to. CI
 checks that the current build reads every sample and that the last release
 reads the current ones. Saved user data must never be lost when a format
 changes.

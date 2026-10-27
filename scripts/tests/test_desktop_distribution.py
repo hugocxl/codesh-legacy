@@ -66,7 +66,7 @@ class DesktopDistributionTests(unittest.TestCase):
             archive = self.home / f"{version}.tar.gz"
             with tarfile.open(archive, "w:gz") as output:
                 for path in directory.iterdir():
-                    output.add(path, arcname=f"muxy-desktop/{path.name}")
+                    output.add(path, arcname=f"codesh-desktop/{path.name}")
         return archive, INSTALL.digest(archive)
 
     def staged(self, version):
@@ -85,10 +85,10 @@ class DesktopDistributionTests(unittest.TestCase):
 
     def test_tar_rejects_traversal_links_duplicate_files_and_oversized_entries(self):
         for name, kind, size in (("../escaped", tarfile.REGTYPE, 1),
-                                 ("muxy-desktop/muxy", tarfile.SYMTYPE, 0),
-                                 ("muxy-desktop/muxy", tarfile.LNKTYPE, 0),
-                                 ("muxy-desktop/muxy", tarfile.FIFOTYPE, 0),
-                                 ("muxy-desktop/muxy", tarfile.REGTYPE, INSTALL.MAX_ARCHIVE + 1)):
+                                 ("codesh-desktop/codesh", tarfile.SYMTYPE, 0),
+                                 ("codesh-desktop/codesh", tarfile.LNKTYPE, 0),
+                                 ("codesh-desktop/codesh", tarfile.FIFOTYPE, 0),
+                                 ("codesh-desktop/codesh", tarfile.REGTYPE, INSTALL.MAX_ARCHIVE + 1)):
             with self.subTest(name=name, kind=kind, size=size):
                 archive = self.home / "bad.tar.gz"
                 with gzip.open(archive, "wb") as output:
@@ -101,7 +101,7 @@ class DesktopDistributionTests(unittest.TestCase):
         archive = self.home / "duplicates.tar.gz"
         with tarfile.open(archive, "w:gz") as output:
             for _ in range(2):
-                entry = tarfile.TarInfo("muxy-desktop/muxy")
+                entry = tarfile.TarInfo("codesh-desktop/codesh")
                 entry.size = 1
                 output.addfile(entry, io.BytesIO(b"x"))
         with tempfile.TemporaryDirectory() as temporary, self.assertRaises(ValueError):
@@ -121,7 +121,7 @@ class DesktopDistributionTests(unittest.TestCase):
         self.staged(self.old)
         candidate = self.staged(self.new)
         INSTALL.switch(self.root, self.old)
-        (candidate / "muxy-server").write_text("modified")
+        (candidate / "codesh-server").write_text("modified")
         with self.assertRaisesRegex(ValueError, "checksum"):
             INSTALL.activate(self.root, self.new, self.old, 12345)
         self.assertEqual(INSTALL.current_version(self.root), self.old)
@@ -136,7 +136,7 @@ class DesktopDistributionTests(unittest.TestCase):
         self.assertEqual(INSTALL.current_version(self.root), self.old)
         INSTALL.activate(self.root, self.new, self.old, 12345, spawn=lambda *args, **kwargs: None)
         self.assertEqual(INSTALL.current_version(self.root), self.new)
-        self.assertTrue((self.root / "versions" / self.old / "muxy-server").exists())
+        self.assertTrue((self.root / "versions" / self.old / "codesh-server").exists())
         with self.assertRaisesRegex(ValueError, "changed"):
             INSTALL.activate(self.root, self.new, self.old, 12345)
 
@@ -203,9 +203,9 @@ class DesktopDistributionTests(unittest.TestCase):
         INSTALL.switch(self.root, self.old)
         commands = self.home / ".local/bin"
         commands.mkdir(parents=True)
-        unrelated = commands / "muxy-beta"
+        unrelated = commands / "codesh-beta"
         unrelated.write_text("unrelated CLI")
-        profile = self.home / "data/muxy-beta"
+        profile = self.home / "data/codesh-beta"
         profile.mkdir(parents=True)
         (profile / "settings.toml").write_text("keep me")
         INSTALL.integrate(self.root, self.old)
@@ -214,15 +214,15 @@ class DesktopDistributionTests(unittest.TestCase):
             fcntl.flock(running, fcntl.LOCK_SH)
             with self.assertRaises(BlockingIOError):
                 INSTALL.uninstall(self.root)
-            self.assertTrue((commands / "muxy-server-beta").exists())
+            self.assertTrue((commands / "codesh-server-beta").exists())
         INSTALL.uninstall(self.root)
         self.assertFalse(self.root.exists())
-        self.assertFalse((commands / "muxy-server-beta").is_symlink())
+        self.assertFalse((commands / "codesh-server-beta").is_symlink())
         self.assertEqual(unrelated.read_text(), "unrelated CLI")
         self.assertEqual((profile / "settings.toml").read_text(), "keep me")
 
     def test_appimage_updates_its_launcher_without_overwriting_other_formats_or_channels(self):
-        store = self.home / "data/muxy-appimage"
+        store = self.home / "data/codesh-appimage"
         old, new = store / ("a" * 64), store / ("b" * 64)
         old.mkdir(parents=True)
         new.mkdir()
@@ -231,7 +231,7 @@ class DesktopDistributionTests(unittest.TestCase):
         self.assertEqual(entry.read_text(), old_contents)
         INSTALL.integrate_appimage(new, self.new)
         self.assertEqual(entry.read_text(), INSTALL.desktop_entry(new, self.new, appimage=True)[1])
-        self.assertIn(f'Exec="{new}/usr/bin/muxy-app" %F', entry.read_text())
+        self.assertIn(f'Exec="{new}/usr/bin/codesh-app" %F', entry.read_text())
         self.assertIn(f"Icon={new}/com.hugocorta.codesh-beta.png", entry.read_text())
         INSTALL.integrate_appimage(new, "2.2.0")
         stable, stable_contents = INSTALL.desktop_entry(new, "2.2.0", appimage=True)
@@ -275,7 +275,7 @@ class DesktopDistributionTests(unittest.TestCase):
             return json.dumps({"schema": 1, "version": version, "platforms": platforms}).encode()
         for selected, version, url in (
                 ("stable", "2.2.0", "https://github.com/hugocxl/codesh/releases/latest/download/update.json"),
-                ("beta", self.new, f"{INSTALL.RELEASES}/beta-2.x/update.json")):
+                ("beta", self.new, f"{INSTALL.RELEASES}/beta/update.json")):
             def fetch(actual_url, output, limit):
                 self.assertEqual(actual_url, url)
                 output.write(feed(version, {"linux-aarch64": {}}))
@@ -289,12 +289,12 @@ class DesktopDistributionTests(unittest.TestCase):
 
     def test_linux_metadata_is_complete_checksummed_and_keeps_macos_assets(self):
         for name in (f"Codesh-{self.new}-arm64.dmg", f"Codesh-{self.new}-x86_64.dmg",
-                     f"muxy-desktop-{self.new}-linux-arm64.tar.gz", f"muxy-desktop-{self.new}-linux-x86_64.tar.gz"):
+                     f"codesh-desktop-{self.new}-linux-arm64.tar.gz", f"codesh-desktop-{self.new}-linux-x86_64.tar.gz"):
             (self.home / name).write_bytes(b"release bytes")
         metadata = RELEASE.update_metadata(self.new, "hugocxl/codesh", self.home)
         self.assertEqual(set(metadata["platforms"]), {"macos-aarch64", "macos-x86_64", "linux-aarch64", "linux-x86_64"})
         self.assertEqual(metadata["platforms"]["linux-aarch64"]["sha256"], hashlib.sha256(b"release bytes").hexdigest())
-        (self.home / f"muxy-desktop-{self.new}-linux-x86_64.tar.gz").unlink()
+        (self.home / f"codesh-desktop-{self.new}-linux-x86_64.tar.gz").unlink()
         with self.assertRaises(FileNotFoundError):
             RELEASE.update_metadata(self.new, "hugocxl/codesh", self.home)
 

@@ -13,8 +13,8 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = "crates/muxy-protocol/tests/fixtures"
-VERSION = "crates/muxy-protocol/src/version.rs"
+FIXTURES = "crates/codesh-protocol/tests/fixtures"
+VERSION = "crates/codesh-protocol/src/version.rs"
 FIXTURE = re.compile(rf"^{FIXTURES}/v\d+/[^/]+\.bin$")
 
 
@@ -54,14 +54,13 @@ def append_only(base):
     raise SystemExit(
         "Protocol fixtures are what older builds send, so they are append-only within a "
         "protocol version. Changed: " + ", ".join(changed) + ". Keep them, or bump CURRENT "
-        "in crates/muxy-protocol/src/version.rs for a breaking change."
+        "in crates/codesh-protocol/src/version.rs for a breaking change."
     )
 
 
 def last_release(version):
     """The newest beta tag, if it speaks `version`; otherwise the version is unreleased."""
-    # 2.0.0-beta-N tags predate BETA_VERSION numbering.
-    tags = git("tag", "--list", "v2.0.0-beta-*", "v2.*-beta.*").split()
+    tags = git("tag", "--list", "v*-beta.*").split()
     if not tags:
         return None
     tag = max(tags, key=lambda tag: int(re.split(r"[-.]", tag)[-1]))
@@ -83,14 +82,14 @@ def read_by_last_release():
     git("worktree", "add", "--detach", str(checkout), tag)
     try:
         subprocess.run(
-            ["cargo", "test", "--locked", "-p", "muxy-protocol", "--test", "fixtures",
+            ["cargo", "test", "--locked", "-p", "codesh-protocol", "--test", "fixtures",
              "every_fixture_decodes", "--", "--exact"],
             cwd=checkout,
             check=True,
             env={
                 **os.environ,
                 "CARGO_TARGET_DIR": str(ROOT / "target"),
-                "MUXY_PROTOCOL_FIXTURES": str(ROOT / FIXTURES / f"v{version}"),
+                "CODESH_PROTOCOL_FIXTURES": str(ROOT / FIXTURES / f"v{version}"),
             },
         )
     finally:

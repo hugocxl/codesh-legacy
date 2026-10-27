@@ -11,14 +11,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BETA_PATTERN = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)-beta\.([1-9][0-9]*)")
 STABLE_PATTERN = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-# Each channel installs as its own app, separate from Muxy.
+# Each channel installs as its own app.
 APPS = {"beta": ("Codesh Beta", "com.hugocorta.codesh-beta"), "stable": ("Codesh", "com.hugocorta.codesh")}
 
 
 def build_metadata(root=ROOT):
     """The --build-info every executable of this checkout reports."""
-    build = (root / "crates/muxy-protocol/src/build.rs").read_text()
-    version = (root / "crates/muxy-protocol/src/version.rs").read_text()
+    build = (root / "crates/codesh-protocol/src/build.rs").read_text()
+    version = (root / "crates/codesh-protocol/src/version.rs").read_text()
     current = re.search(r"pub const CURRENT: Version = (V\d+);", version)[1]
     number = int(re.search(rf"pub const {current}: Version = Version\((\d+)\);", version)[1])
     return {
@@ -132,7 +132,7 @@ def bundle_info(version, build):
         "CFBundleDevelopmentRegion": "en",
         "CFBundleDisplayName": name,
         "CFBundleName": name,
-        "CFBundleExecutable": "muxy-app",
+        "CFBundleExecutable": "codesh-app",
         "CFBundleIdentifier": identifier,
         "CFBundleIconFile": "AppIcon",
         "CFBundleInfoDictionaryVersion": "6.0",
@@ -140,7 +140,7 @@ def bundle_info(version, build):
         "CFBundleShortVersionString": version.split("-")[0],
         "CFBundleVersion": build,
         "CFBundleGetInfoString": f"{name} {version}",
-        "MuxyVersion": version,
+        "CodeshVersion": version,
         "LSMinimumSystemVersion": "14.0",
         "LSApplicationCategoryType": "public.app-category.developer-tools",
         "NSHighResolutionCapable": True,
@@ -170,7 +170,7 @@ def update_metadata(version, repository, directory):
             "size": size,
         }
     for platform, arch in (("linux-aarch64", "arm64"), ("linux-x86_64", "x86_64")):
-        filename = f"muxy-desktop-{version}-linux-{arch}.tar.gz"
+        filename = f"codesh-desktop-{version}-linux-{arch}.tar.gz"
         path = directory / filename
         size = path.stat().st_size
         if not 0 < size <= 2 * 1024**3 or path.is_symlink():

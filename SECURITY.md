@@ -1,18 +1,21 @@
 # Security Policy
 
-## Supported Versions
+Codesh is developed and maintained by Hugo Corta.
+
+## Supported versions
 
 | Version | Supported |
 | ------- | --------- |
-| Latest  | Yes       |
+| Latest release | Yes |
+| Older releases | No |
 
-## Reporting a Vulnerability
-
-If you discover a security vulnerability in Muxy, please report it responsibly.
+## Reporting a vulnerability
 
 **Do not open a public issue for security vulnerabilities.**
 
-Instead, please use [GitHub's private vulnerability reporting](https://github.com/muxy-app/muxy/security/advisories/new) to submit your report.
+Report them privately through GitHub's
+[private vulnerability reporting](https://github.com/hugocxl/codesh/security/advisories/new),
+from the repository's [Security](https://github.com/hugocxl/codesh/security) tab.
 
 ### What to include
 
@@ -23,10 +26,13 @@ Instead, please use [GitHub's private vulnerability reporting](https://github.co
 
 ### What to expect
 
-- Acknowledgment within 48 hours
-- A plan for a fix within 7 days for confirmed issues
-- Credit in the release notes (unless you prefer to remain anonymous)
+- An acknowledgment on the advisory as soon as possible
+- Updates on the advisory while a fix is prepared
+- Credit in the release notes and advisory, unless you prefer to remain anonymous
 
 ## Scope
 
-This policy applies to the Muxy application and its build tooling. For vulnerabilities in [libghostty](https://github.com/ghostty-org/ghostty), please report them to the Ghostty project directly.
+This policy covers the Codesh desktop app, `codesh` CLI, `codesh-server`, and
+their build and release tooling in this repository. Report vulnerabilities in
+[libghostty](https://github.com/ghostty-org/ghostty) or other dependencies to
+those projects directly.

@@ -1,45 +1,45 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/muxy-core",
-    "crates/muxy-protocol",
-    "crates/muxy-terminal",
-    "crates/muxy-server",
-    "crates/muxy-cli",
-    "crates/muxy-app-core",
-    "crates/muxy-client",
-    "crates/muxy-app",
-    "crates/muxy-ui",
-    "crates/muxy-mobile",
+    "crates/codesh-core",
+    "crates/codesh-protocol",
+    "crates/codesh-terminal",
+    "crates/codesh-server",
+    "crates/codesh-cli",
+    "crates/codesh-app-core",
+    "crates/codesh-client",
+    "crates/codesh-app",
+    "crates/codesh-ui",
+    "crates/codesh-mobile",
 ]
 
 # Current boundary policy, not a permanent crate list. Structural changes update
 # this table and the affected crate-level documentation together.
 [workspace.metadata.architecture.allowed-dependencies]
-muxy-core = []
-muxy-protocol = []
-muxy-terminal = ["muxy-protocol"]
-muxy-server = ["muxy-core", "muxy-protocol", "muxy-terminal"]
-muxy-app-core = ["muxy-core", "muxy-protocol"]
-muxy-client = ["muxy-core", "muxy-protocol"]
-muxy-cli = ["muxy-core", "muxy-protocol", "muxy-client", "muxy-app-core"]
-muxy-app = ["muxy-core", "muxy-app-core", "muxy-client", "muxy-protocol", "muxy-ui"]
-muxy-ui = ["muxy-core"]
-muxy-mobile = ["muxy-client", "muxy-protocol"]
+codesh-core = []
+codesh-protocol = []
+codesh-terminal = ["codesh-protocol"]
+codesh-server = ["codesh-core", "codesh-protocol", "codesh-terminal"]
+codesh-app-core = ["codesh-core", "codesh-protocol"]
+codesh-client = ["codesh-core", "codesh-protocol"]
+codesh-cli = ["codesh-core", "codesh-protocol", "codesh-client", "codesh-app-core"]
+codesh-app = ["codesh-core", "codesh-app-core", "codesh-client", "codesh-protocol", "codesh-ui"]
+codesh-ui = ["codesh-core"]
+codesh-mobile = ["codesh-client", "codesh-protocol"]
 
 [workspace.metadata.architecture.allowed-dev-dependencies]
-muxy-app = ["muxy-server", "muxy-terminal"]
-muxy-client = ["muxy-server"]
-muxy-cli = ["muxy-terminal"]
-muxy-mobile = ["muxy-server"]
+codesh-app = ["codesh-server", "codesh-terminal"]
+codesh-client = ["codesh-server"]
+codesh-cli = ["codesh-terminal"]
+codesh-mobile = ["codesh-server"]
 
 [workspace.package]
-version = "2.0.0-beta-0"
+version = "0.1.0-beta-0"
 edition = "2024"
 rust-version = "1.92"
 license = "MIT"
-repository = "https://github.com/muxy-app/muxy"
-authors = ["Saeed Vaziry"]
+repository = "https://github.com/hugocxl/codesh"
+authors = ["Hugo Corta"]
 publish = false
 
 [workspace.dependencies]

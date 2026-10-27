@@ -1,16 +1,17 @@
 # Browser
 
-The desktop app has a built-in browser. A browser is a pane like a terminal,
-so it opens in a tab or a split, and its page keeps running while hidden.
+The desktop app has a built-in browser. A browser is a pane like a terminal: it
+opens as a split in the project's workspace, and its page keeps running while
+hidden.
 
 ## Open a page
 
-- **File → New Browser Tab** (`Cmd+Opt+B` on macOS, `Ctrl+Alt+B` on Linux), the globe button in the tab
-  strip, or the command palette.
-- `muxy browser open <url>` from a terminal. See [Muxy CLI](muxy-cli.md#browser-control).
+- **File → New Browser Tab** (`Cmd+Opt+B` on macOS, `Ctrl+Alt+B` on Linux),
+  **New Browser** at the bottom of the sidebar, or the command palette.
+- `codesh browser open <url>` from a terminal. See [Codesh CLI](codesh-cli.md#browser-control).
 - Command-click a link in a terminal, when **Settings → Browser → Open terminal
   links in the browser** is on.
-- A page that opens a new window gets a new tab instead.
+- A page that opens a new window gets a new browser pane instead.
 
 Type an address or a search in the address bar. Matching history shows below
 it. Links to other apps, such as `mailto:`, open in those apps.
@@ -27,25 +28,25 @@ it. Links to other apps, such as `mailto:`, open in those apps.
 | Copy the page's address | `Cmd+Shift+C` | `Ctrl+Shift+C` |
 | Web Inspector | `Cmd+Opt+I` | `Ctrl+Shift+I` |
 
-The toolbar also opens the page in another browser and switches the tab's
+The toolbar also opens the page in another browser and switches the pane's
 profile.
 
 ## Profiles
 
-Each profile keeps its own cookies, site data, history, and logins. New tabs use
+Each profile keeps its own cookies, site data, history, and logins. New panes use
 the default profile. Manage profiles in **Settings → Browser**, where you can
 also import history, bookmarks, and cookies from another browser on this
 computer.
 
 ## Saved and not saved
 
-A browser tab remembers its address and profile across restarts. Its title,
+A browser pane remembers its address and profile across restarts. Its title,
 zoom, and back/forward history start fresh.
 
 ## Turning it off
 
 Turn off **Settings → Browser → Enable built-in browser** to disable browser
-tabs and `muxy browser`. Terminal links then open in your system browser.
+panes and `codesh browser`. Terminal links then open in your system browser.
 
 ## Linux
 

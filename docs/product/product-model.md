@@ -1,6 +1,6 @@
 # Product model
 
-The things Muxy is made of, and who owns them.
+The things Codesh is made of, and who owns them.
 
 ## The pieces
 
@@ -15,12 +15,12 @@ flowchart TB
     end
     subgraph APP["Each app · private"]
         WORKSPACE["Workspace"]
-        TAB["Tab"]
+        LAYOUT["Split layout"]
         PANE["Pane"]
-        TAB -->|"split into"| PANE
+        LAYOUT -->|"split into"| PANE
     end
     WORKSPACE -.->|"groups"| PROJECT
-    TAB -.->|"belongs to"| PROJECT
+    LAYOUT -.->|"belongs to"| PROJECT
     PANE -.->|"shows"| SESSION
 ```
 
@@ -31,14 +31,13 @@ flowchart TB
 | Home | The built-in project for your home folder. |
 | Worktree project | A Git worktree, shown under the project it came from. |
 | Workspace | A group of projects in one app, used to filter the sidebar. |
-| Tab | Belongs to one project and holds one or more panes. |
-| Pane | One view in a tab: a terminal, browser, editor, diff, or built-in settings view. |
+| Split layout | A project's panes in the desktop app: zero or one per project. The terminal UI allows several tabs per project. |
+| Pane | One view in the layout: a terminal, browser, editor, diff, or the Remote Servers view. |
 | Session | A running terminal. Belongs to exactly one project. |
-| Paired device | A phone allowed to connect to the server. |
+| Paired device | A phone client allowed to connect to the server. |
 
 **Shared or private.** Project names, icons, colors, and deletions reach every
-app. Tabs, layouts, workspaces, and project order stay in the app that made
-them.
+app. Layouts, workspaces, and project order stay in the app that made them.
 
 ## Projects
 
@@ -68,20 +67,20 @@ once a remote server has connected, that lists each remote server's Home.
 
 A worktree project is a child of a normal project, pointing to a Git worktree's
 folder. You can create one from a branch or add a worktree that already exists.
-It takes the branch name and its parent's color, and has its own tabs.
+It takes the branch name and its parent's color, and has its own panes.
 Worktrees can't have children of their own.
 
-Worktrees made outside Muxy show up automatically. A new project shows
+Worktrees made outside Codesh show up automatically. A new project shows
 worktrees only if its repository already has some; turn them on or off from
 the project menu.
 
-After a worktree is deleted outside Muxy, its entry is removed automatically
-if it has no tabs in this app and no terminal history.
+After a worktree is deleted outside Codesh, its entry is removed automatically
+if it has no panes in this app and no terminal history.
 
 ```mermaid
 flowchart LR
-    PARENT["muxy<br/>~/code/muxy"] --> FEATURE["feature-x<br/>~/code/muxy-feature-x"]
-    PARENT --> FIX["fix-login<br/>~/code/muxy-fix-login"]
+    PARENT["codesh<br/>~/code/codesh"] --> FEATURE["feature-x<br/>~/code/codesh-feature-x"]
+    PARENT --> FIX["fix-login<br/>~/code/codesh-fix-login"]
 ```
 
 ## Deleting
@@ -95,16 +94,14 @@ Deleting always asks first and explains what will end.
 | A project with worktrees | Its worktree projects are deleted too. Their folders stay on disk. |
 | Home | Not allowed. |
 
-## Tabs and panes
+## Panes
 
-- A project can have any number of tabs, including none.
-- A tab splits into panes, side by side or stacked, as deep as you like.
-  Closing its last pane closes the tab.
-- Drag a tab to an edge of the content to show it beside the others in a new
-  group. Each group has its own tab strip.
-- Closing a group's last tab removes the group.
-- Tabs can have a custom title and color, and can be pinned. Pinned tabs stay
-  first and can't be closed until unpinned.
+- In the desktop app, a project has one split layout, or none when every pane
+  is closed. See [Single tab per project](../codesh/single-tab.md).
+- The layout splits into panes, side by side or stacked, as deep as you like.
+  New panes open to the right of the focused one and splits stay equal-sized.
+- Each pane is a card with a header for its title and actions.
+- The terminal UI keeps its own tabs and splits per project.
 - A terminal's title is the one its program sets, otherwise the running
   program's name, otherwise its folder.
 - New terminals open in the project's folder, or optionally in the folder of
@@ -115,11 +112,11 @@ Deleting always asks first and explains what will end.
 
 ## Project layouts
 
-Named layouts live in `.muxy/layouts/` inside a project or worktree. Use YAML,
+Named layouts live in `.codesh/layouts/` inside a project or worktree. Use YAML,
 YML, or JSON files; the filename is the layout's name. Choose **Apply Layout…**
-from the project menu or the layout button in the top bar. Layouts are never
-applied automatically. Confirmation replaces that project's tabs in this app;
-terminals still shown by another app keep running.
+from the project menu. Layouts are never applied automatically. Confirmation
+replaces that project's panes in this app; terminals still shown by another app
+keep running.
 
 ```yaml
 layout: horizontal
@@ -136,5 +133,5 @@ panes:
 
 `horizontal` means side by side; `vertical` means stacked. Splits can be nested.
 A leaf's `tab` is a command string or an object with optional `name` and `command`.
-Commands run in the project folder; a command list is joined with `&&`. Legacy
-`tabs` lists keep their extra entries as separate top-level tabs.
+Commands run in the project folder; a command list is joined with `&&`. In a
+`tabs` list, extra entries are added as splits on the right.

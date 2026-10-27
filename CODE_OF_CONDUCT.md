@@ -2,7 +2,8 @@
 
 ## Our Pledge
 
-We as members, contributors, and leaders pledge to make participation in our
+Codesh is developed and maintained by Hugo Corta. We as members, contributors,
+and maintainers pledge to make participation in our
 community a positive experience for everyone, regardless of background or
 identity.
 
@@ -25,7 +26,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement Responsibilities
 
-Community leaders are responsible for clarifying and enforcing our standards of
+The maintainer is responsible for clarifying and enforcing our standards of
 acceptable behavior and will take appropriate and fair corrective action in
 response to any behavior that they deem inappropriate or harmful.
 
@@ -36,9 +37,11 @@ an individual is officially representing the community in public spaces.
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainers at
-**me@saeedvaziry.com**. All complaints will be reviewed and investigated
-promptly and fairly.
+Report unacceptable behavior to the maintainer by opening an issue at
+<https://github.com/hugocxl/codesh/issues>, or use GitHub's
+[reporting tools](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+for content you would rather not discuss publicly. All complaints will be
+reviewed and investigated promptly and fairly.
 
 ## Attribution
 

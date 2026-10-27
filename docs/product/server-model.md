@@ -1,6 +1,6 @@
 # Server model
 
-`muxy-server` runs the terminals for every app. It runs on its own, apart from
+`codesh-server` runs the terminals for every app. It runs on its own, apart from
 the apps.
 
 ## Lifetime
@@ -34,7 +34,7 @@ flowchart LR
 - The first app to attach is the session's owner. When it leaves, the next one
   takes over. Ownership only labels the session in Existing Terminals; it grants
   nothing extra.
-- Panes you can't see, such as those in background tabs, still count as showing
+- Panes you can't see, such as those in other projects, still count as showing
   their session. They stop getting screen updates until shown again.
 
 ## Closing a pane
@@ -64,7 +64,7 @@ flowchart TD
   watching, so it is still there after the program ends or the server restarts.
   A crash may lose the last moments of output.
 - Ended sessions and their saved output are automatically removed after 7 days.
-  `muxy session list` shows live sessions; use `--all` to include saved ones.
+  `codesh session list` shows live sessions; use `--all` to include saved ones.
 
 ## Git and files
 
@@ -85,8 +85,8 @@ repository and files.
 ```mermaid
 sequenceDiagram
     actor You
-    participant Computer as Desktop app or muxy mobile
-    participant Server as muxy-server
+    participant Computer as Desktop app or codesh mobile
+    participant Server as codesh-server
     participant Phone
     You->>Computer: Turn on mobile access and show a code
     Computer->>Server: Start pairing
@@ -103,4 +103,4 @@ sequenceDiagram
   outside a terminal (`exec`).
 - Revoking a phone, or turning mobile access off, disconnects it at once.
 - A phone can pair with a server on another computer too, with
-  `muxy --host <computer> mobile pair`.
+  `codesh --host <computer> mobile pair`.

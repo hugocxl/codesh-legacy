@@ -1,12 +1,12 @@
 # Terminal UI
 
-Run `muxy` with no arguments to open Muxy inside any terminal. It shows the
+Run `codesh` with no arguments to open Codesh inside any terminal. It shows the
 same projects and terminals as the desktop app, with its own tabs and splits.
 It works on macOS and Linux, locally or over SSH.
 
 ```bash
-muxy                   # this computer's server
-muxy --host devbox     # the server on another computer, over SSH
+codesh                   # this computer's server
+codesh --host devbox     # the server on another computer, over SSH
 ```
 
 ## Keys
@@ -39,7 +39,7 @@ help.
 ## Behavior
 
 - The first run opens one shell in Home. After that, it restores your layout.
-- Several `muxy` windows share one layout, and changes in one show in the
+- Several `codesh` windows share one layout, and changes in one show in the
   others.
 - Quitting or detaching never ends a terminal. Closing a pane ends its terminal
   unless another app still shows it, and asks first if a program is running.

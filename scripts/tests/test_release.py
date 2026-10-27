@@ -24,8 +24,8 @@ class BetaVersionTests(unittest.TestCase):
             root = Path(temp)
             git_output = {("rev-parse", "--is-shallow-repository"): "false", ("rev-list", "--count", "HEAD"): "1234"}
             with patch.object(release, "git", side_effect=lambda _, *args: git_output[args]):
-                (root / "BETA_VERSION").write_text("2.1.0\n")
-                self.assertEqual(release.checkout_version(root), "2.1.0-beta.1234")
+                (root / "BETA_VERSION").write_text("0.1.0\n")
+                self.assertEqual(release.checkout_version(root), "0.1.0-beta.1234")
                 for invalid in ("", "2.1", "v2.1.0", "2.1.0-beta"):
                     (root / "BETA_VERSION").write_text(invalid)
                     with self.subTest(base=invalid), self.assertRaises(ValueError):
@@ -126,7 +126,7 @@ class StampTests(unittest.TestCase):
         for name, original in before.items():
             self.assertEqual(
                 (self.root / name).read_text(),
-                original.replace('version = "2.0.0-beta-0"', 'version = "2.0.0-beta.1234"'),
+                original.replace('version = "0.1.0-beta-0"', 'version = "2.0.0-beta.1234"'),
             )
 
 

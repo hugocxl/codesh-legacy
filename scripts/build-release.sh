@@ -48,8 +48,8 @@ export MACOSX_DEPLOYMENT_TARGET=14.0
 export LIBGHOSTTY_VT_SYS_OPTIMIZE=ReleaseFast
 export CARGO_TARGET_DIR="$ROOT/target"
 export CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO=packed
-MUXY_ZIG="$(command -v zig)"
-export MUXY_ZIG
+CODESH_ZIG="$(command -v zig)"
+export CODESH_ZIG
 export PATH="$ROOT/scripts/zig:$PATH"
 OUTPUT_DIR="$CARGO_TARGET_DIR/packages/$VERSION/$ARCH"
 if [[ -e "$OUTPUT_DIR" ]]; then
@@ -60,7 +60,7 @@ fi
 cd "$ROOT"
 echo "==> Building app, CLI and server for $TARGET"
 cargo clean -p libghostty-vt-sys
-cargo build --locked --release --target "$TARGET" -p muxy-app -p muxy-cli -p muxy-server
+cargo build --locked --release --target "$TARGET" -p codesh-app -p codesh-cli -p codesh-server
 BIN_DIR="$CARGO_TARGET_DIR/$TARGET/release"
 
 mkdir -p "$(dirname "$OUTPUT_DIR")"
@@ -69,7 +69,7 @@ trap 'rm -rf "$STAGING"' EXIT
 APP="$STAGING/dmg/$APP_NAME.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$STAGING/symbols" "$STAGING/artifacts"
 
-for BINARY in muxy-app muxy muxy-server; do
+for BINARY in codesh-app codesh codesh-server; do
     install -m 755 "$BIN_DIR/$BINARY" "$APP/Contents/MacOS/$BINARY"
     EXECUTABLE="$APP/Contents/MacOS/$BINARY"
     if [[ "$(lipo -archs "$EXECUTABLE")" != "$ARCH" ]]; then
@@ -91,8 +91,8 @@ done
 python3 "$ROOT/scripts/release.py" plist "$VERSION" "$APP/Contents/Info.plist" ${BUILD_NUMBER:+--build "$BUILD_NUMBER"}
 plutil -lint "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
-cat "$ROOT/LICENSE" "$ROOT/crates/muxy-server/src/detection/THIRD_PARTY.md" \
-    "$ROOT/crates/muxy-server/src/detection/LICENSE-herdr" > "$APP/Contents/Resources/LICENSE"
+cat "$ROOT/LICENSE" "$ROOT/crates/codesh-server/src/detection/THIRD_PARTY.md" \
+    "$ROOT/crates/codesh-server/src/detection/LICENSE-herdr" > "$APP/Contents/Resources/LICENSE"
 
 ICONSET="$STAGING/AppIcon.iconset"
 mkdir -p "$ICONSET"
@@ -112,24 +112,24 @@ else
     SIGN_ARGS+=(--options runtime --timestamp)
 fi
 # Sign every executable before sealing the bundle.
-for BINARY in muxy muxy-server muxy-app; do
-    if [[ "$BINARY" == muxy-app ]]; then
-        codesign "${SIGN_ARGS[@]}" --entitlements "$ROOT/packaging/macos/Muxy.entitlements" "$APP/Contents/MacOS/$BINARY"
+for BINARY in codesh codesh-server codesh-app; do
+    if [[ "$BINARY" == codesh-app ]]; then
+        codesign "${SIGN_ARGS[@]}" --entitlements "$ROOT/packaging/macos/Codesh.entitlements" "$APP/Contents/MacOS/$BINARY"
     else
         codesign "${SIGN_ARGS[@]}" "$APP/Contents/MacOS/$BINARY"
     fi
 done
-codesign "${SIGN_ARGS[@]}" --entitlements "$ROOT/packaging/macos/Muxy.entitlements" "$APP"
+codesign "${SIGN_ARGS[@]}" --entitlements "$ROOT/packaging/macos/Codesh.entitlements" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
-for BINARY in muxy muxy-server; do
+for BINARY in codesh codesh-server; do
     python3 "$ROOT/scripts/release.py" check-build "$VERSION" "$APP/Contents/MacOS/$BINARY"
 done
 
 # Copy the sealed executables without stripping or signing them again.
 mkdir "$STAGING/cli"
-cp "$APP/Contents/MacOS/muxy" "$APP/Contents/MacOS/muxy-server" "$APP/Contents/Resources/LICENSE" "$STAGING/cli/"
-CLI_ARCHIVE="$STAGING/artifacts/muxy-${VERSION}-macos-${ARCH}.zip"
-(cd "$STAGING/cli" && zip -X "$CLI_ARCHIVE" muxy muxy-server LICENSE)
+cp "$APP/Contents/MacOS/codesh" "$APP/Contents/MacOS/codesh-server" "$APP/Contents/Resources/LICENSE" "$STAGING/cli/"
+CLI_ARCHIVE="$STAGING/artifacts/codesh-${VERSION}-macos-${ARCH}.zip"
+(cd "$STAGING/cli" && zip -X "$CLI_ARCHIVE" codesh codesh-server LICENSE)
 
 ln -s /Applications "$STAGING/dmg/Applications"
 DMG="$STAGING/artifacts/Codesh-${VERSION}-${ARCH}.dmg"

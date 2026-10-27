@@ -1,8 +1,8 @@
 # Layout Schema
 
 A layout is a tree. Each leaf is one terminal (`tab`). Each branch splits its
-`panes` side by side or stacked. The whole tree opens as one tab, titled after
-its first terminal.
+`panes` side by side or stacked. The whole tree becomes the project's split
+layout.
 
 ## A single terminal
 
@@ -53,10 +53,10 @@ tab:
     - npm run dev
 ```
 
-## Legacy `tabs`
+## `tabs` lists
 
-Older layouts with a `tabs` list still load. The first entry fills the leaf;
-the others open as separate tabs. Use `tab` in new layouts.
+A `tabs` list also loads. The first entry fills the leaf; the others are added
+as splits to the right. Use `tab` in new layouts.
 
 ```yaml
 tabs:

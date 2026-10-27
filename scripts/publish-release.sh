@@ -47,20 +47,20 @@ check_source() {
 check_source
 
 cd "$ARTIFACTS"
-ASSETS=(install-muxy.sh install-desktop-linux.py muxy-desktop.apparmor)
+ASSETS=(install-codesh.sh install-desktop-linux.py codesh-desktop.apparmor)
 for ARCH in arm64 x86_64; do
-    ASSETS+=("muxy-${VERSION}-linux-${ARCH}.tar.gz")
-    ASSETS+=("muxy-desktop-${VERSION}-linux-${ARCH}.tar.gz" "Muxy-${VERSION}-linux-${ARCH}.AppImage")
+    ASSETS+=("codesh-${VERSION}-linux-${ARCH}.tar.gz")
+    ASSETS+=("codesh-desktop-${VERSION}-linux-${ARCH}.tar.gz" "Codesh-${VERSION}-linux-${ARCH}.AppImage")
     DEB_ARCH="$ARCH"
     [[ "$ARCH" != x86_64 ]] || DEB_ARCH=amd64
-    DEB_PACKAGE=muxy-desktop
-    [[ "$CHANNEL" != beta ]] || DEB_PACKAGE=muxy-desktop-beta
+    DEB_PACKAGE=codesh-desktop
+    [[ "$CHANNEL" != beta ]] || DEB_PACKAGE=codesh-desktop-beta
     ASSETS+=("${DEB_PACKAGE}_${VERSION}_${DEB_ARCH}.deb")
     # A beta may skip Intel; a stable release supports both Mac architectures.
-    if [[ "$CHANNEL" == beta && "$ARCH" == x86_64 && ! -e "Codesh-${VERSION}-${ARCH}.dmg" && ! -e "muxy-${VERSION}-macos-${ARCH}.zip" ]]; then
+    if [[ "$CHANNEL" == beta && "$ARCH" == x86_64 && ! -e "Codesh-${VERSION}-${ARCH}.dmg" && ! -e "codesh-${VERSION}-macos-${ARCH}.zip" ]]; then
         continue
     fi
-    ASSETS+=("Codesh-${VERSION}-${ARCH}.dmg" "muxy-${VERSION}-macos-${ARCH}.zip")
+    ASSETS+=("Codesh-${VERSION}-${ARCH}.dmg" "codesh-${VERSION}-macos-${ARCH}.zip")
 done
 for ASSET in "${ASSETS[@]}"; do
     if [[ ! -f "$ASSET" || ! -s "$ASSET" || -L "$ASSET" ]]; then
@@ -89,7 +89,7 @@ if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
         exit 0
     fi
 else
-    # RELEASE_NOTES, when given, replaces the generated notes. Otherwise, like Muxy 1.x: GitHub's
+    # RELEASE_NOTES, when given, replaces the generated notes. Otherwise use GitHub's
     # generated changes, cleaned. A beta lists the changes since the previous beta; a stable
     # release lets GitHub choose the previous release.
     NOTES_ARGS=(-f "tag_name=$TAG" -f "target_commitish=$SOURCE")
@@ -98,9 +98,6 @@ else
         PREVIOUS="$(git -C "$ROOT" describe --tags --match "v${VERSION%%.*}.*-beta*" --abbrev=0 "$SOURCE^" 2>/dev/null || true)"
         if [[ -n "$PREVIOUS" ]]; then
             NOTES_ARGS+=(-f "previous_tag_name=$PREVIOUS")
-        fi
-        if [[ "$PREVIOUS" == v2.0.0-beta-* ]]; then
-            printf '%s\n\n' "Betas numbered \`2.0.0-beta-N\` can't update to this numbering on their own: install this release over them once, and later betas update automatically." > release-notes.md
         fi
     fi
     if [[ "${RELEASE_NOTES:-}" =~ [^[:space:]] ]]; then

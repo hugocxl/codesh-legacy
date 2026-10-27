@@ -1,60 +1,62 @@
-# Privacy Policy
+# Privacy
 
-_Effective date: the date this document was first published at its public URL._
-_Last updated: October 10, 2026._
+Codesh is a desktop app and command-line tool, developed and maintained by Hugo
+Corta. It has no account, no sign-up, and no Codesh-operated service. It
+includes no analytics, crash reporting, advertising, or tracking code.
 
-Muxy ("the app") is a developer tool that lets your iPhone or iPad connect to Muxy running on your own computer, such as a Mac or a Linux server. It connects over your local network, a private VPN, an address you add to the pairing code, or SSH. This policy describes what data the app handles and what it does not.
+## Data on your computer
 
-## Summary
+Codesh keeps its data in its profile folder:
 
-- No account, no sign-up, no email required.
-- No analytics, advertising, or third-party tracking SDKs.
-- The app communicates only with the computers you pair with or connect to over SSH.
-- All data stays on your devices.
+| Platform | Stable | Beta |
+| --- | --- | --- |
+| macOS | `~/Library/Application Support/Codesh` | `~/Library/Application Support/Codesh Beta` |
+| Linux | `$XDG_STATE_HOME/codesh` (`~/.local/state/codesh`) | `$XDG_STATE_HOME/codesh-beta` |
 
-## What the app stores on your device
+`CODESH_DIR` overrides the location. The folder holds settings, the project
+list, terminal session history and scrollback, logs, browser profiles and
+history, remote server definitions, and mobile pairing records. Nothing in it
+is uploaded anywhere. See [Server files](docs/features/server.md#files).
 
-The app stores the following locally on your iOS device. None of it is transmitted to Muxy or any third party.
+Diagnostic logs (`server.log`, and `app-diagnostics-<pid>.log` when you start
+the app with `CODESH_DIAGNOSTICS=1`) stay in the profile folder.
 
-- **Pairing credentials.** When you pair with a computer, it gives the app a credential: the computer's name, its addresses and port, the fingerprint of its security certificate, an ID for your device, and an access token. The credential is stored in the iOS Keychain (this device only) and is used to sign in to that computer. The computer keeps only a hash of the token.
-- **SSH connections.** If you connect over SSH, the connection details and credentials you choose to save are stored only on your device.
-- **Preferences.** Display settings such as the terminal font size.
-- **Diagnostic log (in memory only).** While the app is running, it keeps a short rolling log of connection events (timestamps, the address and port you are connecting to, and request identifiers) to help you troubleshoot connection problems. This log is held in memory, is cleared when the app exits, and is never sent anywhere. If a connection error occurs, the app shows the log so you can copy or share it yourself if you choose to.
+## Network connections
 
-You can remove a saved computer at any time. Uninstalling the app removes its data, but iOS can keep Keychain items after an app is deleted. To end a paired phone's access for certain, revoke it on the computer, in **Settings → Mobile** or with `muxy mobile revoke <id>`. Revoking does not end SSH access; that is controlled by the computer's SSH settings.
+Codesh itself connects to the network only for:
 
-## What the app sends over the network
+- **Update checks.** Released desktop builds check
+  `github.com/hugocxl/codesh` releases for an `update.json` feed at launch and
+  about once an hour, and download updates from there. **Check for Updates**
+  checks immediately. These are ordinary HTTPS requests to GitHub; Codesh sends
+  no identifier beyond a `Codesh/<version>` User-Agent.
+- **Remote servers you add.** Codesh connects over SSH to the machines you
+  configure, using your SSH keys, agent, or a password kept only in memory. When
+  you choose to install Codesh on such a machine, that machine downloads the
+  installer from `github.com/hugocxl/codesh` releases.
+- **The built-in browser.** Browser panes load the pages and search engine you
+  choose, along with site icons for those pages. Each browser profile keeps its
+  own cookies, site data and history locally.
+- **Mobile access, if you turn it on.** `codesh-server` then listens for paired
+  devices on your network (port `7419` by default). It is off by default.
+- **A proxy, if you set one up.** Traffic you route through it goes to the proxy
+  you configure.
 
-The app connects directly to the computer you choose, in one of two ways:
+## Tools Codesh runs for you
 
-- **Paired.** An encrypted TLS connection to the address and port from the pairing code. The app trusts only the certificate named in that code. When pairing, it sends the device name you choose, which the computer shows in its list of paired devices.
-- **SSH.** An SSH connection to the computer, using the login details you provide.
+Some features run programs you already have, which make their own network
+connections under their own policies:
 
-The app sends only what is needed to sign in, show terminal output, send your input, and perform the project, file, and version-control actions you start (such as staging, committing, pushing, pulling, switching branches, managing worktrees, or opening pull requests).
+- Git and the GitHub CLI (`gh`) for fetch, push, pull and pull request actions
+  you start.
+- AI command-line tools (such as Claude Code or Codex) you pick in
+  **Settings → AI**. Codesh gives them the prompt and repository context they
+  need for the text they write.
+- Programs you run in terminals.
 
-The app does not contact any Muxy-operated server. It does not contact any third-party server. It does not perform background networking.
+Dictation on macOS uses on-device speech recognition; on Linux it uses a local
+model you install. Audio is not sent over the network.
 
-## What the app does not collect
+## Questions
 
-- No personal information.
-- No contacts, photos, location, or microphone data.
-- No usage analytics or crash analytics.
-- No advertising identifiers.
-- No data sold or shared with third parties.
-
-## Permissions
-
-- **Local Network.** Required by iOS so the app can reach a computer on your LAN.
-- **Camera.** Used only to scan a pairing code. Camera images are not stored or sent.
-
-## Children
-
-The app is a developer tool and is not directed to children under 13.
-
-## Changes to this policy
-
-If this policy changes, the updated version will be posted at this URL with a new "Last updated" date.
-
-## Contact
-
-Questions about this policy: sa.vaziry@gmail.com
+Ask on [GitHub Issues](https://github.com/hugocxl/codesh/issues).

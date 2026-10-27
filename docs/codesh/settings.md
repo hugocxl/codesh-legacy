@@ -1,25 +1,35 @@
-# Codesh settings
+# Settings window
 
-Keyboard shortcuts form one inset-separated card, rendered through the existing
-virtual list. Shortcut labels use sentence case and New Terminal matches the
-single-tab menus. macOS bindings use key glyphs; Reset appears only when the
-effective binding differs from its default. Recording, cancellation and conflict
-validation use the existing keymap path.
+Settings is a separate window laid out like macOS System Settings: a sidebar of
+categories with a search field, and a scrolling page of grouped, inset cards on
+the right. The categories are General, Appearance, Terminal, Keyboard,
+Commands, Browser, Server, Mobile, AI, and Backup & Restore. Search matches
+setting labels across every category. The user guide describes each setting in
+[Settings](../user-guide/settings.md).
 
-Appearance uses the shared slider for sidebar vibrancy level (0–100), saving on
-release or Settings closure. Status bar visibility, collapsed sidebar style and
-tips are excluded from the visible catalog and search because Codesh ignores
-them. Their persisted appearance fields remain readable.
+## Controls
 
-Composer and Quick Terminal have been removed from the desktop app, settings,
-menus and shortcuts. Standalone dictation also sends directly to a terminal,
-so it and its native backends remain. Its preferences now live in General →
-Voice and the independent [voice] settings table. Existing voice preferences
-are migrated from the old [composer] table when [voice] is absent. Legacy top-level sections in settings.toml and
-terminal.toml are ignored; active settings still undergo value validation.
-Retired shortcut overrides are ignored, and new settings serialization omits the
-removed sections. Legacy imports report removed options as unsupported. Existing
-profile draft files are not deleted. Mobile and protocol data are unchanged.
+Numeric options use the shared slider, which previews while dragging and saves
+on release or when Settings closes. On/off options use switches and fixed
+choices use pop-up menus. The sidebar vibrancy level (0–100) in Appearance uses
+the same slider.
 
-The desktop retains native accessibility checks for terminal vibrancy, and 1.x
-shortcut modifier decoding for other imported shortcuts.
+## Keyboard
+
+Keyboard shortcuts form one inset-separated card rendered through a virtual
+list. Labels use sentence case. macOS bindings show key glyphs, and **Reset**
+appears only when a binding differs from its default. Recording, cancellation,
+and conflict checks go through the keymap.
+
+## Voice
+
+Dictation preferences live in General → Voice and in the `[voice]` table of
+`settings.toml`. See [Dictation](../features/dictation.md).
+
+## Files
+
+App preferences are in `settings.toml`, terminal preferences in
+`terminal.toml`, and server settings in `server.toml`. Sections and shortcut
+overrides for removed features are ignored when loading and omitted when
+saving; every other value is validated. Mobile access has no file of its own in Settings; it is
+managed only from the Mobile page or `codesh mobile`.

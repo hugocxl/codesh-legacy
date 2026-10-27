@@ -62,7 +62,7 @@ case "$1" in
         ;;
     *.zip)
         # ZIPs and bare executables cannot be stapled. Verify the submitted bytes.
-        for BINARY in muxy muxy-server; do
+        for BINARY in codesh codesh-server; do
             unzip -p "$1" "$BINARY" > "$TEMP/$BINARY"
             chmod 755 "$TEMP/$BINARY"
             codesign --verify --strict --verbose=2 "$TEMP/$BINARY"

@@ -49,7 +49,7 @@ def debian_version(version):
 
 def package_deb(version, arch, payload, output):
     name, identifier, suffix = identity(version)
-    package = f"muxy-desktop{suffix}"
+    package = f"codesh-desktop{suffix}"
     deb_arch, _ = ARCHITECTURES[arch]
     archive = output / f"{package}_{version}_{deb_arch}.deb"
     if archive.exists():
@@ -61,12 +61,12 @@ def package_deb(version, arch, payload, output):
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         directory = root / "usr/lib" / package
-        for binary in ("muxy-app", "muxy", "muxy-server"):
+        for binary in ("codesh-app", "codesh", "codesh-server"):
             copy(payload / binary, directory / binary, 0o755)
         commands = root / "usr/bin"
         commands.mkdir(parents=True)
-        for command, binary in ((package, "muxy-app"), (f"muxy{suffix}", "muxy"),
-                                (f"muxy-server{suffix}", "muxy-server")):
+        for command, binary in ((package, "codesh-app"), (f"codesh{suffix}", "codesh"),
+                                (f"codesh-server{suffix}", "codesh-server")):
             (commands / command).symlink_to(f"../lib/{package}/{binary}")
         write(root / f"usr/share/applications/{identifier}.desktop", desktop_entry(version, package))
         copy(payload / "icon.png", root / f"usr/share/pixmaps/{identifier}.png")
@@ -77,7 +77,7 @@ def package_deb(version, arch, payload, output):
             "Section: utils\nPriority: optional\nMaintainer: Saeed Vaziry <me@saeedvaziry.com>\n"
             f"Installed-Size: {(size + 1023) // 1024}\nDepends: {', '.join(dependencies)}\n"
             "Recommends: mesa-vulkan-drivers, xdg-desktop-portal-gnome | xdg-desktop-portal-kde | xdg-desktop-portal-gtk\n"
-            "Homepage: https://muxy.app\n"
+            "Homepage: https://github.com/hugocxl/codesh\n"
             f"Description: {name} terminal multiplexer\n"
             " Persistent terminals, projects, split panes and remote sessions.\n"
             " Built for Ubuntu 24.04. Updates are managed by the package manager.\n"))
@@ -140,21 +140,21 @@ def bundle_identity(directory):
 def package_appimage(version, arch, payload, output, tools_directory):
     _, identifier, _ = identity(version)
     _, machine = ARCHITECTURES[arch]
-    archive = output / f"Muxy-{version}-linux-{arch}.AppImage"
+    archive = output / f"Codesh-{version}-linux-{arch}.AppImage"
     if archive.exists():
         raise ValueError(f"Output already exists: {archive}")
     tools = appimage_tools(arch, tools_directory)
     with tempfile.TemporaryDirectory() as temporary:
         work = Path(temporary)
-        root = work / "Muxy.AppDir"
+        root = work / "Codesh.AppDir"
         binaries = root / "usr/bin"
-        for binary in ("muxy-app", "muxy", "muxy-server"):
+        for binary in ("codesh-app", "codesh", "codesh-server"):
             copy(payload / binary, binaries / binary, 0o755)
-        copy(payload / "LICENSE", root / "usr/share/doc/muxy/LICENSE")
+        copy(payload / "LICENSE", root / "usr/share/doc/codesh/LICENSE")
         copy(ROOT / "packaging/linux/AppImage-LICENSE", root / "usr/share/doc/appimage-runtime/LICENSE")
         copy(payload / "icon.png", root / f"{identifier}.png")
         (root / ".DirIcon").symlink_to(f"{identifier}.png")
-        write(root / f"{identifier}.desktop", desktop_entry(version, "muxy-app"))
+        write(root / f"{identifier}.desktop", desktop_entry(version, "codesh-app"))
         deploy = extract_tool(tools["linuxdeploy"], work / "linuxdeploy")
         appimagetool = extract_tool(tools["appimagetool"], work / "appimagetool")
         command = [str(deploy / "AppRun"), "--appdir", str(root)]
@@ -171,7 +171,7 @@ def package_appimage(version, arch, payload, output, tools_directory):
             if elf:
                 relative = os.path.relpath(root / "usr/lib", path.parent)
                 subprocess.run([str(patchelf), "--set-rpath", f"$ORIGIN/{relative}", str(path)], check=True)
-        for binary in ("muxy-app", "muxy", "muxy-server"):
+        for binary in ("codesh-app", "codesh", "codesh-server"):
             check_build(version, binaries / binary)
         owners = set()
         for path in (root / "usr/lib").glob("*.so*"):
@@ -188,7 +188,7 @@ def package_appimage(version, arch, payload, output, tools_directory):
             sources.append({"package": owner, "source": source, "version": source_version,
                             "url": f"https://launchpad.net/ubuntu/+source/{source}/{source_version}"})
         shutil.copytree("/usr/share/common-licenses", root / "usr/share/common-licenses")
-        write(root / "usr/share/doc/muxy/bundled-sources.json", json.dumps(sources, indent=2) + "\n")
+        write(root / "usr/share/doc/codesh/bundled-sources.json", json.dumps(sources, indent=2) + "\n")
         copy(ROOT / "packaging/linux/AppRun", root / "AppRun", 0o755)
         copy(payload / "install.py", root / "install.py")
         write(root / "version", version + "\n")

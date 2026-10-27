@@ -15,12 +15,12 @@ from release import ROOT, build_metadata, channel, check_build
 def package(version, arch, binaries, output, native_formats=False, tools=None):
     release_channel = channel(version)
     output.mkdir(parents=True, exist_ok=True)
-    archive = output / f"muxy-desktop-{version}-linux-{arch}.tar.gz"
+    archive = output / f"codesh-desktop-{version}-linux-{arch}.tar.gz"
     if archive.exists():
         raise ValueError(f"Output already exists: {archive}")
     with tempfile.TemporaryDirectory() as temporary:
         directory = Path(temporary)
-        for name in ("muxy-app", "muxy", "muxy-server"):
+        for name in ("codesh-app", "codesh", "codesh-server"):
             check_build(version, binaries / name)
             shutil.copyfile(binaries / name, directory / name)
             (directory / name).chmod(0o755)
@@ -29,8 +29,8 @@ def package(version, arch, binaries, output, native_formats=False, tools=None):
         shutil.copyfile(ROOT / "scripts/install-desktop-linux.py", directory / "install.py")
         (directory / "LICENSE").write_text("\n".join(
             (ROOT / path).read_text() for path in (
-                "LICENSE", "crates/muxy-server/src/detection/THIRD_PARTY.md",
-                "crates/muxy-server/src/detection/LICENSE-herdr")))
+                "LICENSE", "crates/codesh-server/src/detection/THIRD_PARTY.md",
+                "crates/codesh-server/src/detection/LICENSE-herdr")))
         files = {}
         for path in sorted(directory.iterdir()):
             checksum = hashlib.sha256()
@@ -49,11 +49,11 @@ def package(version, arch, binaries, output, native_formats=False, tools=None):
         }, indent=2) + "\n")
         with tarfile.open(archive, "w:gz", format=tarfile.USTAR_FORMAT) as target:
             for path in sorted(directory.iterdir()):
-                info = target.gettarinfo(path, arcname=f"muxy-desktop/{path.name}")
+                info = target.gettarinfo(path, arcname=f"codesh-desktop/{path.name}")
                 info.uid = info.gid = 0
                 info.uname = info.gname = ""
                 info.mtime = 0
-                info.mode = 0o755 if path.name in {"muxy-app", "muxy", "muxy-server"} else 0o644
+                info.mode = 0o755 if path.name in {"codesh-app", "codesh", "codesh-server"} else 0o644
                 with path.open("rb") as source:
                     target.addfile(info, source)
         if native_formats:

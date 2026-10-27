@@ -1,41 +1,33 @@
 # Single tab per project
 
-Codesh enables `muxy_app_core::codesh::SINGLE_TAB`. Each project, including a
-worktree with `parent_id`, has zero or one tab. That tab contains the pane layout.
-New Terminal (the existing shortcut is unchanged), adjacent-terminal requests,
-native editor/diff panes, browser opens, and Remote Servers open panes in that
-container. Native editor/diff panes and Remote Servers reuse their existing pane.
+In the desktop app, each project, including a worktree project, has zero or
+one tab, and that tab holds the project's split layout. There is no tab strip.
+`codesh_app_core::codesh::SINGLE_TAB` enables this policy; the terminal UI keeps
+its own multi-tab layouts.
+
+## Opening content
+
+New Terminal (`Cmd+T`), adjacent-terminal requests, editor and diff panes,
+browser opens, and the Remote Servers view all open panes in the project's
+container. Editor and diff panes for the same file, and Remote Servers, reuse
+their existing pane.
 
 New content splits to the right of the focused pane, falling back to the last
-layout leaf. Background browser opens preserve window selection and focus.
-Typed pane insertion shares `AppState::insert_split_pane` with terminal and
-browser splits: apply split equalization hooks immediately after its
-`tab.layout.split` call in `state.rs`.
+layout leaf, and splits are equalized so panes stay equal-sized. Background
+browser opens keep window selection and focus. All typed pane insertion goes
+through `AppState::insert_split_pane`.
 
-Load, native restore, legacy import, and project-layout application merge old
-tabs in order. The first tab survives; each later layout subtree is appended
-on the right intact. Pane IDs, content, terminal sessions, and startup commands
-survive (native backup restore still remaps IDs as before). Merging clears tab
-groups and zoom, repairs selected tab IDs, and retains valid pane focus. Loading
-an existing single container preserves its zoom. Only the
-surviving tab's title, pin, and color remain. Normalization runs on lifecycle
-boundaries, never during rendering.
+## Normalization
 
-Closing the last pane leaves an empty project. The next New Terminal creates a
+Loading saved state, restoring a backup, and applying a project layout merge
+multiple tabs in order: the first tab survives and each later layout subtree is
+appended on the right intact. Pane IDs, content, terminal sessions, and startup
+commands are kept. Merging clears groups and zoom, repairs selected tab IDs,
+and keeps a valid pane focused. Normalization runs on lifecycle boundaries,
+never during rendering.
+
+## Closing
+
+Closing the last pane leaves the project empty. The next New Terminal creates a
 fresh container; closing never silently starts another terminal session.
 Custom commands and agent resumes title their new pane.
-
-Tab-group drops are disabled. Group strips and the project titlebar `+` are
-suppressed; menus and keyboard shortcuts remain available. The separate visual
-change owns workspace header/tab-strip removal and sidebar styling.
-
-No protocol/server changes or dependencies are needed. On a build machine run:
-
-```sh
-cargo fmt --all --check
-cargo check -p muxy-app-core
-cargo test -p muxy-app-core
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-```

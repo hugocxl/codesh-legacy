@@ -7,7 +7,7 @@ spec = importlib.util.spec_from_file_location("fixtures", ROOT / "scripts/protoc
 fixtures = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixtures)
 
-V2 = "crates/muxy-protocol/tests/fixtures/v2"
+V2 = "crates/codesh-protocol/tests/fixtures/v2"
 
 
 class ProtocolFixtureTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class ProtocolFixtureTests(unittest.TestCase):
             f"M\t{V2}/reply-8899aabbccddeeff.bin",
             f"D\t{V2}/frame-0123456789abcdef.bin",
             f"R100\t{V2}/hello-1111111111111111.bin\t{V2}/hello-2222222222222222.bin",
-            "M\tcrates/muxy-protocol/tests/fixtures/project-logo.png",
+            "M\tcrates/codesh-protocol/tests/fixtures/project-logo.png",
         ])
         self.assertEqual(fixtures.rewritten(diff), [
             f"{V2}/reply-8899aabbccddeeff.bin",

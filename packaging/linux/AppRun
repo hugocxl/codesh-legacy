@@ -1,15 +1,15 @@
 #!/bin/sh
 set -eu
 
-fail() { printf 'Muxy: %s\n' "$*" >&2; exit 1; }
+fail() { printf 'Codesh: %s\n' "$*" >&2; exit 1; }
 HERE=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 case "${1:-}" in
-    --build-info) exec "$HERE/usr/bin/muxy-app" "$@" ;;
-    --version) exec "$HERE/usr/bin/muxy" "$@" ;;
+    --build-info) exec "$HERE/usr/bin/codesh-app" "$@" ;;
+    --version) exec "$HERE/usr/bin/codesh" "$@" ;;
 esac
 if [ "${1:-}" = --cli ]; then
     case "${2:-}" in
-        --build-info|--version|--help) shift; exec "$HERE/usr/bin/muxy" "$@" ;;
+        --build-info|--version|--help) shift; exec "$HERE/usr/bin/codesh" "$@" ;;
     esac
 fi
 [ "$(id -u)" != 0 ] || fail 'Run the AppImage as your normal user, without sudo.'
@@ -17,7 +17,7 @@ UMASK=$(umask)
 umask 077
 DATA=${XDG_DATA_HOME:-${HOME:?HOME is required}/.local/share}
 case "$DATA" in /*) ;; *) fail 'XDG_DATA_HOME must be absolute.' ;; esac
-STORE=$DATA/muxy-appimage
+STORE=$DATA/codesh-appimage
 [ ! -L "$STORE" ] || fail 'The AppImage data directory must not be a symlink.'
 mkdir -p -m 700 "$STORE"
 [ "$(stat -c %u "$STORE")" = "$(id -u)" ] && [ "$(stat -c %a "$STORE")" = 700 ] \
@@ -46,6 +46,6 @@ exec 9>&-
 umask "$UMASK"
 unset APPDIR APPIMAGE ARGV0 OWD
 case "${1:-}" in
-    --cli) shift; exec "$BUNDLE/usr/bin/muxy" "$@" ;;
+    --cli) shift; exec "$BUNDLE/usr/bin/codesh" "$@" ;;
 esac
-exec "$BUNDLE/usr/bin/muxy-app" "$@"
+exec "$BUNDLE/usr/bin/codesh-app" "$@"

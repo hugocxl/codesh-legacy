@@ -1,1 +1,1 @@
-/Users/saeed/Projects/muxy-new/AGENTS.md
+AGENTS.md

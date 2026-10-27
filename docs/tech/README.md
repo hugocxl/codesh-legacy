@@ -5,18 +5,18 @@ How the [product](../product/README.md) is built.
 ```mermaid
 flowchart LR
     subgraph APPS["Apps · one shared client library"]
-        DESKTOP["muxy-app<br/>desktop · Rust + GPUI"]
-        TUI["muxy<br/>CLI and terminal UI · Ratatui"]
-        PHONE["Phone apps<br/>muxy-mobile SDK"]
+        DESKTOP["codesh-app<br/>desktop · Rust + GPUI"]
+        TUI["codesh<br/>CLI and terminal UI · Ratatui"]
+        PHONE["Phone clients<br/>codesh-mobile SDK"]
     end
-    SERVER["muxy-server<br/>Ghostty terminals · history · projects"]
-    REMOTE["muxy-server<br/>on another computer"]
+    SERVER["codesh-server<br/>Ghostty terminals · history · projects"]
+    REMOTE["codesh-server<br/>on another computer"]
     DESKTOP <-->|"Unix socket"| SERVER
     TUI <-->|"Unix socket"| SERVER
-    DESKTOP <-->|"SSH · muxy stdio"| REMOTE
-    TUI <-->|"SSH · muxy stdio"| REMOTE
+    DESKTOP <-->|"SSH · codesh stdio"| REMOTE
+    TUI <-->|"SSH · codesh stdio"| REMOTE
     PHONE <-->|"TLS"| SERVER
-    PHONE <-->|"SSH · muxy stdio"| REMOTE
+    PHONE <-->|"SSH · codesh stdio"| REMOTE
 ```
 
 The big ideas:
@@ -26,7 +26,7 @@ The big ideas:
    of styled text and draw them.
 2. **Only changes are sent.** About 60 times a second the server sends the rows
    that changed. A slow app gets one merged update, never a backlog.
-3. **One client library.** The desktop app, the terminal UI, and the phone apps
+3. **One client library.** The desktop app, the terminal UI, and the phone clients
    all use the same Rust client and protocol.
 4. **The protocol only grows.** New fields and messages don't break older
    builds.

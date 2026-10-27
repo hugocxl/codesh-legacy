@@ -1,22 +1,12 @@
-# Contributing to Muxy
+# Contributing to Codesh
 
-Thank you for your interest in contributing to Muxy! This guide will help you get started.
+Codesh is developed and maintained by Hugo Corta. Bug reports, ideas and pull
+requests are welcome on [GitHub](https://github.com/hugocxl/codesh).
 
-## Humans Only Policy
+## Getting started
 
-Muxy is a community project and we want communication to stay between humans. You are welcome to use AI to help you write code, but **only humans may**:
-
-- Create commits and push changes
-- Open issues or pull requests
-- Interact with issues or pull requests, including comments, reviews, and replies
-
-These actions must be done without AI assistance. AI agents must not perform them, even when a human asks. Write commit messages and all GitHub text yourself, in your own words, without AI help. This includes issue and PR titles, descriptions, summaries, comments, discussion replies, and code review comments.
-
-Issues and PRs opened by AI or containing AI-generated text will be closed without review.
-
-## Getting Started
-
-Read [docs/product](docs/product/README.md) and [docs/tech](docs/tech/README.md) first. They describe how Muxy works and how it is built.
+Read [docs/product](docs/product/README.md) and [docs/tech](docs/tech/README.md)
+first. They describe how Codesh works and how it is built.
 
 ### Prerequisites
 
@@ -27,47 +17,46 @@ Read [docs/product](docs/product/README.md) and [docs/tech](docs/tech/README.md)
 ### Setup
 
 ```bash
-git clone https://github.com/muxy-app/muxy.git
-cd muxy
+git clone https://github.com/hugocxl/codesh.git
+cd codesh
 ```
 
 On macOS, build the whole workspace with `cargo build --workspace`. On Linux,
-build the CLI and server with `cargo build -p muxy-cli -p muxy-server`; the
-desktop app is macOS only.
+build the CLI and server with `cargo build -p codesh-cli -p codesh-server`.
 
 ### Running
 
 ```bash
-cargo run -p muxy-app     # desktop app (macOS)
-cargo run -p muxy-cli     # muxy terminal UI
+cargo run -p codesh-app     # desktop app (macOS)
+cargo run -p codesh-cli     # codesh terminal UI
 ```
 
-Build as in [Setup](#setup) first, so `muxy-server` sits next to the binary you
-run.
-Development builds keep their data in a separate `Muxy Dev` profile (`muxy-dev`
-on Linux).
+Build as in [Setup](#setup) first, so `codesh-server` sits next to the binary you
+run. Development builds keep their data in a separate `Codesh Dev` profile
+(`codesh-dev` on Linux).
 
-## Development Workflow
+## Development workflow
 
-1. Fork the repository and create a branch from `main`
-2. Make your changes
-3. Run checks before committing (on Linux, see [Checks](#checks)):
+1. Create a branch from `main`.
+2. Make your changes.
+3. Run the [checks](#checks).
+4. Open a pull request.
 
-```bash
-cargo fmt --all
-cargo xcheck              # clippy with warnings as errors
-cargo xtest               # all tests
-```
+AI assistants and agents are welcome. They may write code and commit when you
+ask them to; see [AGENTS.md](AGENTS.md) for the guidance they follow.
 
-4. Commit your changes, push your branch, and open a pull request yourself
+## Code standards
 
-## Code Standards
-
-- **No comments in the codebase** — all code must be self-explanatory and cleanly structured
+- **Self-explanatory code**: prefer clear structure over inline comments; doc
+  comments (`///`) are fine
 - **Early returns** over nested conditionals
 - **Fix root causes**, not symptoms
-- **Follow existing patterns** but suggest refactors if they improve quality
-- **Security first** — no command injection, XSS, or other vulnerabilities
+- **Follow existing patterns**, but suggest refactors if they improve quality
+- **Security first**: no command injection, XSS, or other vulnerabilities
+- **Performance**: GPUI makes it easy to burn CPU and memory; keep render paths
+  cheap
+- **Dependencies**: ask before adding one, with its GitHub URL, star count and
+  maintenance status
 
 ## Checks
 
@@ -80,6 +69,8 @@ cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
+`cargo xcheck` and `cargo xtest` are aliases for the Clippy and test commands.
+
 On Linux, CI runs two checks. `scripts/check-headless.py` covers the CLI, the
 server, and the crates they depend on. It needs glibc 2.35; elsewhere, run Clippy
 and tests with `-p` for each package that
@@ -87,18 +78,18 @@ and tests with `-p` for each package that
 `scripts/check-desktop-linux.py` covers the whole workspace, including the
 [experimental desktop app](docs/tech/constraints.md), on Ubuntu 24.04.
 
-## Pull Request Guidelines
+## Pull requests
 
 - Keep PRs focused on a single change
-- Write a clear title and description yourself, in your own words, explaining the "why"
+- Explain the "why" in the description
 - Ensure all checks pass before requesting review
 - Link any related issues
-- If you used AI to help write code, name the LLM in your own PR description
 
-## Reporting Issues
+## Reporting issues
 
-- Report bugs and ideas on [GitHub Issues](https://github.com/muxy-app/muxy/issues)
+- Report bugs and ideas on [GitHub Issues](https://github.com/hugocxl/codesh/issues)
 - Search existing issues before creating a new one
+- Report security problems privately; see [SECURITY.md](SECURITY.md)
 
 ## License
 

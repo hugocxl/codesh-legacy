@@ -48,7 +48,7 @@ class DesktopLinuxTests(unittest.TestCase):
                 self.doCleanups()
 
     def test_any_failed_check_stops_the_run(self):
-        for failed_step in range(7):
+        for failed_step in range(6):
             with self.subTest(failed_step=failed_step):
                 run = self.environment()
                 run.side_effect = [None] * failed_step + [subprocess.CalledProcessError(1, "check")]
@@ -66,14 +66,13 @@ class DesktopLinuxTests(unittest.TestCase):
             ["cargo", "fmt", "--all", "--check"],
             ["cargo", "clippy", "--locked", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
             ["cargo", "test", "--locked", "--workspace", "--all-features"],
-            CHECK.SHORTCUT_TESTS,
             ["cargo", "doc", "--locked", "--workspace", "--no-deps"],
-            ["cargo", "build", "--locked", "-p", "muxy-app", "-p", "muxy-cli", "-p", "muxy-server"],
+            ["cargo", "build", "--locked", "-p", "codesh-app", "-p", "codesh-cli", "-p", "codesh-server"],
         ])
         for call in run.call_args_list:
             env = call.kwargs["env"]
             self.assertEqual(call.kwargs["cwd"], ROOT)
-            self.assertEqual(env["MUXY_ZIG"], "/opt/zig/zig")
+            self.assertEqual(env["CODESH_ZIG"], "/opt/zig/zig")
             self.assertEqual(env["PATH"], f"{ROOT / 'scripts/zig'}{os.pathsep}/usr/bin")
             self.assertEqual(env["RUSTDOCFLAGS"], "--cfg regression_guard -D warnings")
 
@@ -84,9 +83,8 @@ class DesktopLinuxTests(unittest.TestCase):
                 CHECK.main()
                 commands = [call.args[0] for call in run.call_args_list]
                 tested = commands.index(["cargo", "test", "--locked", "--workspace", "--all-features"])
-                self.assertEqual(commands[tested + 1], CHECK.SHORTCUT_TESTS)
-                self.assertEqual(commands[tested + 2], CHECK.PAGE_TESTS)
-                self.assertEqual(run.call_args_list[tested + 2].kwargs["env"][next(iter(display))],
+                self.assertEqual(commands[tested + 1], CHECK.PAGE_TESTS)
+                self.assertEqual(run.call_args_list[tested + 1].kwargs["env"][next(iter(display))],
                                  next(iter(display.values())))
                 self.doCleanups()
         output = io.StringIO()

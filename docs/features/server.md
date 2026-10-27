@@ -1,14 +1,14 @@
 # Server
 
-`muxy-server` runs every terminal. The desktop app, the terminal UI, the CLI,
+`codesh-server` runs every terminal. The desktop app, the terminal UI, the CLI,
 and phones are all clients of it. That is why terminals keep running after you
 quit an app, and why several apps can show the same terminal.
 
 ```mermaid
 flowchart LR
-    DESKTOP["Desktop app"] <--> SERVER["muxy-server"]
-    TUI["muxy terminal UI"] <--> SERVER
-    CLI["muxy CLI"] <--> SERVER
+    DESKTOP["Desktop app"] <--> SERVER["codesh-server"]
+    TUI["codesh terminal UI"] <--> SERVER
+    CLI["codesh CLI"] <--> SERVER
     PHONE["Phone"] <--> SERVER
 ```
 
@@ -18,9 +18,9 @@ flowchart LR
   start it yourself.
 - It keeps running until you stop it, even with no app open.
 - Stopping or restarting it ends every terminal. Saved screens and history are
-  kept. Use the status bar, **Settings → Server**, or
-  `muxy server stop --force`.
-- Muxy never restarts it on its own while terminals are running. After an
+  kept. Use the server menu in the sidebar footer, **Settings → Server**, or
+  `codesh server stop --force`.
+- Codesh never restarts it on its own while terminals are running. After an
   update, the desktop app replaces this computer's server once no terminals are
   running.
 
@@ -48,7 +48,7 @@ flowchart LR
 ## Settings
 
 Server settings apply to everyone using that server. Change them in
-**Settings → Server**, with `muxy settings set`, or in `server.toml`:
+**Settings → Server**, with `codesh settings set`, or in `server.toml`:
 
 | Setting | `server.toml` key | Default |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ budget applies to saved history after the server restarts.
 
 ## Shell integration
 
-Shell integration lets Muxy track each terminal's folder, jump between prompts,
+Shell integration lets Codesh track each terminal's folder, jump between prompts,
 and select a command's output. It loads automatically for zsh and fish, without
 editing your startup files.
 
@@ -69,14 +69,14 @@ Bash is opt-in. Add this to the file your Bash profile loads for interactive
 shells:
 
 ```bash
-if [[ ${MUXY_SHELL_INTEGRATION:-0} == 1 ]]; then
-    source "$MUXY_SHELL_INTEGRATION_DIR/muxy.bash"
+if [[ ${CODESH_SHELL_INTEGRATION:-0} == 1 ]]; then
+    source "$CODESH_SHELL_INTEGRATION_DIR/codesh.bash"
 fi
 ```
 
 Every terminal gets `TERM=xterm-256color`, `COLORTERM=truecolor`,
-`TERM_PROGRAM=muxy`, `MUXY_SERVER_ID`, and `MUXY_SESSION_ID`. If `LANG`,
-`LC_ALL`, and `LC_CTYPE` are all unset or empty, Muxy sets `LANG` to an
+`TERM_PROGRAM=codesh`, `CODESH_SERVER_ID`, and `CODESH_SESSION_ID`. If `LANG`,
+`LC_ALL`, and `LC_CTYPE` are all unset or empty, Codesh sets `LANG` to an
 installed UTF-8 locale for the system language, or `C.UTF-8`, so non-ASCII text
 displays correctly. If neither is installed, it leaves them unset.
 
@@ -86,8 +86,8 @@ Everything lives in one profile folder:
 
 | Platform | Stable | Beta |
 | --- | --- | --- |
-| macOS | `~/Library/Application Support/Muxy 2` | `~/Library/Application Support/Muxy Beta` |
-| Linux | `$XDG_STATE_HOME/muxy`, or `~/.local/state/muxy` | `$XDG_STATE_HOME/muxy-beta`, or `~/.local/state/muxy-beta` |
+| macOS | `~/Library/Application Support/Codesh` | `~/Library/Application Support/Codesh Beta` |
+| Linux | `$XDG_STATE_HOME/codesh`, or `~/.local/state/codesh` | `$XDG_STATE_HOME/codesh-beta`, or `~/.local/state/codesh-beta` |
 
 | File | What it holds |
 | --- | --- |
@@ -99,5 +99,5 @@ Everything lives in one profile folder:
 | `settings.toml`, `terminal.toml`, `themes/` | Desktop app settings, see [Settings](../user-guide/settings.md) |
 | `tui-state.json` | Terminal UI layouts |
 
-Set `MUXY_DIR` to use a different profile folder. Development builds use
-`Muxy Dev` (`muxy-dev` on Linux), so they never touch your real data.
+Set `CODESH_DIR` to use a different profile folder. Development builds use
+`Codesh Dev` (`codesh-dev` on Linux), so they never touch your real data.

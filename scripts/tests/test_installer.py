@@ -30,13 +30,13 @@ elif name == 'curl':
         output.write_bytes(b'partial'); sys.exit(18)
     shutil.copyfile(Path(os.environ['FIXTURES']) / url.rsplit('/', 1)[1], output)
 elif name == 'mv':
-    if os.environ.get('ACTIVATE_FAIL') and args[-1].endswith('/.muxy/current'): sys.exit(1)
+    if os.environ.get('ACTIVATE_FAIL') and args[-1].endswith('/.codesh/current'): sys.exit(1)
     args = [('-h' if sys.platform == 'darwin' else '-T') if x in ('-h', '-T') else x for x in args]
     status = subprocess.call([os.environ['REAL_MV'], *args])
-    if not status and os.environ.get('CHECK_TRANSITION') and args[-1].endswith('/muxy-server'):
+    if not status and os.environ.get('CHECK_TRANSITION') and args[-1].endswith('/codesh-server'):
         parent = Path(args[-1]).parent
         with open(os.environ['CHECK_TRANSITION'], 'w') as output:
-            json.dump({name: (parent / name).read_text() for name in ('muxy', 'muxy-server')}, output)
+            json.dump({name: (parent / name).read_text() for name in ('codesh', 'codesh-server')}, output)
     sys.exit(status)
 '''
 
@@ -64,7 +64,7 @@ class InstallerTests(unittest.TestCase):
                     'TMPDIR': str(self.root), 'TEST_OS': 'Darwin', 'TEST_ARCH': 'arm64',
                     'FIXTURES': str(self.fixtures), 'CURL_LOG': str(self.root / 'curl.log'),
                     'REAL_MV': shutil.which('mv')}
-        self.pair = {'muxy': b'client-v1', 'muxy-server': b'server-v1', 'LICENSE': b'license'}
+        self.pair = {'codesh': b'client-v1', 'codesh-server': b'server-v1', 'LICENSE': b'license'}
         self.archive()
 
     def archive(self, members=None, kind=None, version=VERSION):
@@ -72,13 +72,13 @@ class InstallerTests(unittest.TestCase):
         platform = 'macos' if self.env['TEST_OS'] == 'Darwin' else 'linux'
         arch = 'arm64' if self.env['TEST_ARCH'] in ('arm64', 'aarch64') else 'x86_64'
         extension = 'zip' if platform == 'macos' else 'tar.gz'
-        self.asset = self.fixtures / f'muxy-{version}-{platform}-{arch}.{extension}'
+        self.asset = self.fixtures / f'codesh-{version}-{platform}-{arch}.{extension}'
         if extension == 'zip':
             with zipfile.ZipFile(self.asset, 'w') as archive:
                 for name, data in members.items():
                     entry = zipfile.ZipInfo(name)
                     entry.create_system = 3
-                    entry.external_attr = ((0o120777 if kind == 'symlink' and name == 'muxy' else 0o100755) << 16)
+                    entry.external_attr = ((0o120777 if kind == 'symlink' and name == 'codesh' else 0o100755) << 16)
                     archive.writestr(entry, data)
         else:
             with tarfile.open(self.asset, 'w:gz') as archive:
@@ -86,25 +86,25 @@ class InstallerTests(unittest.TestCase):
                     entry = tarfile.TarInfo(name)
                     entry.size = len(data)
                     entry.mode = 0o755
-                    if name == 'muxy' and kind:
+                    if name == 'codesh' and kind:
                         entry.type = {'symlink': tarfile.SYMTYPE, 'hardlink': tarfile.LNKTYPE,
                                       'fifo': tarfile.FIFOTYPE}[kind]
-                        entry.linkname = 'muxy-server'
+                        entry.linkname = 'codesh-server'
                         entry.size = 0
                     archive.addfile(entry, io.BytesIO(data))
         (self.fixtures / 'SHA256SUMS').write_text(
             hashlib.sha256(self.asset.read_bytes()).hexdigest() + '  ' + self.asset.name + '\n')
 
     def install(self, *extra, version=VERSION):
-        return subprocess.run(['/bin/sh', str(ROOT / 'scripts/install-muxy.sh'), '--version', version,
+        return subprocess.run(['/bin/sh', str(ROOT / 'scripts/install-codesh.sh'), '--version', version,
                                '--install-dir', str(self.dest), *extra], env=self.env,
                               capture_output=True, text=True)
 
     def assert_pair(self, expected=None):
         for name, data in (expected or self.pair).items():
-            path = self.dest / name if name != 'LICENSE' else self.dest / '.muxy/current/LICENSE'
+            path = self.dest / name if name != 'LICENSE' else self.dest / '.codesh/current/LICENSE'
             self.assertEqual(path.read_bytes(), data)
-        self.assertEqual((self.dest / 'muxy').resolve().parent, (self.dest / 'muxy-server').resolve().parent)
+        self.assertEqual((self.dest / 'codesh').resolve().parent, (self.dest / 'codesh-server').resolve().parent)
 
     def test_stable_releases_install_from_their_tag(self):
         self.archive(version='2.0.0')
@@ -138,22 +138,22 @@ class InstallerTests(unittest.TestCase):
 
     def test_replacement_requires_opt_in_and_switches_one_generation(self):
         self.assertEqual(self.install().returncode, 0)
-        old = (self.dest / 'muxy').resolve().parent
+        old = (self.dest / 'codesh').resolve().parent
         self.assertNotEqual(self.install().returncode, 0)
-        self.pair['muxy'] = b'client-v2'
-        self.pair['muxy-server'] = b'server-v2'
+        self.pair['codesh'] = b'client-v2'
+        self.pair['codesh-server'] = b'server-v2'
         self.archive()
         result = self.install('--replace')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_pair()
-        self.assertNotEqual((self.dest / 'muxy').resolve().parent, old)
-        self.assertEqual((old / 'muxy').read_bytes(), b'client-v1')
+        self.assertNotEqual((self.dest / 'codesh').resolve().parent, old)
+        self.assertEqual((old / 'codesh').read_bytes(), b'client-v1')
 
     def test_bundle_links_refused_and_explicit_replace_never_changes_bundle(self):
         bundle = self.root / 'Codesh Beta.app'
         bundle.mkdir()
         self.dest.mkdir()
-        for name in ('muxy', 'muxy-server'):
+        for name in ('codesh', 'codesh-server'):
             (bundle / name).write_bytes(b'original')
             (self.dest / name).symlink_to(bundle / name)
         result = self.install()
@@ -164,35 +164,35 @@ class InstallerTests(unittest.TestCase):
 
     def test_unmanaged_pair_stays_usable_during_public_link_conversion(self):
         self.dest.mkdir()
-        for name in ('muxy', 'muxy-server'):
+        for name in ('codesh', 'codesh-server'):
             (self.dest / name).write_text('old-' + name)
-        managed = self.dest / '.muxy'
+        managed = self.dest / '.codesh'
         stale = managed / 'stale'
         stale.mkdir(parents=True)
-        for name in ('muxy', 'muxy-server'):
+        for name in ('codesh', 'codesh-server'):
             (stale / name).write_text('unrelated')
         (managed / 'current').symlink_to('stale')
         transition = self.root / 'transition.json'
         self.env['CHECK_TRANSITION'] = str(transition)
         result = self.install('--replace')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(transition.read_text()), {'muxy': 'old-muxy', 'muxy-server': 'old-muxy-server'})
+        self.assertEqual(json.loads(transition.read_text()), {'codesh': 'old-codesh', 'codesh-server': 'old-codesh-server'})
         self.assert_pair()
 
     def test_activation_failure_restores_unmanaged_commands_and_managed_pair(self):
         self.dest.mkdir()
-        for name in ('muxy', 'muxy-server'):
+        for name in ('codesh', 'codesh-server'):
             (self.dest / name).write_bytes(b'old')
         self.env['ACTIVATE_FAIL'] = '1'
         self.assertNotEqual(self.install('--replace').returncode, 0)
-        for name in ('muxy', 'muxy-server'):
+        for name in ('codesh', 'codesh-server'):
             self.assertEqual((self.dest / name).read_bytes(), b'old')
         self.env.pop('ACTIVATE_FAIL')
         self.assertEqual(self.install('--replace').returncode, 0)
-        before = (self.dest / 'muxy').resolve()
+        before = (self.dest / 'codesh').resolve()
         self.env['ACTIVATE_FAIL'] = '1'
         self.assertNotEqual(self.install('--replace').returncode, 0)
-        self.assertEqual((self.dest / 'muxy').resolve(), before)
+        self.assertEqual((self.dest / 'codesh').resolve(), before)
         self.assert_pair()
 
     def test_bad_hash_and_interrupted_download_leave_destination_untouched(self):
@@ -202,7 +202,7 @@ class InstallerTests(unittest.TestCase):
         self.env['DOWNLOAD_FAIL'] = '1'
         self.assertNotEqual(self.install().returncode, 0)
         self.assertFalse(self.dest.exists())
-        self.assertFalse(list(self.root.glob('muxy-install.*')))
+        self.assertFalse(list(self.root.glob('codesh-install.*')))
 
     def test_traversal_extra_files_and_link_types_are_rejected(self):
         for system in ('Darwin', 'Linux'):
@@ -244,12 +244,12 @@ class InstallerTests(unittest.TestCase):
 
     def dev_archive(self, members=None, kind=None):
         self.env.update(TEST_OS='Linux', TEST_ARCH='x86_64')
-        self.pair = {'muxy': b'dev-client', 'muxy-server': b'dev-server'}
+        self.pair = {'codesh': b'dev-client', 'codesh-server': b'dev-server'}
         self.archive(self.pair if members is None else members, kind)
 
     def install_dev(self, *extra):
         return subprocess.run(
-            ['/bin/sh', str(ROOT / 'scripts/install-muxy.sh'), '--dev-archive',
+            ['/bin/sh', str(ROOT / 'scripts/install-codesh.sh'), '--dev-archive',
              '--install-dir', str(self.dest), *extra], env=self.env,
             input=self.asset.read_bytes(), capture_output=True)
 
@@ -261,7 +261,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_pair()
         self.assertFalse((self.root / 'curl.log').exists())
-        self.assertFalse(list(self.root.glob('muxy-install.*')))
+        self.assertFalse(list(self.root.glob('codesh-install.*')))
 
     def test_development_archive_rejects_wrong_platform_before_install(self):
         self.dev_archive()
@@ -274,15 +274,15 @@ class InstallerTests(unittest.TestCase):
             self.env = before
 
     def test_development_archive_rejects_unsafe_or_incomplete_pairs(self):
-        for members, kind in (({'../escape': b'bad', 'muxy-server': b'server'}, None),
-                              ({'muxy': b'only-one'}, None),
-                              ({'muxy': b'', 'muxy-server': b'server'}, None),
+        for members, kind in (({'../escape': b'bad', 'codesh-server': b'server'}, None),
+                              ({'codesh': b'only-one'}, None),
+                              ({'codesh': b'', 'codesh-server': b'server'}, None),
                               (None, 'symlink'), (None, 'hardlink'), (None, 'fifo')):
             with self.subTest(members=members, kind=kind):
                 self.dev_archive(members, kind)
                 self.assertNotEqual(self.install_dev().returncode, 0)
-                self.assertFalse((self.dest / 'muxy').exists())
-                self.assertFalse((self.dest / 'muxy-server').exists())
+                self.assertFalse((self.dest / 'codesh').exists())
+                self.assertFalse((self.dest / 'codesh-server').exists())
 
 
 if __name__ == '__main__':

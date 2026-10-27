@@ -97,12 +97,12 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/muxy-release-signing.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/codesh-release-signing.keychain-db"
           : "${CERTIFICATE_P12:?Apple signing certificate is required}"
           : "${CERTIFICATE_PASSWORD:?Certificate password is required}"
           : "${KEYCHAIN_PASSWORD:?Keychain password is required}"
           umask 077
-          CERTIFICATE="$RUNNER_TEMP/muxy-release-certificate.p12"
+          CERTIFICATE="$RUNNER_TEMP/codesh-release-certificate.p12"
           trap 'rm -f "$CERTIFICATE"' EXIT
           printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -115,7 +115,7 @@ jobs:
         if: runner.os == 'macOS'
         id: identity
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/muxy-release-signing.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/codesh-release-signing.keychain-db"
           IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Developer ID Application:|Apple Development:/ {print $2; exit}')
           if [[ -z "$IDENTITY" ]]; then
             echo "Error: no Developer ID Application or Apple Development identity found" >&2
@@ -142,14 +142,14 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bash scripts/notarize-release.sh "$PACKAGE_DIR/muxy-$VERSION-macos-$ARCH.zip"
+        run: bash scripts/notarize-release.sh "$PACKAGE_DIR/codesh-$VERSION-macos-$ARCH.zip"
       - name: Verify packaged pair, desktop bytes and standalone installation
         if: runner.os == 'macOS'
         # The universal system Python runs as the packaged architecture, so the
         # x86_64 pair is installed and exercised under Rosetta.
         run: >-
           arch "-$ARCH" /usr/bin/python3 scripts/verify-release-package.py
-          "$PACKAGE_DIR/muxy-$VERSION-macos-$ARCH.zip"
+          "$PACKAGE_DIR/codesh-$VERSION-macos-$ARCH.zip"
           --version "$VERSION" --dmg "$PACKAGE_DIR/Codesh-$VERSION-$ARCH.dmg"
           ${{ env.NOTARIZE == 'true' && '--notarized' || '' }}
       - name: Build and package the native glibc 2.35 pair
@@ -159,7 +159,7 @@ jobs:
         if: runner.os == 'Linux'
         run: >-
           python3 scripts/verify-release-package.py
-          "$PACKAGE_DIR/muxy-$VERSION-linux-$ARCH.tar.gz"
+          "$PACKAGE_DIR/codesh-$VERSION-linux-$ARCH.tar.gz"
           --version "$VERSION"
       - name: Upload distribution archives
         uses: actions/upload-artifact@v4
@@ -167,8 +167,8 @@ jobs:
           name: distribution-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             ${{ env.PACKAGE_DIR }}/Codesh-${{ env.VERSION }}-${{ matrix.arch }}.dmg
-            ${{ env.PACKAGE_DIR }}/muxy-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.zip
-            ${{ env.PACKAGE_DIR }}/muxy-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+            ${{ env.PACKAGE_DIR }}/codesh-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.zip
+            ${{ env.PACKAGE_DIR }}/codesh-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
           retention-days: 7
       - name: Upload debug symbols and dependency audits
@@ -188,11 +188,11 @@ jobs:
       - name: Remove signing keychain
         if: always() && runner.os == 'macOS'
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/muxy-release-signing.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/codesh-release-signing.keychain-db"
           if [[ -f "$KEYCHAIN_PATH" ]]; then
             security delete-keychain "$KEYCHAIN_PATH"
           fi
-          rm -f "$RUNNER_TEMP/muxy-release-certificate.p12"
+          rm -f "$RUNNER_TEMP/codesh-release-certificate.p12"
 
   linux-desktop:
     name: Build (Linux desktop, ${{ matrix.arch }})
@@ -240,16 +240,16 @@ jobs:
       - name: Verify install, helpers, leases and uninstall without a display
         run: >-
           python3 scripts/verify-desktop-linux.py
-          "$PACKAGE_DIR/muxy-desktop-$VERSION-linux-$ARCH.tar.gz" --version "$VERSION"
+          "$PACKAGE_DIR/codesh-desktop-$VERSION-linux-$ARCH.tar.gz" --version "$VERSION"
       - name: Verify APT dependencies, package lifecycle, AppImage and the user-local installer
         run: bash scripts/verify-desktop-runtime.sh "$VERSION" "$ARCH" "$PACKAGE_DIR"
       - uses: actions/upload-artifact@v4
         with:
           name: distribution-linux-desktop-${{ matrix.arch }}
           path: |
-            ${{ env.PACKAGE_DIR }}/muxy-desktop-${{ env.VERSION }}-linux-${{ matrix.arch }}.tar.gz
-            ${{ env.PACKAGE_DIR }}/Muxy-${{ env.VERSION }}-linux-${{ matrix.arch }}.AppImage
-            ${{ env.PACKAGE_DIR }}/muxy-desktop*.deb
+            ${{ env.PACKAGE_DIR }}/codesh-desktop-${{ env.VERSION }}-linux-${{ matrix.arch }}.tar.gz
+            ${{ env.PACKAGE_DIR }}/Codesh-${{ env.VERSION }}-linux-${{ matrix.arch }}.AppImage
+            ${{ env.PACKAGE_DIR }}/codesh-desktop*.deb
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4

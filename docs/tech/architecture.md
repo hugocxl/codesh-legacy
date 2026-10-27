@@ -7,12 +7,12 @@ The processes, the crates, and how data moves between them.
 ```mermaid
 flowchart LR
     DESKTOP["Desktop app"] <-->|"Unix socket"| LOCAL
-    TUI["muxy terminal UI"] <-->|"Unix socket"| LOCAL
-    DESKTOP <-->|"SSH · muxy stdio<br/>from another computer"| LOCAL
-    TUI <-->|"SSH · muxy stdio<br/>from another computer"| LOCAL
-    PHONE["Phone app"] <-->|"TLS · after pairing"| NETWORK
-    PHONE <-->|"SSH · muxy stdio"| LOCAL
-    subgraph SERVER["muxy-server · one per profile"]
+    TUI["codesh terminal UI"] <-->|"Unix socket"| LOCAL
+    DESKTOP <-->|"SSH · codesh stdio<br/>from another computer"| LOCAL
+    TUI <-->|"SSH · codesh stdio<br/>from another computer"| LOCAL
+    PHONE["Phone client"] <-->|"TLS · after pairing"| NETWORK
+    PHONE <-->|"SSH · codesh stdio"| LOCAL
+    subgraph SERVER["codesh-server · one per profile"]
         LOCAL["Local listener"]
         NETWORK["Network listener · opt-in"]
         CONNECTION["Client connections"]
@@ -27,10 +27,10 @@ flowchart LR
     end
 ```
 
-- The desktop app ships the `muxy` and `muxy-server` executables, which are
+- The desktop app ships the `codesh` and `codesh-server` executables, which are
   also released on their own. Either app starts the server if it isn't running.
-- The server keeps projects and which sessions belong to them. Apps keep tabs,
-  panes, order, and workspaces.
+- The server keeps projects and which sessions belong to them. Apps keep
+  layouts, panes, order, and workspaces.
 - The desktop app keeps a connection per server: this computer's, and one per
   remote device. A second connection to each carries native panel work and remote
   file transfers, so they never wait behind terminal traffic.
@@ -40,31 +40,31 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    APP["muxy-app"] --> UI["muxy-ui"]
-    APP --> APPCORE["muxy-app-core"]
-    APP --> CLIENT["muxy-client"]
-    CLI["muxy-cli"] --> APPCORE
+    APP["codesh-app"] --> UI["codesh-ui"]
+    APP --> APPCORE["codesh-app-core"]
+    APP --> CLIENT["codesh-client"]
+    CLI["codesh-cli"] --> APPCORE
     CLI --> CLIENT
-    MOBILE["muxy-mobile"] --> CLIENT
-    CLIENT --> PROTOCOL["muxy-protocol"]
+    MOBILE["codesh-mobile"] --> CLIENT
+    CLIENT --> PROTOCOL["codesh-protocol"]
     APPCORE --> PROTOCOL
-    SERVER["muxy-server"] --> TERMINAL["muxy-terminal"]
+    SERVER["codesh-server"] --> TERMINAL["codesh-terminal"]
     SERVER --> PROTOCOL
     TERMINAL --> PROTOCOL
 ```
 
 | Crate | Role |
 | --- | --- |
-| `muxy-app` | The desktop app. |
-| `muxy-ui` | Reusable GPUI components and native web views. No app state. |
-| `muxy-app-core` | The app model without UI, shared by desktop and terminal UI: layouts, workspaces and settings. |
-| `muxy-cli` | The `muxy` command: CLI and terminal UI. |
-| `muxy-client` | Connects to a server, starting a local one if needed. |
-| `muxy-mobile` | The client library for phones, with Swift and Kotlin bindings. |
-| `muxy-protocol` | Messages, encoding, screen types, and transports. |
-| `muxy-server` | The server: projects, sessions, history, Git, files, and mobile access. |
-| `muxy-terminal` | Wraps the Ghostty terminal and the PTY. |
-| `muxy-core` | Shared basics, such as folders, locks, the shortcut catalog, and the app language. |
+| `codesh-app` | The desktop app. |
+| `codesh-ui` | Reusable GPUI components and native web views. No app state. |
+| `codesh-app-core` | The app model without UI, shared by desktop and terminal UI: layouts, workspaces and settings. |
+| `codesh-cli` | The `codesh` command: CLI and terminal UI. |
+| `codesh-client` | Connects to a server, starting a local one if needed. |
+| `codesh-mobile` | The client library for phones, with Swift and Kotlin bindings. |
+| `codesh-protocol` | Messages, encoding, screen types, and transports. |
+| `codesh-server` | The server: projects, sessions, history, Git, files, and mobile access. |
+| `codesh-terminal` | Wraps the Ghostty terminal and the PTY. |
+| `codesh-core` | Shared basics, such as folders, locks, the shortcut catalog, and UI strings. |
 
 ## Typing a key
 
@@ -131,21 +131,26 @@ flowchart LR
 - Hidden terminal panes detach but keep their last screen and scroll position
   in memory, and the server still counts them as showing their session. They
   attach again when shown, displaying cached content first, even while offline.
-- The UI is built from `muxy-ui` components. Every app shortcut comes from one
+- The UI is built from `codesh-ui` components. Every app shortcut comes from one
   catalog, resolved through the keymap. Terminal preferences and key
   bindings live in `terminal.toml`.
 
 ## Browser and native panels
 
-Files, Source Control, editor, and diff surfaces are native GPUI views. Browser panes use WebKit and share the occlusion and resize infrastructure. File, Git, and process operations go through the server's side connection. Codesh has no extension runtime or marketplace.
+Files, Source Control, editor, and diff surfaces are native GPUI views in
+`codesh-app`. The editor highlights syntax with `syntect`. File, Git, search
+(`rg`, or `git ls-files` for Go to File), and process operations run on the
+project's server through the side connection, so local and remote projects
+behave the same. Browser panes use WebKit and share the occlusion and resize
+infrastructure.
 
 ## The browser
 
 - Browser panes embed [polybrowser](https://github.com/saeedvaziry/polybrowser),
   which wraps the system WebKit view and keeps profiles and history.
 - A page sits in a native host, so it hides under
-  app content and shares the keyboard with Muxy's shortcuts.
-- The server knows nothing about browsers. `muxy browser` reaches the desktop
+  app content and shares the keyboard with Codesh's shortcuts.
+- The server knows nothing about browsers. `codesh browser` reaches the desktop
   app over its own socket in the profile folder, `app.sock`, which only this
   user can open. One JSON request gets one JSON reply.
 

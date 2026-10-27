@@ -6,7 +6,7 @@ Most numbers come from early prototypes, measured on an Apple M3 with release
 builds. Every candidate replayed the same recorded terminal output: an idle
 shell, large log dumps, a vim session, a full-screen monitor, heavy color
 changes, Unicode, and long lines with resizes, plus 100 sessions at once. The
-[benchmark reports](https://github.com/muxy-app/muxy/blob/6b98443d27633738c108309e80a9a1ffa55f4aea/docs/tech/benchmarks.md)
+[benchmark reports](https://github.com/hugocxl/codesh/blob/6b98443d27633738c108309e80a9a1ffa55f4aea/docs/tech/benchmarks.md)
 are in git history.
 
 | | Decision | In short |
@@ -76,7 +76,7 @@ dictionaries, which fit their training data and little else.
 Unix sockets, TCP, and stdio pipes were all about ten times faster than a
 program writing line by line to a terminal. Apps on the same computer use a Unix
 socket and phones use TLS (D11). Other computers are reached over SSH, which
-runs `muxy stdio` there to join its stdin and stdout to that computer's server.
+runs `codesh stdio` there to join its stdin and stdout to that computer's server.
 ssh logs in with the user's keys, agent, or certificates. For a password login,
 the desktop asks for the password, keeps it only in memory, and answers ssh's
 prompt for it.
@@ -107,11 +107,11 @@ portable-pty also supports Windows behind the same API.
 
 Phones connect over TLS 1.3 to a self-signed certificate that they pin when
 scanning the pairing code. Each phone gets its own token, which the server keeps
-only as a hash. The phone apps embed the same Rust client as the desktop app.
+only as a hash. The phone clients embed the same Rust client as the desktop app.
 
 Pairing stays the default because it needs no SSH setup. Phones can also
 connect over SSH, since the apps already embed an SSH client: it runs
-`muxy stdio` on the computer (D7).
+`codesh stdio` on the computer (D7).
 
 Turned down: a cloud relay, which is another service to trust; mutual TLS, for
 handling certificates on phones; and a native Swift, Kotlin, or JSON protocol,

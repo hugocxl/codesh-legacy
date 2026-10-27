@@ -65,7 +65,7 @@ class DesktopMacosTests(unittest.TestCase):
             ["cargo", "clippy", "--locked", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
             ["cargo", "test", "--locked", "--workspace", "--all-features"],
             ["cargo", "doc", "--locked", "--workspace", "--no-deps"],
-            ["cargo", "build", "--locked", "-p", "muxy-app", "-p", "muxy-cli", "-p", "muxy-server"],
+            ["cargo", "build", "--locked", "-p", "codesh-app", "-p", "codesh-cli", "-p", "codesh-server"],
         ])
         for call in run.call_args_list:
             self.assertEqual(call.kwargs["cwd"], ROOT)

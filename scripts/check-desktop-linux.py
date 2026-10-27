@@ -25,12 +25,12 @@ def main():
     if os.environ.get("CARGO_BUILD_TARGET", args.target) != args.target:
         raise ValueError("Remove CARGO_BUILD_TARGET or set it to the native Linux host")
     wrapper = ROOT / "scripts/zig"
-    zig = os.environ.get("MUXY_ZIG") or shutil.which("zig")
+    zig = os.environ.get("CODESH_ZIG") or shutil.which("zig")
     if not zig or Path(zig).resolve() == (wrapper / "zig").resolve():
-        raise ValueError("Install Zig 0.15.2 or set MUXY_ZIG to it before running the Linux desktop check")
+        raise ValueError("Install Zig 0.15.2 or set CODESH_ZIG to it before running the Linux desktop check")
     env = {
         **os.environ,
-        "MUXY_ZIG": zig,
+        "CODESH_ZIG": zig,
         "PATH": str(wrapper) + os.pathsep + os.environ.get("PATH", ""),
         "RUSTDOCFLAGS": (os.environ.get("RUSTDOCFLAGS", "") + " -D warnings").strip(),
     }
@@ -42,7 +42,7 @@ def main():
         ["cargo", "test", "--locked", "--workspace", "--all-features"],
         *([PAGE_TESTS] if display else []),
         ["cargo", "doc", "--locked", "--workspace", "--no-deps"],
-        ["cargo", "build", "--locked", "-p", "muxy-app", "-p", "muxy-cli", "-p", "muxy-server"],
+        ["cargo", "build", "--locked", "-p", "codesh-app", "-p", "codesh-cli", "-p", "codesh-server"],
     ]
     for command in commands:
         print("+ " + " ".join(command), flush=True)

@@ -1,9 +1,13 @@
-# Codesh desktop style
+# Desktop style
 
-The window and opaque sidebar share `Theme::bg`. The bundled Muxy dark theme
-uses `#111111` and warm `#d5cec7` text. Fresh profiles use ProjectFocused layout,
-an expanded 270px sidebar, hidden tips/status, and no sidebar vibrancy. Saved
-appearance choices still apply, except the sidebar always stays opaque.
+The design system for the desktop app: tokens, pane cards, split gutters, and
+sidebar chrome.
+
+The window and opaque sidebar share `Theme::bg`. The bundled Codesh dark theme
+uses `#111111` and warm `#d5cec7` text. Fresh profiles use the project-focused
+sidebar, expanded to 270px, with tips hidden and no sidebar vibrancy. Saved
+appearance choices apply, except the sidebar always stays opaque. There is no
+status bar.
 
 ## Tokens and geometry
 
@@ -38,19 +42,19 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   Actions retain their layout space and appear only on the active pane or while
   its card is hovered. Browser page clicks also set the active pane.
 - The body shrinks below the header with real layout padding. Workspace terminal
-  padding adds only `max(configured - 2, 0)` per edge: the upstream default 2px
-  is absorbed into the 12px card inset.
+  padding adds only `max(configured - 2, 0)` per edge: the default 2px is
+  absorbed into the card inset.
   Palette construction and the opaque workspace terminal root share the card
-  blend; explicit terminal background overrides remain user overrides. Inner
-  terminal focus borders and zoom-only rounding are removed.
+  blend; explicit terminal background overrides stay user overrides. Terminals
+  draw no inner focus border; the card shows focus.
 - Native browser canvases measure their frames inside the body below
-  the header and sync the shared 10px radius through existing host code.
+  the header and sync the shared 10px radius through the native host.
 
-- `workspace::render()` hides both main header variants and their separator;
-  group strips are also hidden. Legacy renderers remain for the separate tab
-  policy work. Sidebar chrome reserves native titlebar space and retains window
-  dragging; a collapsed sidebar reserves top space for the toggle.
-- Sidebar project headers retain selection, menus and drag ordering; their
+- The workspace has no header or tab strip; each project shows one split
+  container (see [Single tab per project](single-tab.md)). Sidebar chrome
+  reserves native titlebar space and keeps window dragging; a collapsed sidebar
+  reserves top space for the toggle.
+- Sidebar project headers keep selection, menus and drag ordering; their
   worktrees are always expanded. Worktrees and primary checkouts use compact
   activity cards with 8px radii, 8px padding and 4px gaps. The first line shows
   the worktree name, agent glyph/activity indicator and relative age; the second
@@ -68,19 +72,19 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   Local, Server); the name query lives only in AppModel and Escape clears it.
   Case-insensitive name filtering keeps parent headers with matching worktrees
   and reveals matching rows. The
-  host menu also opens the existing remote management popover.
-- Agents are hidden by default. The existing shortcut opens the left placement
-  as a popup; right and detached placements retain their existing behavior.
-  Saved visibility preferences are retained, without docking into the sidebar.
+  host menu also opens remote server management.
+- The agents panel is hidden by default. `Cmd+Opt+A` opens the left placement
+  as a popup; right and detached placements dock or float as usual. Saved
+  visibility is restored without docking into the sidebar.
 
-Terminal `PaneView::element()` and sidebar caching remain intact. Titles/icons
+Terminal `PaneView::element()` and the sidebar are cached. Titles and icons
 use cached state; there are no native title/process queries, animations, new
 dependencies or layout feedback loops. The terminal card-padding flag changes
 once when a terminal joins the workspace.
 
 ## Validation
 
-The sidebar iteration is validated with core tests, GPUI sidebar/filter tests,
+Style changes are validated with core tests, GPUI sidebar/filter tests,
 Clippy with warnings denied, and documentation with rustdoc warnings denied.
 Workspace integration tests also exercise sockets, subprocesses and SSH; those
 need a session that permits those operations. The debug app is built for manual
@@ -91,7 +95,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS=-Dwarnings cargo doc --workspace --no-deps
-cargo run -p muxy-app
+cargo run -p codesh-app
 ```
 
 Compare one pane, nested splits and zoom to the references. Check inactive-card

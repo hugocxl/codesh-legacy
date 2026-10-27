@@ -1,51 +1,33 @@
-# Git
+# Source Control
 
-For Git projects, the status bar shows the branch, the changes, and pull
-request state. Commits and pull requests are written by an AI command-line
-tool you already have.
+For Git projects, the native Source Control panel shows the working tree and
+commits it. Git runs on the project's server, so it works for
+[remote projects](remote-servers.md) too.
 
-## Branch and changes
+## Source Control panel
 
-- **Branch:** switch, create, or delete branches.
-- **Changes:** see changed files with line counts. Stage, unstage, or discard
-  them, one at a time or all at once.
+`Cmd+Shift+G` (or the Source Control button at the top of the sidebar) toggles
+the panel, pinned on the right of the current project. It shares that spot with
+the [Files panel](files.md).
 
-## Commit and push
+- The header shows the current branch, with **Refresh**.
+- Changes are grouped as **Conflicts**, **Staged Changes**, **Changes**, and
+  **Untracked**. Stage, unstage, or discard a file, or use **Stage All** and
+  **Unstage All**.
+- Write a message and choose **Commit**, or press `Cmd+Return` in the message
+  field. **Amend** amends the last commit instead.
+- The panel refreshes when the worktree changes.
 
-**Commit** asks the AI for a commit message, then commits. Before it starts,
-pick the AI tool, whether to include unstaged changes or only what's staged,
-and whether to push. Muxy remembers these choices for next time. You can also
-add one-off instructions for the AI.
+## Diffs
 
-## Create a pull request
+Click a changed file to open its diff in a pane beside the focused one. A diff
+for a file that already has one reuses its pane, and open diffs refresh when the
+working tree changes. Very long diffs are cut short.
 
-**Create PR** creates a new branch, commits your changes, pushes, and opens a
-pull request with an AI-written title and description. It follows the
-repository's pull request template when there is one. It needs uncommitted
-changes and a GitHub remote named `origin`.
+## Worktrees and pull requests
 
-When the branch has a pull request, the status bar shows its number, state,
-and checks. From there you can merge (merge commit, squash, or rebase), update
-it from its base branch, close it, or open it on GitHub. In a worktree, you can
-also remove the worktree after merging: Muxy asks first, then switches to the
-primary checkout.
-
-Pull request features need the [`gh`](https://cli.github.com) CLI, installed and
-signed in on the project's server.
-
-## AI tools
-
-Muxy uses the first installed of: Claude Code (`claude`), Codex (`codex`),
-OpenCode (`opencode`), GitHub Copilot (`copilot`), Cursor (`cursor-agent`),
-Droid (`droid`), Grok (`grok`), Kiro CLI (`kiro-cli`), Pi (`pi`), Xal (`xal`),
-Antigravity (`agy`), and Oh My Pi (`omp`).
-
-In **Settings → AI**, pick the tool for commits and for pull requests, and edit
-their prompts. A project can have its own pull request prompt, set from the
-**Create PR** menu.
-
-- Sign in to the tool in a terminal first. Muxy runs it without prompts.
-- The tool runs on this Mac, in the project folder. For a
-  [remote project](remote-servers.md), the same folder must exist here.
-- Muxy itself always does the staging, committing, pushing, and pull request.
-  The AI only writes the text.
+The sidebar's worktree cards show each worktree's branch and, when it has one,
+its open pull request number. Pull request information needs the
+[`gh`](https://cli.github.com) CLI, installed and signed in on the project's
+server (`gh auth login`). See [Projects](projects.md#worktrees) for creating and
+removing worktrees.

@@ -1,57 +1,100 @@
 <p align="center">
-  <img src="packaging/macos/AppIcon.png" alt="Muxy" width="128" height="128">
+  <img src="packaging/macos/AppIcon.png" alt="Codesh" width="128" height="128">
 </p>
 
-<h1 align="center">Muxy</h1>
+<h1 align="center">Codesh</h1>
 
-<p align="center">Lightweight and Memory efficient terminal multiplexer built with Rust, GPUI and libghostty.</p>
-<p align="center"><a href="#install">Mac</a> | <a href="docs/user-guide/getting-started.md#linux-desktop-app">Linux</a> | <a href="https://apps.apple.com/de/app/muxy/id6762464046?l=en-GB">iOS</a> | <a href="https://play.google.com/store/apps/details?id=com.muxy.app">Android</a> | <a href="https://discord.gg/4eMXAmJQ2n">Discord</a></p>
+<p align="center">A macOS terminal workspace for running agents and shells, built with Rust, GPUI and libghostty.</p>
 
-## Screenshots
+## What it is
 
-<img height="1592" alt="image" src="https://github.com/user-attachments/assets/eca8fb92-b2f4-4a53-a25f-6f75316222af" />
+Codesh organizes your work by project and Git worktree. Each project has one
+workspace of equal-sized split panes, and every terminal runs in a background
+server, so agents and shells keep going when you close the window. Files,
+Source Control, editors, diffs and a browser are built in, and the same
+workspace reaches other machines over SSH.
 
-## Top level features
+## Features
 
-- Background sessions
-- Remote sessions
-- Split panes
-- Git worktrees
-- Extensions
-- Mobile companion apps (iOS & Android)
-- AI coding agent integrations
-- 490+ themes
-- TUI
+- **Split panes per project.** One workspace per project or worktree, split
+  into equal-sized, card-style panes with headers.
+- **Worktree activity in the sidebar.** Each worktree shows a card with its
+  agent state, latest session or pull request, and branch.
+- **AI agent awareness.** Codesh recognizes Claude Code, Codex and other agents
+  in its terminals and notifies you when one needs input.
+- **Native Files and Source Control panels.** Browse files, stage, discard and
+  commit, and open files in an editor with syntax highlighting or in diff panes.
+- **Go to File and Find in Files.**
+- **Built-in browser** panes, scriptable from the shell with `codesh browser`.
+- **Background sessions.** Terminals run in `codesh-server` and survive quitting
+  the app.
+- **Remote servers over SSH.** Each machine runs its own `codesh-server`; the
+  `codesh` CLI and terminal UI work locally or with `--host`.
+- **Settings** in a window modeled on macOS System Settings.
 
 ## Install
 
-The desktop app runs on macOS 14 or newer, on Apple Silicon or Intel.
+Codesh runs on macOS 14 or newer, on Apple Silicon or Intel.
+
+1. Download `Codesh-<version>-arm64.dmg` (Apple Silicon) or
+   `Codesh-<version>-x86_64.dmg` (Intel) from the
+   [latest release](https://github.com/hugocxl/codesh/releases/latest).
+2. Drag **Codesh** to `/Applications` and open it.
+
+The app updates itself from GitHub Releases. To use `codesh` in your shell,
+choose **Install Command Line Tool…** from the app menu.
+
+The CLI and server alone, for Macs and Linux machines you reach over SSH, are
+also on the Releases page. See [Getting started](docs/user-guide/getting-started.md).
+
+### Build from source
+
+You need [Rust](https://rustup.rs) (`rustup` installs the toolchain pinned in
+`rust-toolchain.toml`) and [Zig](https://ziglang.org) **0.15.2**, which builds
+the Ghostty terminal library. Use exactly that Zig version.
 
 ```bash
-brew install --cask muxy-app/tap/muxy
+git clone https://github.com/hugocxl/codesh.git
+cd codesh
+cargo build --workspace
+cargo run -p codesh-app
 ```
 
-Or download the DMG for your Mac from the [latest release](https://github.com/muxy-app/muxy/releases/latest).
+`python3 scripts/build-install.py` builds a signed app for this Mac and installs
+it; `--build-only` stops after signing. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for development details.
 
-On **Ubuntu 24.04**, use the [quick installer](docs/user-guide/getting-started.md#quick-installer-with-in-app-updates)
-for the latest stable release and in-app updates, or download a **`.deb`** or
-**AppImage** from the [latest release](https://github.com/muxy-app/muxy/releases/latest).
-The [Linux section](docs/user-guide/getting-started.md#linux-desktop-app) covers all
-three formats. See [Beta builds](docs/user-guide/getting-started.md#beta) for beta
-installs. Linux support is experimental, targeting x86_64 and ARM64.
+## Usage
 
-The `muxy` CLI and server also run on their own, on macOS and Linux:
+1. **Add a project:** **Add Project** in the sidebar, `Cmd+O`, or
+   `codesh <folder>` from a shell.
+2. **Open terminals:** `Cmd+T` adds a terminal pane; `Cmd+D` and `Cmd+Shift+D`
+   split right and down.
+3. **Work with files:** `Cmd+E` toggles Files, `Cmd+Shift+G` Source Control,
+   `Cmd+P` is Go to File and `Cmd+Shift+F` Find in Files.
+4. **Quit freely:** terminals keep running, and Codesh restores everything on
+   the next launch.
 
-```bash
-brew install muxy-app/tap/muxy-cli
-```
+More in the [documentation](docs/README.md).
 
-See [Getting started](docs/user-guide/getting-started.md) for the install script, upgrading from 1.x, and beta builds.
+## Project layout
 
-## Documentation
-
-See [docs](https://muxy.app/docs).
+| Path | Contents |
+| --- | --- |
+| `crates/codesh-app` | The macOS desktop app (GPUI) |
+| `crates/codesh-ui` | Reusable GPUI components and native web views |
+| `crates/codesh-app-core` | App model without UI: layouts, workspaces, settings |
+| `crates/codesh-cli` | The `codesh` CLI and terminal UI |
+| `crates/codesh-server` | `codesh-server`: projects, sessions, history, Git, files |
+| `crates/codesh-terminal` | Ghostty terminal and PTY wrapper |
+| `crates/codesh-client` | Client connections to local and remote servers |
+| `crates/codesh-protocol` | Wire protocol and transports |
+| `crates/codesh-mobile` | Client library for mobile apps |
+| `crates/codesh-core` | Shared basics: folders, locks, shortcut catalog |
+| `docs/` | User guide, feature docs, product and technical design |
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Codesh is developed and maintained by Hugo Corta.
+
+Codesh is derived from [Muxy](https://github.com/muxy-app/muxy) (MIT); `LICENSE` keeps Muxy's copyright notice.

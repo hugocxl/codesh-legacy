@@ -20,7 +20,7 @@ if [[ "$(uname -s)" != Linux || "$(uname -m)" != "$MACHINE" || "$(getconf GNU_LI
 fi
 export CARGO_TARGET_DIR="$ROOT/target"
 export LIBGHOSTTY_VT_SYS_OPTIMIZE=ReleaseFast
-export MUXY_ZIG="$(command -v zig)"
+export CODESH_ZIG="$(command -v zig)"
 export PATH="$ROOT/scripts/zig:$PATH"
 OUTPUT="$CARGO_TARGET_DIR/packages/$VERSION/linux-$ARCH"
 if [[ -e "$OUTPUT" ]]; then
@@ -30,12 +30,12 @@ fi
 cd "$ROOT"
 # A cached native Zig object may otherwise depend on the previous runner's CPU.
 cargo clean -p libghostty-vt-sys
-cargo build --locked --release --target "$TARGET" -p muxy-cli -p muxy-server
+cargo build --locked --release --target "$TARGET" -p codesh-cli -p codesh-server
 mkdir -p "$(dirname "$OUTPUT")"
 STAGING="$(mktemp -d "$(dirname "$OUTPUT")/.linux-${ARCH}.XXXXXX")"
 trap 'rm -rf "$STAGING"' EXIT
 mkdir "$STAGING/cli" "$STAGING/symbols" "$STAGING/artifacts"
-for BINARY in muxy muxy-server; do
+for BINARY in codesh codesh-server; do
     install -m 755 "$CARGO_TARGET_DIR/$TARGET/release/$BINARY" "$STAGING/cli/$BINARY"
     objcopy --only-keep-debug "$STAGING/cli/$BINARY" "$STAGING/symbols/$BINARY.debug"
     strip --strip-debug "$STAGING/cli/$BINARY"
@@ -43,9 +43,9 @@ for BINARY in muxy muxy-server; do
     cat "$STAGING/artifacts/$BINARY-audit.txt"
     python3 scripts/release.py check-build "$VERSION" "$STAGING/cli/$BINARY"
 done
-cat LICENSE crates/muxy-server/src/detection/THIRD_PARTY.md \
-    crates/muxy-server/src/detection/LICENSE-herdr > "$STAGING/cli/LICENSE"
-tar -czf "$STAGING/artifacts/muxy-${VERSION}-linux-${ARCH}.tar.gz" -C "$STAGING/cli" muxy muxy-server LICENSE
-tar -czf "$STAGING/artifacts/muxy-${VERSION}-linux-${ARCH}-symbols.tar.gz" -C "$STAGING/symbols" .
+cat LICENSE crates/codesh-server/src/detection/THIRD_PARTY.md \
+    crates/codesh-server/src/detection/LICENSE-herdr > "$STAGING/cli/LICENSE"
+tar -czf "$STAGING/artifacts/codesh-${VERSION}-linux-${ARCH}.tar.gz" -C "$STAGING/cli" codesh codesh-server LICENSE
+tar -czf "$STAGING/artifacts/codesh-${VERSION}-linux-${ARCH}-symbols.tar.gz" -C "$STAGING/symbols" .
 mv "$STAGING/artifacts" "$OUTPUT"
 echo "==> Built $OUTPUT"

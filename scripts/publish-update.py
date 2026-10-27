@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -9,9 +8,7 @@ from pathlib import Path
 
 from release import build_number
 
-CHANNEL = "beta-2.x"
-# Feeds published before BETA_VERSION numbering hold 2.0.0-beta-N and are always older.
-LEGACY_VERSION = re.compile(r"2\.0\.0-beta-[1-9][0-9]*")
+CHANNEL = "beta"
 
 
 def gh(repository, *args, check=True):
@@ -28,7 +25,7 @@ def download(repository, tag, directory):
 
 def publish(version, repository, sha):
     incoming = int(build_number(version))
-    with tempfile.TemporaryDirectory(prefix="muxy-beta-feed-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="codesh-beta-feed-") as temporary:
         directory = Path(temporary)
         candidate = directory / "candidate"
         candidate.mkdir()
@@ -46,8 +43,7 @@ def publish(version, repository, sha):
                 previous = download(repository, CHANNEL, current)
                 if previous.get("schema") != 1:
                     raise ValueError("unsupported existing update metadata")
-                if (not LEGACY_VERSION.fullmatch(previous["version"])
-                        and int(build_number(previous["version"])) > incoming):
+                if int(build_number(previous["version"])) > incoming:
                     print("The beta feed already points to a newer build; leaving it unchanged")
                     return
         else:

@@ -27,21 +27,21 @@ class BuildInstallTests(unittest.TestCase):
 
     def test_packaging_keeps_channel_identity_icon_and_local_build_metadata_consistent(self):
         for version, app_name, icon in (
-                ("2.0.0-beta-0", "Codesh Beta", "AppIconBeta.png"),
+                ("0.1.0-beta-0", "Codesh Beta", "AppIconBeta.png"),
                 ("2.3.0-beta.12", "Codesh Beta", "AppIconBeta.png"),
                 ("2.3.0", "Codesh", "AppIcon.png")):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
                 directory = Path(temporary)
                 binaries = directory / "binaries"
                 binaries.mkdir()
-                for name in (*BUILD.BINARIES, "muxy-app"):
+                for name in (*BUILD.BINARIES, "codesh-app"):
                     (binaries / name).write_bytes(b"executable")
                 with patch.object(BUILD, "run") as run, patch.object(BUILD, "output", return_value="12"):
                     app = BUILD.package_app(directory, binaries, version, "signing-identity")
                 self.assertEqual(app.name, app_name + ".app")
                 info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
                 self.assertEqual(info["CFBundleGetInfoString"], f"{app_name} {version}")
-                self.assertEqual(info["MuxyVersion"], version)
+                self.assertEqual(info["CodeshVersion"], version)
                 self.assertTrue(all(call.args[4].name == icon for call in run.call_args_list
                                     if call.args[0] == "sips"))
 

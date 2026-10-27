@@ -31,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: muxy-stable-release
+  group: codesh-stable-release
   cancel-in-progress: false
 
 jobs:
@@ -115,8 +115,8 @@ jobs:
           path: artifacts
       - name: Include the exact installer from the promoted beta
         run: |
-          cp scripts/install-muxy.sh scripts/install-desktop-linux.py artifacts/
-          cp packaging/linux/muxy-desktop.apparmor artifacts/
+          cp scripts/install-codesh.sh scripts/install-desktop-linux.py artifacts/
+          cp packaging/linux/codesh-desktop.apparmor artifacts/
       - name: Publish stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
