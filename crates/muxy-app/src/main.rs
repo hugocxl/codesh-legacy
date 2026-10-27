@@ -33,6 +33,7 @@ mod views {
     pub(crate) mod disconnected;
     pub(crate) mod editor;
     pub(crate) mod files_panel;
+    pub(crate) mod find_in_files;
     pub(crate) mod font_picker;
     pub(crate) mod git;
     pub(crate) mod git_panel;
@@ -44,6 +45,7 @@ mod views {
     pub(crate) mod project_menu;
     pub(crate) mod project_picker;
     pub(crate) mod proxy;
+    pub(crate) mod quick_open;
     pub(crate) mod remote_servers;
     pub(crate) mod server_menu;
     pub(crate) mod server_status;
