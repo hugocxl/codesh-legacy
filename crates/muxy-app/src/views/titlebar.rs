@@ -2,7 +2,7 @@ use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, InteractiveElement, IntoElement,
     MouseButton, ParentElement, SharedString, Stateful, StatefulInteractiveElement, Styled, Window,
-    div, px,
+    div,
 };
 use muxy_ui::components::{IconGlyph, Tooltip};
 use muxy_ui::icon::Icon;
@@ -59,7 +59,7 @@ pub(super) fn actions(model: &AppModel, window: &Window, cx: &mut Context<AppMod
             && Some(tab.id) == model.active_tab()
             && (tab.zoomed.is_some() || tab.panes.len() > 1)
     });
-    let controls = 2
+    let controls = 1
         + u8::from(existing_count > 0)
         + u8::from(browser)
         + u8::from(zoom_tab.is_some())
@@ -72,7 +72,6 @@ pub(super) fn actions(model: &AppModel, window: &Window, cx: &mut Context<AppMod
         .flex()
         .flex_none()
         .items_center()
-        .when(cfg!(target_os = "linux"), Styled::h_full)
         .when(existing_count > 0, |bar| {
             bar.child(super::tab_strip::existing_terminals_button(
                 existing_count,
@@ -94,8 +93,7 @@ pub(super) fn actions(model: &AppModel, window: &Window, cx: &mut Context<AppMod
             bar.child(super::project_layouts::button(model, cx))
         })
         .child(model.extension_toolbar(cx))
-        .child(super::agent_sessions::button(model, cx))
-        .child(super::tab_strip::settings_button(model, cx));
+        .child(super::agent_sessions::button(model, cx));
     #[cfg(target_os = "linux")]
     if let Some(controls) = linux::controls(
         window,
@@ -215,64 +213,10 @@ pub(crate) fn navigation(
     window: &Window,
     cx: &mut Context<AppModel>,
 ) -> AnyElement {
-    let m = model.metrics;
-    let theme = &model.theme;
-    let toggle = sidebar_toggle(model, cx);
-    background("titlebar-navigation")
-        .occlude()
-        .absolute()
-        .top_0()
-        .left_0()
-        .w(px(sidebar_width.max(navigation_width(model, window))))
-        .h(m.title_bar_height())
-        .flex()
-        .items_center()
-        .justify_end()
-        .pr(m.spacing4())
-        .bg(if model.appearance.sidebar_expanded {
-            gpui::transparent_black()
-        } else {
-            theme.bg
-        })
-        .border_r_1()
-        .border_color(theme.border)
-        .map(|bar| top_corners(bar, window, true, false))
-        .map(|bar| {
-            if cfg!(target_os = "linux") {
-                bar.child(
-                    div()
-                        .flex()
-                        .flex_none()
-                        .items_center()
-                        .justify_center()
-                        .w(m.sidebar_collapsed_width())
-                        .child(toggle),
-                )
-                .when(model.appearance.sidebar_expanded, |bar| {
-                    bar.child(
-                        div()
-                            .flex_1()
-                            .min_w(px(0.0))
-                            .truncate()
-                            .text_size(m.font_body())
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .text_color(theme.fg_muted)
-                            .child("Codesh"),
-                    )
-                })
-                .child(arrow(model, false, cx))
-                .child(arrow(model, true, cx))
-            } else {
-                bar.gap(m.spacing1())
-                    .child(arrow(model, false, cx))
-                    .child(arrow(model, true, cx))
-                    .child(toggle)
-            }
-        })
-        .into_any_element()
+    super::codesh::sidebar_chrome::top(model, sidebar_width, window, cx)
 }
 
-fn sidebar_toggle(model: &AppModel, cx: &mut Context<AppModel>) -> Div {
+pub(crate) fn sidebar_toggle(model: &AppModel, cx: &mut Context<AppModel>) -> Div {
     let m = model.metrics;
     let theme = &model.theme;
     div()
@@ -313,7 +257,7 @@ pub(super) fn navigation_width(model: &AppModel, _: &Window) -> f32 {
     })
 }
 
-fn arrow(model: &AppModel, forward: bool, cx: &mut Context<AppModel>) -> AnyElement {
+pub(crate) fn arrow(model: &AppModel, forward: bool, cx: &mut Context<AppModel>) -> AnyElement {
     let m = model.metrics;
     let theme = &model.theme;
     let enabled = model.can_navigate(forward);

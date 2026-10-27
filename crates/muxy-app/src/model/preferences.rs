@@ -609,7 +609,6 @@ impl AppModel {
 
     #[cfg(all(target_os = "macos", not(test)))]
     pub(crate) fn sync_background_effects(&mut self, window: &Window, cx: &mut Context<Self>) {
-        self.sync_sidebar_vibrancy(window);
         let options = &self.terminal.options;
         if options.background_vibrancy == 0 || !self.terminal_effects_allowed() {
             self.terminal_background.native = None;

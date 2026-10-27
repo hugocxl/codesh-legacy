@@ -39,7 +39,6 @@ impl AppModel {
 
 pub(in crate::views) fn handle(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
     let weak = cx.weak_entity();
-    let active = model.sidebar_resize.is_some();
     div()
         .id("sidebar-resize")
         .debug_selector(|| "sidebar-resize".into())
@@ -65,16 +64,6 @@ pub(in crate::views) fn handle(model: &AppModel, cx: &mut Context<AppModel>) -> 
                 cx.stop_propagation();
                 cx.notify();
             }),
-        )
-        .child(
-            div()
-                .absolute()
-                .right_0()
-                .h_full()
-                .w(px(1.0))
-                .bg(model.theme.border)
-                .when(active, |line| line.bg(model.theme.accent))
-                .group_hover("sidebar-resize", |line| line.bg(model.theme.accent)),
         )
         .when(model.webviews.sidebar.is_some(), |handle| {
             handle.child(model.webview_occlusion())

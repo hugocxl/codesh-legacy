@@ -1,0 +1,186 @@
+use gpui::{
+    AnyElement, Context, FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    SharedString, Styled, div, px,
+};
+use muxy_app_core::{Direction, PaneContent, PaneId};
+use muxy_ui::{
+    components::{IconButton, IconGlyph, SymbolGlyph},
+    icon::Icon,
+};
+
+use super::style;
+use crate::model::AppModel;
+
+#[derive(Clone, Copy)]
+enum Action {
+    Right,
+    Down,
+    Zoom,
+    Close,
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Shared pane chrome and its target-specific actions"
+)]
+pub(crate) fn render(
+    id: PaneId,
+    body: AnyElement,
+    model: &AppModel,
+    cx: &Context<AppModel>,
+) -> AnyElement {
+    let pane = model
+        .state
+        .current_project()
+        .tabs
+        .iter()
+        .flat_map(|tab| &tab.panes)
+        .find(|pane| pane.id == id);
+    let (title, icon) = pane.map_or_else(
+        || ("Terminal".to_owned(), Icon::Terminal),
+        |pane| {
+            (
+                pane.title.clone(),
+                match &pane.content {
+                    PaneContent::Terminal { .. } => Icon::Terminal,
+                    PaneContent::Browser(_) => Icon::Globe,
+                    PaneContent::Webview(_) => Icon::Puzzle,
+                    PaneContent::Servers => Icon::Network,
+                    PaneContent::Settings => Icon::Settings,
+                },
+            )
+        },
+    );
+    let (title, suffix) = title
+        .rsplit_once(' ')
+        .filter(|(_, tail)| tail.starts_with('~') || tail.starts_with('/'))
+        .unwrap_or((title.as_str(), ""));
+    let zoomed = model
+        .state
+        .current_project()
+        .tabs
+        .iter()
+        .any(|tab| tab.zoomed == Some(id));
+    let m = model.metrics;
+    let theme = &model.theme;
+    let glyph = if model.state.browser(id).is_some() {
+        model.browser_glyph(id, m.scaled(16.0), theme.fg_muted, cx)
+    } else if let Some(surface) = model.webviews.panes.get(&id) {
+        match surface.view.read(cx).icon.as_ref() {
+            Some(crate::views::webview::PageIcon::Svg(image)) => gpui::img(image.clone())
+                .size(m.scaled(16.0))
+                .into_any_element(),
+            Some(crate::views::webview::PageIcon::Symbol(symbol)) => {
+                SymbolGlyph::new(symbol.clone(), m.scaled(16.0), theme.fg_muted)
+                    .or("puzzlepiece.extension")
+                    .into_any_element()
+            }
+            None => IconGlyph::new(icon, m.scaled(16.0), theme.fg_muted).into_any_element(),
+        }
+    } else {
+        IconGlyph::new(icon, m.scaled(16.0), theme.fg_muted).into_any_element()
+    };
+    let mut controls = div().flex().flex_none().items_center().gap(m.scaled(8.0));
+    for (name, icon, tooltip, action) in [
+        ("right", Icon::Columns, "Split Right", Action::Right),
+        ("down", Icon::Rows, "Split Down", Action::Down),
+        (
+            "zoom",
+            if zoomed {
+                Icon::Restore
+            } else {
+                Icon::Maximize
+            },
+            "Zoom / Restore",
+            Action::Zoom,
+        ),
+        ("close", Icon::X, "Close Pane", Action::Close),
+    ] {
+        controls = controls.child(
+            div()
+                .debug_selector(move || format!("pane-{id}-{name}"))
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .child(
+                    IconButton::new(
+                        SharedString::from(format!("pane-{id}-{name}")),
+                        icon,
+                        m.scaled(16.0),
+                        m.scaled(20.0),
+                        theme.fg_dim,
+                        theme.fg,
+                    )
+                    .tooltip(tooltip, theme.raised(), theme.fg, theme.border, theme.bg)
+                    .on_click(cx.listener(move |model, _, window, cx| {
+                        cx.stop_propagation();
+                        model.focus_pane(id, cx);
+                        if model.active_pane() == Some(id) {
+                            match action {
+                                Action::Right => model.split_pane(Direction::Right, cx),
+                                Action::Down => model.split_pane(Direction::Down, cx),
+                                Action::Zoom => model.toggle_zoom_pane(cx),
+                                Action::Close => model.close_pane(id, cx),
+                            }
+                        }
+                        model.focus_active(window, cx);
+                    })),
+                ),
+        );
+    }
+    div()
+        .debug_selector(move || format!("pane-card-{id}"))
+        .flex()
+        .flex_col()
+        .size_full()
+        .min_w(px(0.0))
+        .min_h(px(0.0))
+        .rounded(m.scaled(style::RADIUS))
+        .border_1()
+        .border_color(style::border(theme))
+        .bg(style::card(theme))
+        .overflow_hidden()
+        .child(
+            div()
+                .id(SharedString::from(format!("pane-header-{id}")))
+                .flex()
+                .flex_none()
+                .items_center()
+                .h(m.scaled(style::HEADER))
+                .px(m.scaled(12.0))
+                .gap(m.scaled(8.0))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |model, _, window, cx| {
+                        cx.stop_propagation();
+                        model.focus_pane(id, cx);
+                        model.focus_active(window, cx);
+                    }),
+                )
+                .child(glyph)
+                .child(
+                    div()
+                        .flex()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .overflow_hidden()
+                        .gap(m.scaled(4.0))
+                        .text_size(m.scaled(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(theme.fg)
+                        .child(div().truncate().child(title.to_owned()))
+                        .child(div().text_color(theme.fg_muted).child(suffix.to_owned())),
+                )
+                .child(controls),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_1()
+                .min_w(px(0.0))
+                .min_h(px(0.0))
+                .rounded(m.scaled(style::RADIUS))
+                .p(m.scaled(style::BODY_PADDING))
+                .overflow_hidden()
+                .child(body),
+        )
+        .into_any_element()
+}

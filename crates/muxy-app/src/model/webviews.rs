@@ -154,7 +154,9 @@ impl AppModel {
                     visible.contains(id),
                     blocked,
                     window.is_window_active() && view.focus.is_focused(window),
-                    0.0,
+                    f64::from(f32::from(
+                        self.metrics.scaled(crate::views::codesh::style::RADIUS),
+                    )),
                     cx,
                 );
             });

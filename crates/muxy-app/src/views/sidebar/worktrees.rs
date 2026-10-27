@@ -173,6 +173,9 @@ pub(super) fn group(
         }
         group = group.child(worktrees.child(new_worktree(project.id, model, cx)));
     }
+    if model.appearance.sidebar_expanded && !model.has_worktrees(project) {
+        group = group.child(row(project, false, model, cx));
+    }
     group.into_any_element()
 }
 
@@ -188,19 +191,23 @@ fn row(
     let active = model.state.current_project().id == id;
     let missing = project.status() == ProjectStatus::Missing;
     let unavailable = missing || model.worktree_removing(id);
-    let activity = super::super::tab_activity::worktree_status(id, model);
     div()
         .id(SharedString::from(format!("worktree-{id}")))
         .debug_selector(move || format!("worktree-{id}"))
         .flex()
         .items_center()
-        .gap(m.spacing4())
-        .px(m.spacing2())
-        .h(m.control_large())
-        .rounded(m.radius_md())
+        .gap(m.scaled(8.0))
+        .px(m.scaled(10.0))
+        .h(m.scaled(28.0))
+        .rounded(m.scaled(8.0))
+        .border_1()
+        .border_color(gpui::transparent_black())
         .text_size(m.font_body())
-        .text_color(theme.fg)
-        .when(active, |row| row.bg(theme.hover))
+        .text_color(theme.fg_muted)
+        .when(active, |row| {
+            row.bg(theme.surface)
+                .border_color(super::super::codesh::style::border(theme))
+        })
         .when(unavailable, |row| row.opacity(0.5))
         .hover(|style| style.bg(theme.hover))
         .when(!unavailable, |row| {
@@ -215,7 +222,11 @@ fn row(
             cx.listener(move |model, event: &gpui::MouseDownEvent, window, cx| {
                 if let Some(project) = model.state.project(id) {
                     model.open_menu(
-                        super::super::project_menu::worktree_items(project, primary),
+                        if project.parent_id.is_none() && !primary {
+                            model.project_menu(project)
+                        } else {
+                            super::super::project_menu::worktree_items(project, primary)
+                        },
                         event.position,
                         window,
                         cx,
@@ -223,20 +234,7 @@ fn row(
                 }
             }),
         )
-        .child(
-            div()
-                .flex_none()
-                .w(m.icon_xxl())
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(super::super::tab_activity::status_glyph(
-                    format!("worktree-activity-{id}"),
-                    activity,
-                    m.icon_sm(),
-                    model,
-                )),
-        )
+        .child(row_glyph(project, model))
         .child(
             div()
                 .flex_1()
@@ -249,7 +247,7 @@ fn row(
                     label.child(
                         div()
                             .flex_none()
-                            .px(m.spacing2())
+                            .px(m.scaled(10.0))
                             .py(m.scaled(1.0))
                             .rounded_full()
                             .bg(theme.surface)
@@ -260,6 +258,44 @@ fn row(
                 }),
         )
         .into_any_element()
+}
+
+fn row_glyph(project: &Project, model: &AppModel) -> gpui::Div {
+    let id = project.id;
+    let m = model.metrics;
+    let theme = &model.theme;
+    let activity = super::super::tab_activity::worktree_status(id, model);
+    div()
+        .flex_none()
+        .w(m.scaled(16.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .when(
+            activity == super::super::tab_activity::Status::None,
+            |glyph| {
+                glyph.child(IconGlyph::new(
+                    if project.home {
+                        Icon::House
+                    } else {
+                        Icon::GitBranch
+                    },
+                    m.scaled(16.0),
+                    theme.fg_muted,
+                ))
+            },
+        )
+        .when(
+            activity != super::super::tab_activity::Status::None,
+            |glyph| {
+                glyph.child(super::super::tab_activity::status_glyph(
+                    format!("worktree-activity-{id}"),
+                    activity,
+                    m.icon_sm(),
+                    model,
+                ))
+            },
+        )
 }
 
 /// A worktree the server is still creating.
@@ -273,13 +309,13 @@ fn creating_row(name: &str, parent: ProjectId, index: usize, model: &AppModel) -
         .items_center()
         .gap(m.spacing4())
         .px(m.spacing2())
-        .h(m.control_large())
+        .h(m.scaled(28.0))
         .text_size(m.font_body())
         .text_color(model.theme.fg_muted)
         .child(
             div()
                 .flex_none()
-                .w(m.icon_xxl())
+                .w(m.scaled(16.0))
                 .flex()
                 .items_center()
                 .justify_center()
@@ -317,7 +353,7 @@ pub(crate) fn new_worktree(
         .gap(m.spacing4())
         .px(m.spacing2())
         .h(m.control_large())
-        .rounded(m.radius_md())
+        .rounded(m.scaled(8.0))
         .text_size(m.font_footnote())
         .font_weight(FontWeight::MEDIUM)
         .text_color(theme.fg)
@@ -335,7 +371,7 @@ pub(crate) fn new_worktree(
                 .items_center()
                 .justify_center()
                 .child(
-                    IconGlyph::new(Icon::Plus, m.font_caption(), theme.fg)
+                    IconGlyph::new(Icon::Plus, m.scaled(16.0), theme.fg_muted)
                         .hover_in_group(group, theme.accent),
                 ),
         )

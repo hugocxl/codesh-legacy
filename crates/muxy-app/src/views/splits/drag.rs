@@ -116,6 +116,7 @@ fn visit_panes(
             first,
             second,
         } => {
+            // Match card gutters and pixel snapping used by the renderer.
             let [a, _, b] = super::split_bounds(bounds, *axis, *ratio, scale);
             visit_panes(first, a, scale, visit);
             visit_panes(second, b, scale, visit);

@@ -111,6 +111,7 @@ pub(crate) struct TerminalPane {
     pub(crate) cursor_blink: super::cursor::CursorBlink,
     pub(crate) focus_border: Option<gpui::Hsla>,
     pub(crate) corner_radius: gpui::Pixels,
+    pub(crate) card_padding: bool,
     /// The server that attached this pane, and its channel there.
     attachment: Option<(ServerId, ChannelId)>,
     viewport: Option<Size>,
@@ -208,6 +209,7 @@ impl TerminalPane {
             cursor_blink: super::cursor::CursorBlink::default(),
             focus_border: None,
             corner_radius: px(0.0),
+            card_padding: false,
             attachment: None,
             viewport: None,
             palette,
@@ -1681,8 +1683,11 @@ impl Render for TerminalPane {
             .min_h(px(0.0))
             .overflow_hidden()
             .rounded(self.corner_radius)
+            // Workspace cards share the palette's opaque background.
             .bg(gpui::Rgba {
-                a: if self.terminal.options.background_opacity_cells {
+                a: if self.card_padding {
+                    1.0
+                } else if self.terminal.options.background_opacity_cells {
                     0.0
                 } else {
                     self.background_alpha()

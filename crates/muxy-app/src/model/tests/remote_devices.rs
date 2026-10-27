@@ -144,7 +144,8 @@ fn click(cx: &mut VisualTestContext, selector: &'static str) {
 #[gpui::test]
 fn the_status_bar_shows_and_restarts_the_current_projects_server(cx: &mut TestAppContext) {
     let remote = ServerId::new();
-    let (boot, local_work, remotes) = boot_with(vec![entry(remote, "box")]);
+    let (mut boot, local_work, remotes) = boot_with(vec![entry(remote, "box")]);
+    boot.settings.appearance.status_bar_visible = true;
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update(cx, |model, cx| {
         connect_local(model, cx);

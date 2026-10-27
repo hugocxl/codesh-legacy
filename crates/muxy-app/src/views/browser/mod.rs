@@ -915,15 +915,15 @@ fn render_snapshot(snapshot: muxy_ui::webview::Snapshot) -> Option<gpui::RenderI
     Some(gpui::RenderImage::new([image::Frame::new(pixels)]))
 }
 
-impl Render for BrowserView {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl BrowserView {
+    fn page_content(&self, cx: &mut Context<Self>) -> gpui::Div {
         let (native, pointer) = (self.native.clone(), self.pointer.clone());
         let page_origin = self.page_origin.clone();
         let cursor = self.cursor;
         let drawn = NativeBrowser::DRAWN_BY_APP;
         let shown = self.presentation.visible && !self.presentation.blocked && self.shows_page();
         let (theme, metrics) = (self.theme.clone(), self.metrics);
-        let content = div()
+        div()
             .relative()
             .flex_1()
             .min_h(px(0.0))
@@ -951,7 +951,9 @@ impl Render for BrowserView {
                         native.sync(
                             bounds,
                             window.content_mask().bounds,
-                            0.0,
+                            f64::from(f32::from(
+                                metrics.scaled(crate::views::codesh::style::RADIUS),
+                            )),
                             window.scale_factor(),
                         );
                         native.set_visible(shown);
@@ -976,7 +978,14 @@ impl Render for BrowserView {
                 )
                 .absolute()
                 .size_full(),
-            );
+            )
+    }
+}
+
+impl Render for BrowserView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let drawn = NativeBrowser::DRAWN_BY_APP;
+        let content = self.page_content(cx);
         div()
             .track_focus(&self.focus)
             .key_context("Browser")
@@ -1003,7 +1012,7 @@ impl Render for BrowserView {
             .size_full()
             .min_w(px(0.0))
             .min_h(px(0.0))
-            .bg(theme.bg)
+            .bg(self.theme.bg)
             .on_mouse_down(
                 gpui::MouseButton::Left,
                 cx.listener(|_, _, _, cx| cx.emit(BrowserViewEvent::Focus)),

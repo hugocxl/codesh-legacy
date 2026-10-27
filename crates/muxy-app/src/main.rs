@@ -26,6 +26,7 @@ mod views {
     pub(crate) mod banners;
     pub(crate) mod browser;
     pub(crate) mod cached;
+    pub(crate) mod codesh;
     pub(crate) mod command_palette;
     pub(crate) mod composer;
     pub(crate) mod confirm;

@@ -122,6 +122,7 @@ fn pane_at(
                 first,
                 second,
             } => {
+                // Match card gutters and pixel snapping used by the renderer.
                 let [a, _, b] = super::super::split_bounds(bounds, *axis, *ratio, scale);
                 (node, bounds) = if outside_distance(position, a) <= outside_distance(position, b) {
                     (first, a)

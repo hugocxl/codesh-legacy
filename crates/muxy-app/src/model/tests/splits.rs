@@ -404,3 +404,55 @@ fn split_directory_inherits_only_when_configured_and_falls_back_to_project(
         });
     }
 }
+
+#[gpui::test]
+fn card_controls_target_their_own_pane_and_keep_the_close_workflow(cx: &mut TestAppContext) {
+    let result = (|| -> Result {
+        let (state, tab, panes) = split_state();
+        let (boot, _requests) = stub_boot(state);
+        let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+        view.update(cx, |model, cx| attach_panes(model, &panes, cx));
+        cx.run_until_parked();
+        let split = cx
+            .debug_bounds(format!("pane-{}-right", panes[0]).leak())
+            .ok_or("missing split control")?;
+        cx.simulate_click(split.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.read_with(cx, |model, _| -> Result {
+            let layout = &model.tab(tab).ok_or("missing tab")?.layout;
+            // Equalization may rebalance the binary tree; the new pane must
+            // still be immediately right of the control's pane, with the
+            // opposite-axis subtree left intact.
+            let leaves = layout.leaves();
+            assert_eq!(leaves.len(), 4);
+            assert_eq!(leaves[0], panes[0]);
+            assert_eq!(&leaves[2..], &panes[1..]);
+            assert!(!panes.contains(&leaves[1]));
+            assert_eq!(model.active_pane(), Some(leaves[1]));
+            Ok(())
+        })?;
+        let zoom = cx
+            .debug_bounds(format!("pane-{}-zoom", panes[0]).leak())
+            .ok_or("missing zoom control")?;
+        cx.simulate_click(zoom.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.read_with(cx, |model, _| -> Result {
+            assert_eq!(model.tab(tab).ok_or("missing tab")?.zoomed, Some(panes[0]));
+            Ok(())
+        })?;
+        let close = cx
+            .debug_bounds(format!("pane-{}-close", panes[0]).leak())
+            .ok_or("missing close control")?;
+        cx.simulate_click(close.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.update(cx, |model, cx| -> Result {
+            acknowledge_close(model, cx);
+            let leaves = model.tab(tab).ok_or("missing tab")?.layout.leaves();
+            assert!(!leaves.contains(&panes[0]));
+            assert!(leaves.contains(&panes[1]) && leaves.contains(&panes[2]));
+            assert_eq!(leaves.len(), 3);
+            Ok(())
+        })
+    })();
+    assert!(result.is_ok(), "{result:?}");
+}

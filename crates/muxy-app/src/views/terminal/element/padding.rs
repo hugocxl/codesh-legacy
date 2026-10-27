@@ -18,12 +18,22 @@ impl Frame {
         outer: Bounds<Pixels>,
         cell: gpui::Size<Pixels>,
         options: &muxy_app_core::settings::TerminalOptions,
+        card_padding: bool,
     ) -> Self {
+        // Card layout supplies the base inset. Retain only padding beyond the
+        // upstream default, so existing custom settings still add space.
+        let base = if card_padding {
+            crate::views::codesh::style::BASE_TERMINAL_PADDING
+        } else {
+            0.0
+        };
+        let horizontal = std::array::from_fn::<_, 2, _>(|i| (options.padding_x[i] - base).max(0.0));
+        let vertical = std::array::from_fn::<_, 2, _>(|i| (options.padding_y[i] - base).max(0.0));
         let mut content = Bounds::new(
-            outer.origin + point(px(options.padding_x[0]), px(options.padding_y[0])),
+            outer.origin + point(px(horizontal[0]), px(vertical[0])),
             size(
-                (outer.size.width - px(options.padding_x.iter().sum())).max(px(0.0)),
-                (outer.size.height - px(options.padding_y.iter().sum())).max(px(0.0)),
+                (outer.size.width - px(horizontal.iter().sum())).max(px(0.0)),
+                (outer.size.height - px(vertical.iter().sum())).max(px(0.0)),
             ),
         );
         let viewport = viewport_size(content.size, cell);

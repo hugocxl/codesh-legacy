@@ -150,16 +150,19 @@ fn offline(servers: &[RemoteServer]) -> (usize, bool) {
 pub(crate) fn section(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
     let m = model.metrics;
     let theme = &model.theme;
-    let wide = model.appearance.sidebar_expanded;
     let anchor = model.remote_anchor.clone();
     let open = matches!(model.overlay, Some(Overlay::RemoteServers));
     let (offline, failed) = offline(&model.remote_servers());
-    let attention = if failed { theme.danger } else { theme.fg_dim };
-    let summary = (offline > 0).then(|| tr!("%lld offline", offline));
-    let tooltip = summary.as_ref().map_or_else(
-        || tr!("Remote Servers").to_string(),
-        |summary| format!("{} · {summary}", tr!("Remote Servers")),
-    );
+    let color = if failed { theme.danger } else { theme.fg_muted };
+    let tooltip = if offline > 0 {
+        format!(
+            "{} · {}",
+            tr!("Remote Servers"),
+            tr!("%lld offline", offline)
+        )
+    } else {
+        tr!("Remote Servers").to_string()
+    };
     div()
         .id("remote-servers-section")
         .debug_selector(|| "remote-servers-section".into())
@@ -167,27 +170,13 @@ pub(crate) fn section(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElemen
         .flex()
         .flex_none()
         .items_center()
-        .gap(m.spacing3())
-        .when(wide, |row| {
-            row.mx(m.spacing3())
-                .mb(m.spacing3())
-                .px(m.spacing4())
-                .h(m.control_large())
-        })
-        .when(!wide, |row| {
-            row.mx_auto()
-                .mb(m.spacing3())
-                .justify_center()
-                .size(m.scaled(34.0))
-        })
-        .rounded(m.radius_xl())
-        .bg(if open { theme.hover } else { theme.surface })
-        .text_color(if open { theme.fg } else { theme.fg_muted })
+        .justify_center()
+        .size(m.control_medium())
+        .rounded(m.radius_sm())
+        .when(open, |row| row.bg(theme.hover))
         .cursor_pointer()
-        .hover(|style| style.bg(theme.hover).text_color(theme.fg))
-        .when(!wide, |row| {
-            row.tooltip(super::status_bar::tooltip(tooltip, model))
-        })
+        .hover(|style| style.bg(theme.hover))
+        .tooltip(super::status_bar::tooltip(tooltip, model))
         .button_interaction(cx.listener(|model, _, window, cx| {
             model.toggle_remote_popover(window, cx);
         }))
@@ -197,47 +186,9 @@ pub(crate) fn section(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElemen
                 |_, (), _, _| {},
             )
             .absolute()
-            .top_0()
-            .left_0()
-            .size_full(),
+            .inset_0(),
         )
-        .child(IconGlyph::new(
-            Icon::Network,
-            m.font_body(),
-            if !wide && offline > 0 {
-                attention
-            } else {
-                theme.fg_muted
-            },
-        ))
-        .when(wide, |row| {
-            row.child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .truncate()
-                    .text_size(m.font_body())
-                    .font_weight(FontWeight::MEDIUM)
-                    .child(tr!("Remote")),
-            )
-            .children(summary.map(|summary| {
-                div()
-                    .debug_selector(|| "remote-servers-offline".into())
-                    .flex_none()
-                    .text_size(m.font_footnote())
-                    .text_color(attention)
-                    .child(summary)
-            }))
-            .child(IconGlyph::new(
-                if open {
-                    Icon::ChevronDown
-                } else {
-                    Icon::ChevronUp
-                },
-                m.font_caption(),
-                theme.fg_dim,
-            ))
-        })
+        .child(IconGlyph::new(Icon::Network, m.scaled(16.0), color))
         .into_any_element()
 }
 

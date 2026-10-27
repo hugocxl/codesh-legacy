@@ -140,7 +140,7 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
             .min_h(px(0.0))
             .bg(model.sidebar_background())
             .map(|sidebar| super::titlebar::top_corners(sidebar, window, true, false))
-            .child(div().h(m.title_bar_height()).flex_none())
+            .child(div().h(m.title_bar_height() + m.scaled(32.0)).flex_none())
             .children(model.webviews.sidebar.as_ref().map(|sidebar| {
                 div()
                     .flex()
@@ -148,9 +148,9 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
                     .min_h(px(0.0))
                     .child(sidebar.surface.view.clone())
             }))
+            .child(super::codesh::sidebar_chrome::bottom(model, window, cx))
             .into_any_element();
     }
-    let header = header(model, cx);
     let contents = match model.appearance.layout {
         AppLayout::ProjectFocused => project_list(model, cx),
         AppLayout::TabFocused | AppLayout::AgentsFocused => {
@@ -173,8 +173,7 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
                 .min_h(px(0.0))
                 .bg(model.sidebar_background())
                 .map(|sidebar| super::titlebar::top_corners(sidebar, window, true, false))
-                .child(div().h(m.title_bar_height()).flex_none())
-                .child(header)
+                .child(div().h(m.title_bar_height() + m.scaled(32.0)).flex_none())
                 .child(contents)
                 .children(tips::footer(model, cx))
                 .children(super::agents_panel::collapsed_button(model, cx)),
@@ -184,7 +183,7 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
             div()
                 .flex_none()
                 .bg(model.sidebar_background())
-                .child(super::remote_servers::section(model, cx)),
+                .child(super::codesh::sidebar_chrome::bottom(model, window, cx)),
         )
         .into_any_element()
 }
@@ -421,7 +420,7 @@ impl AppModel {
     }
 }
 
-fn header(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
+pub(super) fn header(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
     if !model.appearance.sidebar_expanded {
         return div().into_any_element();
     }
@@ -431,19 +430,14 @@ fn header(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
         .flex()
         .items_center()
         .gap(m.spacing2())
-        .px(m.spacing3())
-        .pt(m.spacing2())
         .child(
             div()
                 .id("sidebar-project-filter")
                 .debug_selector(|| "sidebar-project-filter".into())
                 .flex()
-                .flex_1()
-                .min_w(px(0.0))
                 .items_center()
-                .justify_between()
-                .px(m.spacing4())
-                .h(m.control_medium())
+                .justify_center()
+                .size(m.control_medium())
                 .rounded(m.radius_md())
                 .bg(theme.surface)
                 .cursor_pointer()
@@ -454,18 +448,11 @@ fn header(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
                 .on_click(cx.listener(|model, event: &gpui::ClickEvent, window, cx| {
                     model.open_menu(filter_items(model), event.position(), window, cx);
                 }))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(model.sidebar_filter_label()),
-                )
-                .child(IconGlyph::new(
-                    Icon::ChevronDown,
-                    m.font_caption(),
-                    theme.fg_muted,
-                )),
+                .tooltip(super::status_bar::tooltip(
+                    model.sidebar_filter_label().to_string(),
+                    model,
+                ))
+                .child(IconGlyph::new(Icon::Filter, m.font_body(), theme.fg_muted)),
         )
         .child(
             div()
@@ -686,7 +673,11 @@ fn project_list(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
             div()
                 .flex()
                 .flex_col()
-                .px(if wide { m.spacing3() } else { m.spacing4() })
+                .px(if wide {
+                    m.scaled(super::codesh::style::SIDEBAR_PADDING)
+                } else {
+                    m.spacing4()
+                })
                 .gap(m.spacing3())
                 .pt(if wide { m.spacing5() } else { m.spacing2() })
                 .pb(m.spacing3())
@@ -746,7 +737,6 @@ fn project_row(
             },
         );
     let activity = super::tab_activity::project_status(id, model);
-    let server = model.server_name(project.server_id);
     let drag = DraggedProject {
         id,
         last_target: Cell::new(None),
@@ -763,20 +753,20 @@ fn project_row(
             row.ml(m.spacing5())
         })
         .when(wide, |row| {
-            row.p(m.spacing2())
-                .h(m.icon_xxl() + m.spacing2() * 2.0)
-                .gap(m.spacing4())
-                .rounded(m.radius_lg())
-                .when(active, |row| row.bg(theme.surface))
-                .hover(|style| style.bg(if active { theme.surface } else { theme.hover }))
+            row.px(m.scaled(10.0))
+                .h(m.scaled(28.0))
+                .gap(m.spacing2())
+                .rounded(m.scaled(8.0))
+                .hover(|style| style.bg(theme.hover))
         })
         .when(!wide, |row| row.justify_center().size(m.scaled(34.0)))
         .when(missing, |row| row.opacity(0.5))
         .when(!missing, |row| {
             row.cursor_pointer()
                 .on_click(cx.listener(move |model, _, window, cx| {
-                    if active && has_worktrees && wide {
-                        model.toggle_worktree_list(id, cx);
+                    if wide {
+                        model.select_project(id, cx);
+                        model.focus_active(window, cx);
                     } else if active && has_worktrees {
                         model.expanded_worktrees.insert(id);
                         model.toggle_sidebar(window, cx);
@@ -801,7 +791,7 @@ fn project_row(
                 && model.appearance.sidebar_project_order == ProjectOrder::Manual,
             |row| row.on_drag(drag, |_, _, _, cx| cx.new(|_| Empty)),
         )
-        .child(tile)
+        .when(!wide, |row| row.child(tile))
         .when(wide, |row| {
             row.child(
                 div()
@@ -814,29 +804,11 @@ fn project_row(
                     .child(
                         div()
                             .truncate()
-                            .text_size(m.font_emphasis())
-                            .font_weight(FontWeight::MEDIUM)
+                            .text_size(m.scaled(12.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(theme.fg_muted)
                             .child(model.project_title(project)),
                     )
-                    .when(has_worktrees, |label| {
-                        let selected = model.state.project(model.preferred_worktree(id));
-                        let primary = tr!("primary");
-                        let worktree = selected
-                            .filter(|p| p.parent_id.is_some())
-                            .map_or(primary.as_ref(), |p| p.name.as_str());
-                        label.child(
-                            div()
-                                .debug_selector(move || format!("project-worktree-label-{id}"))
-                                .truncate()
-                                .text_size(m.font_footnote())
-                                .font_family(muxy_ui::font::monospace())
-                                .font_weight(FontWeight::NORMAL)
-                                .child(server.map_or_else(
-                                    || worktree.to_owned(),
-                                    |server| format!("{server} · {worktree}"),
-                                )),
-                        )
-                    })
                     .when_some(
                         model
                             .remote_location(project)
@@ -950,7 +922,8 @@ pub(super) fn add_project_button(model: &AppModel, cx: &mut Context<AppModel>) -
         .items_center()
         .cursor_pointer()
         .when(wide, |row| {
-            row.p(m.spacing2())
+            row.px(m.scaled(10.0))
+                .h(m.scaled(28.0))
                 .gap(m.spacing4())
                 .rounded(m.radius_lg())
                 .hover(|style| style.bg(theme.hover))
@@ -965,9 +938,8 @@ pub(super) fn add_project_button(model: &AppModel, cx: &mut Context<AppModel>) -
                 .flex_none()
                 .items_center()
                 .justify_center()
-                .size(m.icon_xxl())
+                .size(m.scaled(16.0))
                 .rounded(m.radius_md())
-                .bg(theme.surface)
                 .child(IconGlyph::new(
                     Icon::Plus,
                     m.font_emphasis(),

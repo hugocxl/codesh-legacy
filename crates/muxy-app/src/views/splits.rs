@@ -1,7 +1,6 @@
 pub(crate) mod drag;
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder;
@@ -12,6 +11,7 @@ use gpui::{
 };
 use muxy_app_core::{Axis, Branch, GroupId, Layout, ProjectId, Tab, TabGroup, TabId};
 
+use super::codesh::{pane_card, style};
 use crate::model::AppModel;
 
 #[derive(Clone, Default)]
@@ -40,7 +40,8 @@ impl SplitResize {
             Axis::Horizontal => (pointer.x - self.pointer.x, self.bounds.size.width),
             Axis::Vertical => (pointer.y - self.pointer.y, self.bounds.size.height),
         };
-        (self.ratio + f32::from(delta) / (f32::from(extent) - 1.0).max(1.0)).clamp(0.15, 0.85)
+        (self.ratio + f32::from(delta) / (f32::from(extent) - style::GUTTER).max(1.0))
+            .clamp(0.15, 0.85)
     }
 
     fn apply(&self, model: &mut AppModel, pointer: Point<Pixels>) -> bool {
@@ -91,29 +92,21 @@ fn resize_cursor(axis: Axis) -> CursorStyle {
 
 pub(crate) fn render(
     model: &AppModel,
-    window: &Window,
+    _window: &Window,
     cx: &mut Context<AppModel>,
 ) -> Option<AnyElement> {
     let tab = model.tab(model.active_tab()?)?;
     let project = model.state.current_project();
     let content = match project.groups() {
-        Some(groups) => {
-            let width =
-                f32::from(super::titlebar::content_size(window).width) - model.sidebar_width();
-            let widths: HashMap<_, _> = groups
-                .layout()
-                .rects()
-                .into_iter()
-                .map(|(group, rect)| (group, width * rect[2]))
-                .collect();
-            group_node(groups.layout(), Vec::new(), project.id, &widths, model, cx)
-        }
+        Some(groups) => group_node(groups.layout(), Vec::new(), project.id, model, cx),
         None => tab_content(tab, model, cx),
     };
     Some(
         div()
             .relative()
             .size_full()
+            .p(px(style::GUTTER))
+            .when(!model.appearance.sidebar_expanded, |grid| grid.pt(px(64.0)))
             .child(content)
             .child(resize_tracker(model, cx))
             .child(super::tab_strip::drag::track_pointer(
@@ -201,7 +194,6 @@ fn group_node(
     layout: &Layout<GroupId>,
     path: Vec<Branch>,
     project: ProjectId,
-    widths: &HashMap<GroupId, f32>,
     model: &AppModel,
     cx: &mut Context<AppModel>,
 ) -> AnyElement {
@@ -211,10 +203,7 @@ fn group_node(
             .current_project()
             .groups()
             .and_then(|groups| groups.group(*id))
-            .and_then(|group| {
-                let width = widths.get(id).copied().unwrap_or_default();
-                group_element(group, width, model, cx)
-            })
+            .and_then(|group| group_element(group, model, cx))
             .unwrap_or_else(|| div().size_full().into_any_element()),
         Layout::Split {
             axis,
@@ -226,8 +215,8 @@ fn group_node(
             first_path.push(Branch::First);
             let mut second_path = path.clone();
             second_path.push(Branch::Second);
-            let first = group_node(first, first_path, project, widths, model, cx);
-            let second = group_node(second, second_path, project, widths, model, cx);
+            let first = group_node(first, first_path, project, model, cx);
+            let second = group_node(second, second_path, project, model, cx);
             split(
                 SplitOwner::Groups(project),
                 path,
@@ -242,7 +231,6 @@ fn group_node(
 
 fn group_element(
     group: &TabGroup,
-    width: f32,
     model: &AppModel,
     cx: &mut Context<AppModel>,
 ) -> Option<AnyElement> {
@@ -255,11 +243,6 @@ fn group_element(
             .size_full()
             .min_w(px(0.0))
             .min_h(px(0.0))
-            .when(!muxy_app_core::codesh::SINGLE_TAB, |element| {
-                element
-                    .child(super::tab_strip::group_strip(group, width, model, cx))
-                    .child(div().h(px(1.0)).flex_none().bg(model.theme.border))
-            })
             .child(
                 div()
                     .relative()
@@ -277,45 +260,7 @@ fn zoomed_frame(
     model: &AppModel,
     cx: &Context<AppModel>,
 ) -> AnyElement {
-    let radius = model.metrics.radius_lg();
-    let background = model.theme.bg;
-    div()
-        .debug_selector(|| "zoomed-pane-frame".into())
-        .relative()
-        .flex()
-        .size_full()
-        .min_w(px(0.0))
-        .min_h(px(0.0))
-        .border(model.metrics.spacing7())
-        .border_color(background)
-        .child(
-            canvas(
-                |_, _, _| (),
-                move |bounds, (), window, _| {
-                    window.paint_quad(
-                        gpui::outline(bounds.dilate(radius), background, gpui::BorderStyle::Solid)
-                            .corner_radii(radius * 2.0)
-                            .border_widths(radius + px(1.0)),
-                    );
-                },
-            )
-            .absolute()
-            .size_full(),
-        )
-        .child(
-            div()
-                .flex()
-                .size_full()
-                .min_w(px(0.0))
-                .min_h(px(0.0))
-                .rounded(radius)
-                .border(px(1.0))
-                .border_color(model.theme.border_solid())
-                .shadow(muxy_ui::theme::Elevation::Elevated.shadow(model.theme.bg))
-                .overflow_hidden()
-                .child(pane_element(pane, model, cx)),
-        )
-        .into_any_element()
+    pane_element(pane, model, cx)
 }
 
 fn node(
@@ -385,7 +330,13 @@ fn split(
         .absolute()
         .block_mouse_except_scroll()
         .cursor(resize_cursor(axis))
-        .child(highlight(divider, resizing, hoverable, model.theme.accent))
+        .child(highlight(
+            divider,
+            axis,
+            resizing,
+            hoverable,
+            model.theme.accent,
+        ))
         .when(!model.webviews.panes.is_empty(), |hit| {
             hit.child(model.webview_grip(None, resize_cursor(axis)))
         })
@@ -401,8 +352,8 @@ fn split(
             window.refresh();
             cx.stop_propagation();
         });
-    // Centered on the 1px divider, which starts at `(extent - 1) * ratio`.
-    let offset = px(-ratio) - (grip - px(1.0)) * 0.5;
+    // Center the grip in the gutter after the first child.
+    let offset = px(style::GUTTER * (0.5 - ratio)) - grip * 0.5;
     let hit = match axis {
         Axis::Horizontal => hit
             .left(relative(ratio))
@@ -417,7 +368,6 @@ fn split(
             .h(grip)
             .w_full(),
     };
-    let border = model.theme.border_solid();
     div()
         .relative()
         .size_full()
@@ -436,9 +386,8 @@ fn split(
                     second.prepaint_at(second_bounds.origin, window, cx);
                     (first, divider, second)
                 },
-                move |_, (mut first, divider, mut second), window, cx| {
+                move |_, (mut first, _, mut second), window, cx| {
                     first.paint(window, cx);
-                    window.paint_quad(gpui::fill(divider, border));
                     second.paint(window, cx);
                 },
             )
@@ -452,6 +401,7 @@ fn split(
 /// pointer is over this element and `hoverable`.
 fn highlight(
     divider: Rc<Cell<Bounds<Pixels>>>,
+    axis: Axis,
     resizing: bool,
     hoverable: bool,
     accent: Hsla,
@@ -461,7 +411,21 @@ fn highlight(
         move |_, hitbox, window, _| {
             let hovered = hitbox.is_hovered(window);
             if resizing || (hoverable && hovered) {
-                window.paint_quad(gpui::fill(divider.get(), accent));
+                let mut line = divider.get();
+                if axis == Axis::Horizontal {
+                    line.origin.x += (line.size.width - px(1.0)) * 0.5;
+                    line.size.width = px(1.0);
+                } else {
+                    line.origin.y += (line.size.height - px(1.0)) * 0.5;
+                    line.size.height = px(1.0);
+                }
+                window.paint_quad(gpui::fill(
+                    line,
+                    Hsla {
+                        a: accent.a * 0.4,
+                        ..accent
+                    },
+                ));
             }
             let view = window.current_view();
             window.on_mouse_event(move |_: &MouseMoveEvent, phase, window, cx| {
@@ -486,10 +450,9 @@ fn split_bounds(
         Axis::Horizontal => bounds.size.width,
         Axis::Vertical => bounds.size.height,
     };
-    let available = (extent - px(1.0)).max(px(0.0));
-    let first =
-        ((available * ratio * scale_factor).round() / scale_factor).clamp(px(0.0), available);
-    let second = first + extent.min(px(1.0));
+    let [first, _, second] = style::gutter_geometry(f32::from(extent), ratio, scale_factor);
+    let first = px(first);
+    let second = px(second);
     let (first_end, divider_start, divider_end, second_start) = match axis {
         Axis::Horizontal => (
             point(bounds.left() + first, bounds.bottom()),
@@ -512,6 +475,10 @@ fn split_bounds(
 }
 
 fn pane_element(id: muxy_app_core::PaneId, model: &AppModel, cx: &Context<AppModel>) -> AnyElement {
+    pane_card::render(id, pane_body(id, model, cx), model, cx)
+}
+
+fn pane_body(id: muxy_app_core::PaneId, model: &AppModel, cx: &Context<AppModel>) -> AnyElement {
     if !model.grids.contains_key(&id) && model.state.is_servers_pane(id) {
         return super::servers_tab::render(id, model, cx);
     }

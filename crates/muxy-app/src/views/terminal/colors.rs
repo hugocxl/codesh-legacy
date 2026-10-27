@@ -35,9 +35,9 @@ impl Palette {
 
     pub(crate) fn from_scheme(scheme: &muxy_ui::theme::ColorScheme, dark: bool) -> Self {
         let mut palette = Self::new(dark);
-        if let Some(color) = scheme.background {
-            palette.background = u32::from(color) >> 8;
-        }
+        let background: gpui::Rgba =
+            crate::views::codesh::style::card(&muxy_ui::theme::Theme::from_scheme(scheme)).into();
+        palette.background = u32::from(background) >> 8;
         if let Some(color) = scheme.foreground {
             palette.foreground = u32::from(color) >> 8;
         }

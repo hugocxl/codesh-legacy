@@ -81,7 +81,9 @@ pub(crate) fn terminal(view: Entity<TerminalPane>, palette: &Palette) -> impl In
             let _span = crate::profiler::span(crate::profiler::Metric::TerminalPrepaint);
             let (base_font, font_size, cell) =
                 typography(&view.read(cx).terminal, &palette, window);
-            let frame = padding::Frame::configured(bounds, cell, &view.read(cx).terminal.options);
+            let pane = view.read(cx);
+            let frame =
+                padding::Frame::configured(bounds, cell, &pane.terminal.options, pane.card_padding);
             let viewport = frame.viewport;
             #[cfg(target_os = "macos")]
             if let Some(native) = &view.read(cx).native_scroll {

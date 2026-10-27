@@ -40,6 +40,7 @@ fn powerline_caps_use_cell_drawing_unless_a_font_is_explicitly_mapped(
             bounds(0.0, 0.0, 101.0, 51.0),
             cell,
             &terminal.options,
+            false,
         );
         for mapped in [false, true] {
             if mapped {

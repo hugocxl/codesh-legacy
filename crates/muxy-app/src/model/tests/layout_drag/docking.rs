@@ -40,13 +40,20 @@ fn outer_edge_gesture_makes_three_columns_instead_of_splitting_one_pane(cx: &mut
         cx,
     );
     let rectangles = [a, b, c].map(|pane| pane_bounds(&view, pane, cx));
+    let gutter = crate::views::codesh::style::GUTTER;
+    // Equal model shares are rendered through a balanced binary tree. Each
+    // split consumes a gutter before applying its ratio, so nested columns
+    // differ by a few pixels rather than being exact visual thirds.
+    let third = (bounds.size.width - px(2.0 * gutter)) / 3.0;
     for rectangle in rectangles {
         assert_eq!(rectangle.top(), bounds.top());
         assert_eq!(rectangle.bottom(), bounds.bottom());
-        assert!((rectangle.size.width - bounds.size.width / 3.0).abs() <= px(2.0));
+        assert!((rectangle.size.width - third).abs() <= px(gutter));
     }
-    assert!(rectangles[0].right() < rectangles[1].left());
-    assert!(rectangles[1].right() < rectangles[2].left());
+    assert_eq!(rectangles[0].left(), bounds.left());
+    assert_eq!(rectangles[2].right(), bounds.right());
+    assert_eq!(rectangles[1].left() - rectangles[0].right(), px(gutter));
+    assert_eq!(rectangles[2].left() - rectangles[1].right(), px(gutter));
     assert_eq!(
         view.read_with(cx, |model, _| model.tab(tab).expect("tab").layout.leaves()),
         [a, b, c]

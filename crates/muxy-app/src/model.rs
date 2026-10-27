@@ -183,8 +183,6 @@ pub(crate) struct AppModel {
     pub(crate) shortcut_hints: crate::views::shortcut_hints::ShortcutHints,
     #[cfg(target_os = "macos")]
     pub(crate) window_drag: Option<muxy_ui::window_drag::WindowDrag>,
-    #[cfg(target_os = "macos")]
-    pub(crate) sidebar_vibrancy: Option<muxy_ui::vibrancy::SidebarVibrancy>,
     pub(crate) overlay_subscription: Option<Subscription>,
     pub(crate) picker_search: crate::picker::search::SearchService,
     pub(crate) navigation: crate::navigation::Navigation,
@@ -581,8 +579,6 @@ impl AppModel {
             layout_drag: crate::views::splits::drag::LayoutDragState::default(),
             #[cfg(target_os = "macos")]
             window_drag: muxy_ui::window_drag::WindowDrag::new(&window.window_title()),
-            #[cfg(target_os = "macos")]
-            sidebar_vibrancy: None,
             overlay_subscription: None,
             picker_search: crate::picker::search::SearchService::default(),
             navigation: crate::navigation::Navigation::default(),

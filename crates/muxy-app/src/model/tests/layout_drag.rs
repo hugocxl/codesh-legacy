@@ -58,16 +58,10 @@ fn release(cx: &mut VisualTestContext, position: Point<gpui::Pixels>) {
 }
 
 fn pane_bounds(
-    view: &Entity<AppModel>,
+    _view: &Entity<AppModel>,
     pane: PaneId,
     cx: &mut VisualTestContext,
 ) -> Bounds<gpui::Pixels> {
-    view.read_with(cx, |model, cx| {
-        model.grids[&pane]
-            .view
-            .read(cx)
-            .geometry
-            .expect("geometry")
-            .0
-    })
+    cx.debug_bounds(format!("pane-card-{pane}").leak())
+        .expect("pane card")
 }

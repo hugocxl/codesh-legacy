@@ -12,7 +12,7 @@ use muxy_ui::icon::Icon;
 use muxy_ui::l10n::tr_key;
 use muxy_ui::tr;
 
-use super::{menu, overlays, sidebar, status_bar, tab_strip, titlebar};
+use super::{menu, overlays, sidebar, status_bar, titlebar};
 use crate::model::AppModel;
 use crate::model::browsers::BrowserAction;
 
@@ -864,12 +864,6 @@ impl AppModel {
         if let Some(active) = active {
             self.completions.remove(&active);
         }
-        let zoomed: Vec<_> = self
-            .visible_tabs()
-            .into_iter()
-            .filter_map(|tab| self.tab(tab)?.zoomed)
-            .collect();
-        let split = self.visible_panes().len() > 1;
         if self.overlay.is_some() || self.close_prompt.is_some() {
             self.split_resize.end();
         }
@@ -879,15 +873,13 @@ impl AppModel {
             }
             pane.view.update(cx, |pane, cx| {
                 pane.set_focused(Some(*id) == active, cx);
-                let border = (pane.focused && split).then_some(self.theme.accent);
-                let radius = if zoomed.contains(id) {
-                    (self.metrics.radius_lg() - px(1.0)).max(px(0.0))
-                } else {
-                    px(0.0)
-                };
-                if pane.focus_border != border || pane.corner_radius != radius {
+                let border = None;
+                let radius = px(0.0);
+                if pane.focus_border != border || pane.corner_radius != radius || !pane.card_padding
+                {
                     pane.focus_border = border;
                     pane.corner_radius = radius;
+                    pane.card_padding = true;
                     cx.notify();
                 }
                 let native_visible = self.overlay.is_none()
@@ -967,18 +959,10 @@ impl Render for AppModel {
         #[cfg(all(target_os = "macos", not(test)))]
         self.sync_background_effects(window, cx);
         self.sync_toast(cx);
-        let (actions, actions_width) = titlebar::actions(self, window, cx);
         #[cfg(target_os = "linux")]
-        self.fit_sidebar_to_window(window, actions_width, cx);
+        self.fit_sidebar_to_window(window, 0.0, cx);
         let theme = &self.theme;
-        let tab_focused = self.appearance.layout == muxy_app_core::settings::AppLayout::TabFocused
-            && !self.extension_sidebar_active();
         let sidebar_width = self.sidebar_width();
-        let header = if tab_focused || self.state.current_project().groups().is_some() {
-            super::tab_sidebar::titlebar(self, sidebar_width, window, actions, cx)
-        } else {
-            tab_strip::tab_strip(self, sidebar_width, window, (actions, actions_width), cx)
-        };
         let content = super::splits::render(self, window, cx).unwrap_or_else(|| empty(self, cx));
         let content = self.webview_panel_content(content, window, cx);
         let content = super::agents_panel::right_panel_content(content, self, window, cx);
@@ -999,6 +983,7 @@ impl Render for AppModel {
             .relative()
             .flex()
             .size_full()
+            .bg(theme.bg)
             .text_color(theme.fg)
             .font_family(".SystemUIFont")
             .line_height(relative(1.2))
@@ -1014,18 +999,6 @@ impl Render for AppModel {
                     .min_h(px(0.0))
                     .child(
                         div()
-                            .flex()
-                            .flex_col()
-                            .flex_none()
-                            .bg(theme.bg)
-                            .map(|header| {
-                                titlebar::top_corners(header, window, sidebar_width <= 0.0, true)
-                            })
-                            .child(header)
-                            .child(div().h(px(1.0)).flex_none().bg(theme.border)),
-                    )
-                    .child(
-                        div()
                             .debug_selector(|| "workspace-content".into())
                             .flex_1()
                             .min_h(px(0.0))
@@ -1036,7 +1009,6 @@ impl Render for AppModel {
                         column.child(status_bar::status_bar(self, cx))
                     }),
             )
-            .child(sidebar_divider(self, sidebar_width, window))
             .child(titlebar::navigation(self, sidebar_width, window, cx))
             .when(self.appearance.sidebar_expanded, |body| {
                 body.child(sidebar::resize_handle(self, cx))
@@ -1061,23 +1033,6 @@ impl Render for AppModel {
         );
         crate::profiler::workspace(workspace)
     }
-}
-
-/// The line between the sidebar and the content. It starts below the
-/// navigation buttons where they reach past the sidebar.
-fn sidebar_divider(model: &AppModel, sidebar_width: f32, window: &Window) -> gpui::Div {
-    let top = if sidebar_width >= titlebar::navigation_width(model, window) {
-        0.0
-    } else {
-        33.0
-    };
-    div()
-        .absolute()
-        .top(px(top))
-        .bottom_0()
-        .left(px(sidebar_width - 1.0))
-        .w(px(1.0))
-        .bg(model.theme.border)
 }
 
 fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {

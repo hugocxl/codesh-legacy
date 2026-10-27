@@ -17,6 +17,10 @@ use muxy_ui::icon::Icon;
 use muxy_ui::theme::Theme;
 use muxy_ui::tr;
 
+#[allow(
+    dead_code,
+    reason = "Codesh hides the strip while retaining tab navigation"
+)]
 pub(crate) fn tab_strip(
     model: &AppModel,
     sidebar_width: f32,
@@ -74,6 +78,10 @@ pub(crate) fn tab_strip(
 
 /// The strip above a group's panes: its tabs and a button for a new tab in
 /// the group.
+#[allow(
+    dead_code,
+    reason = "Codesh hides group strips while retaining group navigation"
+)]
 pub(crate) fn group_strip(
     group: &TabGroup,
     width: f32,

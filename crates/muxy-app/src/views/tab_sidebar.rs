@@ -646,6 +646,10 @@ fn tab_row(
         .into_any_element()
 }
 
+#[allow(
+    dead_code,
+    reason = "Codesh moves titlebar actions to the sidebar footer"
+)]
 pub(super) fn titlebar(
     model: &AppModel,
     sidebar_width: f32,
