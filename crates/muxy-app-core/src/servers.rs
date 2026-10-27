@@ -284,7 +284,6 @@ fn terminal_session(pane: &Pane) -> Option<SessionId> {
     match pane.content {
         PaneContent::Terminal { session } => session,
         PaneContent::Settings
-        | PaneContent::Webview(_)
         | PaneContent::Browser(_)
         | PaneContent::Servers
         | PaneContent::Editor { .. }

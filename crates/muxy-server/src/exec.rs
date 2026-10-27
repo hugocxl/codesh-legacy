@@ -80,7 +80,7 @@ impl Jobs {
         let cancelled = self.register(job)?;
         let active = Arc::clone(&self.active);
         let spawn = std::thread::Builder::new()
-            .name("extension-command".into())
+            .name("side-command".into())
             .spawn(move || {
                 if !request.env.contains_key("PATH")
                     && let Some(path) = login_path()
@@ -157,7 +157,7 @@ fn error(cause: impl std::fmt::Display) -> ServerError {
     ServerError::new(ErrorCode::BadRequest, cause.to_string())
 }
 
-/// Launch failures read like main's, since extensions match on the text.
+/// Launch failures use the same messages as the main connection.
 fn launch_failed(request: &ExecRequest, cause: &io::Error) -> ServerError {
     ServerError::spawn_failed(match request.argv.first() {
         Some(program) if !program.contains('/') && !on_path(program, request.env.get("PATH")) => {

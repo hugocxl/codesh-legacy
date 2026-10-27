@@ -121,16 +121,13 @@ proxy icon. Terminals get the proxy as `http_proxy`, `https_proxy`,
 - Every app shortcut can be changed in Settings → Keyboard. Terminal key
   bindings are set in Settings → Terminal. Normal keystrokes in a terminal go to
   the terminal.
-- **Settings → Appearance → App language** picks the interface language. English
-  is built in; other languages come from language-pack extensions, the same ones
-  made for Muxy 1.x. Untranslated text stays English, and while the chosen pack is
-  unavailable Muxy shows English.
+- The interface uses the built-in English catalog.
 - Server settings, such as the shell and history size, apply to this
   computer's server. `muxy --host` changes another computer's. Stopping or
   restarting it asks first.
 - **Settings → Mobile** turns phone access on, shows a pairing code, and lists
   paired phones. `muxy mobile` does the same without the desktop app.
-- **Settings → Backup & Restore** exports settings, themes, extension preferences,
+- **Settings → Backup & Restore** exports settings, themes,
   projects, and layouts. Restore applies on the next launch and keeps a recovery
   copy in `Backups`. Existing projects are kept; matching projects receive the
   saved layouts. Server settings take effect after restarting the server.
@@ -138,10 +135,10 @@ proxy icon. Terminals get the proxy as `http_proxy`, `https_proxy`,
   `.muxy` backup, or `settings.json`. Unsupported options are listed before import.
   A 1.x import adds to what is already there: existing projects, tabs, and
   workspaces are kept. A profile with no projects or workspaces yet imports the
-  installed 1.x automatically, once, including its extensions. Profiles chosen
+  installed 1.x automatically, once. Profiles chosen
   with `MUXY_DIR` are left alone.
   Config files open in the system editor. Backups exclude live terminal sessions,
-  paired-device credentials, extension packages, and project files. They keep
+  paired-device credentials and project files. They keep
   the list of remote servers but not remote projects, which come back from
   their server.
 
@@ -162,14 +159,7 @@ ends.
 
 ## Desktop features
 
-- **Web views.** Extension pages as tabs, docked panels, popovers, or dialogs.
-  They stay alive while hidden. Extension panels belong to a project: switching
-  projects closes them, and switching back reopens them.
-- **Extensions.** Add tabs, panels, a sidebar, toolbar and status bar items,
-  shortcuts, and background scripts. They are managed in Settings → Extensions,
-  declare their permissions, and ask before sensitive actions. Most extensions
-  made for Muxy 1.x work unchanged; see the
-  [compatibility limits](../extensions/get-started.md#coming-from-1x).
+- **Native panels.** Files, Source Control, editors, and diffs are built into Codesh. Browser panes use the native web engine. Codesh has no extension system.
 - **Git and AI.** For Git projects, the footer shows the branch and changes,
   commits and pushes with an AI-written message, and creates or manages pull
   requests. It uses an AI command-line tool you already have, chosen in

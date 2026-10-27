@@ -3,8 +3,7 @@
 Keyboard shortcuts form one inset-separated card, rendered through the existing
 virtual list. Shortcut labels use sentence case and New Terminal matches the
 single-tab menus. macOS bindings use key glyphs; Reset appears only when the
-effective binding differs from its default. Extension shortcuts follow the same
-rules within their extension group. Recording, cancellation and conflict
+effective binding differs from its default. Recording, cancellation and conflict
 validation use the existing keymap path.
 
 Appearance uses the shared slider for sidebar vibrancy level (0–100), saving on

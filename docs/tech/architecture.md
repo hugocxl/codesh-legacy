@@ -32,7 +32,7 @@ flowchart LR
 - The server keeps projects and which sessions belong to them. Apps keep tabs,
   panes, order, and workspaces.
 - The desktop app keeps a connection per server: this computer's, and one per
-  remote device. A second connection to each carries extension work and remote
+  remote device. A second connection to each carries native panel work and remote
   file transfers, so they never wait behind terminal traffic.
 - Apps never include server code. They only speak the [protocol](./protocol.md).
 
@@ -57,7 +57,7 @@ flowchart TB
 | --- | --- |
 | `muxy-app` | The desktop app. |
 | `muxy-ui` | Reusable GPUI components and native web views. No app state. |
-| `muxy-app-core` | The app model without UI, shared by desktop and terminal UI: layouts, workspaces, settings, extensions. |
+| `muxy-app-core` | The app model without UI, shared by desktop and terminal UI: layouts, workspaces and settings. |
 | `muxy-cli` | The `muxy` command: CLI and terminal UI. |
 | `muxy-client` | Connects to a server, starting a local one if needed. |
 | `muxy-mobile` | The client library for phones, with Swift and Kotlin bindings. |
@@ -135,23 +135,15 @@ flowchart LR
   catalog, resolved through the keymap. Terminal preferences and key
   bindings live in `terminal.toml`.
 
-## Extensions and web views
+## Browser and native panels
 
-- Web views are native WebKit views and stay alive while hidden. They have no
-  terminal or server state.
-- The app loads extensions, enforces their permissions, and asks before
-  sensitive actions. Their scripts run in JavaScriptCore on their own threads.
-- File, Git, and process work goes through the server. Extension web requests
-  run in the app and can't reach the local machine or private networks.
-- Marketplace packages are verified before they are installed.
-- Language packs are resource-only bundles. The app reads their catalogs, checks
-  that each translation keeps its key's placeholders, and runs nothing from them.
+Files, Source Control, editor, and diff surfaces are native GPUI views. Browser panes use WebKit and share the occlusion and resize infrastructure. File, Git, and process operations go through the server's side connection. Codesh has no extension runtime or marketplace.
 
 ## The browser
 
 - Browser panes embed [polybrowser](https://github.com/saeedvaziry/polybrowser),
   which wraps the system WebKit view and keeps profiles and history.
-- A page sits in the same native host as extension web views, so it hides under
+- A page sits in a native host, so it hides under
   app content and shares the keyboard with Muxy's shortcuts.
 - The server knows nothing about browsers. `muxy browser` reaches the desktop
   app over its own socket in the profile folder, `app.sock`, which only this

@@ -1,5 +1,4 @@
 mod archive;
-mod extensions;
 mod mobile;
 mod transaction;
 
@@ -24,9 +23,6 @@ pub(super) const ROOTS: &[&str] = &[
     "server.toml",
     "mobile-settings.json",
     "desktop-state.json",
-    "extension-enabled.json",
-    "extension-folders.json",
-    "extension-settings",
     "themes",
 ];
 pub(super) const MAX_BYTES: u64 = 64 * 1024 * 1024;
@@ -65,20 +61,10 @@ pub(crate) struct PreparedImport {
     pub(super) restore: Restore,
     pub(crate) summary: String,
     attention: Vec<String>,
-    extensions: Option<extensions::Copies>,
 }
 
-/// Where 1.x installed extensions, and whether it had one turned on.
-type LegacyExtensions<'a> = Option<(&'a Path, &'a dyn Fn(&str) -> bool)>;
-
 pub(crate) fn prepare_installed(profile: &Path) -> Result<PreparedImport> {
-    let root = extensions::legacy_root();
-    prepare_from(
-        profile,
-        &legacy_directory()?,
-        root.as_deref()
-            .map(|root| (root, &extensions::enabled_in_legacy as _)),
-    )
+    prepare_from(profile, &legacy_directory()?)
 }
 
 /// The projects, workspaces, and layouts of a 1.x folder, for the running
@@ -141,9 +127,8 @@ fn installed_legacy() -> Result<Option<PathBuf>> {
 }
 
 /// Stages the installed 1.x configuration, once, for a profile that has no
-/// projects or workspaces yet, so upgrading keeps projects, workspaces, and
-/// layouts. A profile chosen with `MUXY_DIR` is left alone. Returns what the
-/// user should check, if anything could not come along.
+/// projects or workspaces yet. Custom profiles are left alone. Returns items
+/// the user should check if anything could not come along.
 pub(crate) fn migrate_installed(profile: &Path) -> Result<Option<String>> {
     if std::env::var_os("MUXY_DIR").is_some() {
         return Ok(None);
@@ -151,23 +136,13 @@ pub(crate) fn migrate_installed(profile: &Path) -> Result<Option<String>> {
     let Some(source) = installed_legacy()? else {
         return Ok(None);
     };
-    let root = extensions::legacy_root();
-    migrate_once(
-        profile,
-        &source,
-        root.as_deref()
-            .map(|root| (root, &extensions::enabled_in_legacy as _)),
-    )
+    migrate_once(profile, &source)
 }
 
 /// Muxy 2.0.0 opened profiles without importing, so a profile it left with
 /// nothing but Home still gets the import. Muxy 2.1.0 imported without
 /// marking the profile, so an import applied earlier counts as done.
-fn migrate_once(
-    profile: &Path,
-    source: &Path,
-    extensions: LegacyExtensions<'_>,
-) -> Result<Option<String>> {
+fn migrate_once(profile: &Path, source: &Path) -> Result<Option<String>> {
     let checked = profile.join(MIGRATION_CHECKED);
     if checked.try_exists()? || profile.join(PENDING).try_exists()? {
         return Ok(None);
@@ -177,7 +152,7 @@ fn migrate_once(
         && state.workspaces().is_empty()
         && !transaction::applied_before(profile);
     let notice = if untouched {
-        migrate_into(profile, source, extensions)
+        migrate_into(profile, source)
     } else {
         Ok(None)
     };
@@ -185,12 +160,8 @@ fn migrate_once(
     notice
 }
 
-fn migrate_into(
-    profile: &Path,
-    source: &Path,
-    extensions: LegacyExtensions<'_>,
-) -> Result<Option<String>> {
-    let import = prepare_from(profile, source, extensions)?;
+fn migrate_into(profile: &Path, source: &Path) -> Result<Option<String>> {
+    let import = prepare_from(profile, source)?;
     stage(profile, &import)?;
     Ok((!import.attention.is_empty()).then(|| {
         format!(
@@ -236,14 +207,10 @@ pub(crate) fn export(
 }
 
 pub(crate) fn prepare(profile: &Path, source: &Path) -> Result<PreparedImport> {
-    prepare_from(profile, source, None)
+    prepare_from(profile, source)
 }
 
-fn prepare_from(
-    profile: &Path,
-    source: &Path,
-    extensions: LegacyExtensions<'_>,
-) -> Result<PreparedImport> {
+fn prepare_from(profile: &Path, source: &Path) -> Result<PreparedImport> {
     let (files, legacy, restore) = if source.is_dir() {
         (
             archive::collect(source, &[LEGACY_SETTINGS, LEGACY_PROJECTS].concat())?,
@@ -262,20 +229,16 @@ fn prepare_from(
     } else {
         archive::read(source)?
     };
-    let (mut files, mut report) = if legacy {
+    let (mut files, report) = if legacy {
         migrate(profile, &files)?
     } else {
         (files, ImportReport::default())
     };
     normalize_terminal(&mut files)?;
-    let copies = match extensions {
-        Some(extensions) => import_extensions(profile, extensions, &mut files, &mut report)?,
-        None => None,
-    };
     validate_effective(profile, &files, restore)?;
     let projects = files
         .get("desktop-state.json")
-        .map(|bytes| serde_json::from_slice::<muxy_app_core::AppState>(bytes))
+        .map(|bytes| muxy_app_core::store::decode(bytes))
         .transpose()?;
     if let Some(state) = &projects {
         let current = muxy_app_core::store::load(profile.join("desktop-state.json"))?;
@@ -296,13 +259,7 @@ fn prepare_from(
         )
     }
     .to_string();
-    if let Some(copies) = &copies {
-        write!(
-            summary,
-            " {}",
-            tr!("Adds %lld extensions from Muxy 1.x.", copies.names.len())
-        )?;
-    }
+
     if restore == Restore::Merge && files.contains_key("server.toml") {
         write!(
             summary,
@@ -318,27 +275,7 @@ fn prepare_from(
         restore,
         summary,
         attention: report.attention,
-        extensions: copies,
     })
-}
-
-fn import_extensions(
-    profile: &Path,
-    (root, enabled): (&Path, &dyn Fn(&str) -> bool),
-    files: &mut Files,
-    report: &mut ImportReport,
-) -> Result<Option<extensions::Copies>> {
-    let Some(copies) = extensions::copy_legacy(profile, root, enabled, report)? else {
-        return Ok(None);
-    };
-    if !copies.enabled.is_empty() {
-        extensions::enable(profile, files, &copies.enabled)?;
-    }
-    report.attention.push(format!(
-        "Settings of extensions from 1.x start from their defaults: {}",
-        copies.names.join(", ")
-    ));
-    Ok(Some(copies))
 }
 
 fn describe_legacy(summary: &mut String, report: &ImportReport) -> Result<()> {
@@ -488,28 +425,12 @@ fn validate(files: &Files) -> Result<()> {
     }
     muxy_app_core::backup::validate_configuration(directory.path())?;
     if let Some(state) = files.get("desktop-state.json") {
-        let _: muxy_app_core::AppState = serde_json::from_slice(state)?;
+        muxy_app_core::store::decode(state)?;
     }
     if let Some(source) = files.get(mobile::FILE) {
         mobile::parse(source)?;
     }
-    for (name, source) in files {
-        if name.starts_with("extension-") {
-            let value: serde_json::Value = serde_json::from_slice(source)?;
-            match name.as_str() {
-                "extension-enabled.json" => {
-                    let _: Vec<String> = serde_json::from_value(value)?;
-                }
-                "extension-folders.json" => {
-                    let _: BTreeMap<String, PathBuf> = serde_json::from_value(value)?;
-                }
-                _ if !value.is_object() => {
-                    return Err(tr!("%@ must contain an object", name).to_string().into());
-                }
-                _ => (),
-            }
-        }
-    }
+
     Ok(())
 }
 

@@ -7,43 +7,23 @@ mod ffi;
 mod page;
 
 use std::cell::Cell;
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
 
-use async_channel::{Receiver, Sender};
-use gpui::{Bounds, CursorStyle, Keystroke, Pixels, Rgba, Window};
+use async_channel::Sender;
+use gpui::{Bounds, CursorStyle, Keystroke, Pixels, Rgba};
 use muxy_core::capability::Capability;
-use raw_window_handle::HasWindowHandle;
 
-use self::page::{Key, Runtime, Setup};
-use super::{AssetResult, Event, Pointer, assets::Source};
+use self::page::{Key, Runtime};
+use super::{Event, Pointer};
 
 pub const CAPABILITY: Capability = Capability::Supported;
-/// The page renders offscreen, so the app draws it and passes it input.
-pub(super) const DRAWN_BY_APP: bool = true;
-
 pub(super) fn probe() -> Capability {
     match ffi::load() {
         Ok(_) => Capability::Supported,
         Err(reason) => Capability::Unavailable(reason),
     }
-}
-
-static DATA_DIRECTORY: Mutex<Option<PathBuf>> = Mutex::new(None);
-
-pub(super) fn set_data_directory(directory: &Path) {
-    *DATA_DIRECTORY
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner) = Some(directory.to_owned());
-}
-
-fn data_directory() -> Option<PathBuf> {
-    DATA_DIRECTORY
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .clone()
 }
 
 /// Work for the GTK thread, or the reason there is none to run it.
@@ -129,58 +109,7 @@ pub(super) struct NativeWebview {
 }
 
 impl NativeWebview {
-    pub(super) fn new(
-        window: &Window,
-        source: Source,
-        script: &str,
-        _background: Rgba,
-        transparent_background: bool,
-    ) -> Result<(Self, Receiver<Event>), String> {
-        // A window the desktop does not show, as in a test, has nowhere to
-        // draw a page, so no engine is started for it.
-        HasWindowHandle::window_handle(window).map_err(|error| error.to_string())?;
-        Self::open(source, script, transparent_background)
-    }
-
     /// Opens a page that renders off screen, whoever draws it.
-    fn open(
-        source: Source,
-        script: &str,
-        transparent: bool,
-    ) -> Result<(Self, Receiver<Event>), String> {
-        let url = source.entry_url().map_err(|error| error.to_string())?;
-        let id = NEXT.fetch_add(1, Ordering::Relaxed);
-        let (events, receiver) = async_channel::bounded(256);
-        let shared = Arc::new(Shared::default());
-        let setup = Setup {
-            id,
-            url,
-            source: Some(source),
-            browser: None,
-            script: script.to_owned(),
-            transparent,
-            events: Events::Extension(events.clone()),
-            shared: shared.clone(),
-        };
-        post(move |runtime| match runtime {
-            Ok(runtime) => runtime.open(setup),
-            Err(reason) => {
-                let _ = setup.events.try_send(Event::Failed(reason.to_owned()));
-            }
-        });
-        Ok((
-            Self {
-                id,
-                events: Events::Extension(events),
-                shared,
-                modal: Cell::new(false),
-                passthrough: Cell::new(false),
-                placed: Cell::new(None),
-                shown: Cell::new(None),
-            },
-            receiver,
-        ))
-    }
 
     /// Runs `job` for this page on the GTK thread, if the page is still open.
     fn with(&self, job: impl FnOnce(&Rc<Runtime>, &page::Page) + Send + 'static) {
@@ -200,11 +129,6 @@ impl NativeWebview {
         self.modal.set(modal);
     }
 
-    // GPUI sends keys to the page only while it is focused, and draws and
-    // hit-tests what is above the page itself.
-    #[allow(clippy::unused_self)]
-    pub(super) fn set_focused(&self, _focused: bool) {}
-
     #[allow(clippy::unused_self)]
     pub(super) fn set_grips(&self, _grips: &[(Bounds<Pixels>, CursorStyle)]) {}
 
@@ -218,25 +142,6 @@ impl NativeWebview {
     pub(super) fn generation(&self) -> u64 {
         self.shared.generation.load(Ordering::Acquire)
     }
-
-    pub(super) fn install_script(&self, script: &str) {
-        let script = script.to_owned();
-        self.with(move |runtime, page| page.install(runtime, &script));
-    }
-
-    pub(super) fn evaluate(&self, script: &str) {
-        let script = script.to_owned();
-        self.with(move |runtime, page| page.evaluate(runtime, &script));
-    }
-
-    pub(super) fn reply(&self, id: u64, generation: u64, json: &str) {
-        let json = json.to_owned();
-        self.with(move |runtime, page| page.reply(runtime, id, generation, &json));
-    }
-
-    // Assets are read and answered on the GTK thread without passing here.
-    #[allow(clippy::unused_self)]
-    pub(super) fn complete_asset(&self, _id: u64, _result: AssetResult) {}
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub(super) fn sync(
@@ -345,18 +250,13 @@ fn pastes(keystroke: &Keystroke) -> bool {
         || (keystroke.key == "insert" && modifiers.shift && !modifiers.control)
 }
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Clone, Debug)]
 enum Events {
-    Extension(Sender<Event>),
     Browser(Sender<crate::browser::Event>, Arc<AtomicU64>),
 }
 impl Events {
     fn try_send(&self, event: Event) -> Result<(), ()> {
         match self {
-            Self::Extension(sender) => sender.try_send(event).map_err(|_| ()),
             Self::Browser(_, _) if matches!(event, Event::Failed(_)) => Ok(()),
             Self::Browser(sender, _) => sender
                 .try_send(crate::browser::Event::Surface(event))
@@ -364,17 +264,18 @@ impl Events {
         }
     }
     fn browser(&self, event: polybrowser::BrowserEvent) {
-        if let Self::Browser(sender, navigation) = self {
-            let _ = sender.try_send(crate::browser::Event::Page {
-                navigation: navigation.load(Ordering::Acquire),
-                event,
-            });
-        }
+        let Self::Browser(sender, navigation) = self;
+        let _ = sender.try_send(crate::browser::Event::Page {
+            navigation: navigation.load(Ordering::Acquire),
+            event,
+        });
     }
 
     fn begin_navigation(&self, id: u64) {
-        if let Self::Browser(_, navigation) = self {
-            navigation.store(id, Ordering::Release);
-        }
+        let Self::Browser(_, navigation) = self;
+        navigation.store(id, Ordering::Release);
     }
 }
+
+#[cfg(test)]
+mod tests;

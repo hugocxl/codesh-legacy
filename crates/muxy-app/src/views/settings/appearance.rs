@@ -1,6 +1,6 @@
-use super::{Category, Change, PickerKind, SettingsEvent, SettingsView, Snapshot};
-use gpui::{AnyElement, Context, InteractiveElement, IntoElement};
-use muxy_app_core::localization;
+use super::Snapshot;
+use super::{Category, Change, PickerKind, SettingsEvent, SettingsView};
+use gpui::{AnyElement, Context};
 use muxy_app_core::settings::{AgentsPanelGrouping, CloseBehavior, SidebarCollapsedStyle};
 use muxy_ui::controls::{self, Choice};
 use muxy_ui::l10n::{tr_key, translate};
@@ -46,29 +46,7 @@ pub(super) fn rows(
             ),
         ));
     }
-    if category == Category::Appearance && pane.matches(category, tr_key!("App language")) {
-        rows.push(app_language(pane, cx));
-    }
-    if SettingsView::BROWSE_LANGUAGES
-        && category == Category::Appearance
-        && pane.matches(category, tr_key!("More languages"))
-    {
-        rows.push(
-            pane.row(
-                "more-languages",
-                tr_key!("More languages"),
-                controls::button(
-                    pane.style(),
-                    "browse-languages",
-                    &tr!("Browse language extensions…"),
-                    true,
-                    cx.listener(|pane, _, _, cx| pane.browse_languages(cx)),
-                )
-                .debug_selector(|| "settings-browse-languages".into())
-                .into_any_element(),
-            ),
-        );
-    }
+
     let appearance = &pane.snapshot.settings.appearance;
     for (dark, label, value) in [
         (false, tr_key!("Light theme"), &appearance.light_theme),
@@ -181,22 +159,6 @@ pub(super) fn rows(
             ));
         }
     }
-    let sidebars = &pane.snapshot.sidebars;
-    if category == Category::Appearance
-        && !sidebars.is_empty()
-        && pane.matches(category, tr_key!("Active sidebar"))
-    {
-        let built_in = tr!("Built-in");
-        let selected = sidebars
-            .iter()
-            .find(|(id, _)| *id == appearance.extension_sidebar)
-            .map_or(built_in.as_str(), |(_, label)| label.as_str());
-        rows.push(pane.row(
-            "extension-sidebar",
-            tr_key!("Active sidebar"),
-            pane.picker(PickerKind::ExtensionSidebar, selected, cx),
-        ));
-    }
     if category == Category::Appearance && pane.matches(category, tr_key!("Show agents panel")) {
         rows.push(pane.row(
             "agents-panel",
@@ -246,8 +208,6 @@ pub(super) const FILE_OPENERS: [(&str, &str); 4] = [
     ("system.application", tr_key!("Default application")),
 ];
 
-/// The chosen file opener. Any value but a system opener, such as an
-/// extension's from before native editors, means Codesh's editor.
 pub(super) fn chosen_file_opener(value: &str) -> &str {
     if FILE_OPENERS.iter().any(|(id, _)| *id == value) {
         value
@@ -256,7 +216,6 @@ pub(super) fn chosen_file_opener(value: &str) -> &str {
     }
 }
 
-/// The chosen file opener's label.
 fn file_opener(snapshot: &Snapshot) -> String {
     let value = chosen_file_opener(&snapshot.settings.openers.file);
     FILE_OPENERS
@@ -264,47 +223,6 @@ fn file_opener(snapshot: &Snapshot) -> String {
         .find(|(id, _)| *id == value)
         .map(|&(_, label)| translate(label).to_string())
         .unwrap_or_default()
-}
-
-/// The app language. While the chosen language's extension is unavailable,
-/// the row says English shows meanwhile.
-fn app_language(pane: &SettingsView, cx: &mut Context<SettingsView>) -> AnyElement {
-    let selected = &pane.snapshot.settings.appearance.language;
-    let unavailable =
-        !selected.is_empty() && !pane.snapshot.languages.iter().any(|(id, _)| id == selected);
-    let note = unavailable.then(|| {
-        tr!("The selected language extension is unavailable, so Muxy is temporarily using English.")
-    });
-    pane.row_with_description(
-        "app-language",
-        tr_key!("App language"),
-        note.as_ref().map(AsRef::as_ref),
-        pane.picker(
-            PickerKind::AppLanguage,
-            &language_label(&pane.snapshot, selected),
-            cx,
-        ),
-        pane.compact,
-    )
-}
-
-/// The label of a language selection: English, a provider, or an
-/// unavailable one.
-pub(super) fn language_label(snapshot: &Snapshot, selected: &str) -> String {
-    if selected.is_empty() {
-        return tr!("English").to_string();
-    }
-    snapshot
-        .languages
-        .iter()
-        .find(|(id, _)| id == selected)
-        .map_or_else(
-            || match localization::parse_selection(selected) {
-                Some((extension, id)) => tr!("%@ (%@, unavailable)", extension, id).to_string(),
-                None => tr!("Unavailable language").to_string(),
-            },
-            |(_, label)| label.clone(),
-        )
 }
 
 fn agents_panel_grouping(pane: &SettingsView, cx: &mut Context<SettingsView>) -> AnyElement {

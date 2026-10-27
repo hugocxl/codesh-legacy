@@ -1,5 +1,5 @@
 //! The parts of GTK 3 and `WebKitGTK` 4.1 the page backend calls, bound once
-//! an extension is there to need them, so the app starts on a desktop
+//! a browser is there to need them, so the app starts on a desktop
 //! without them.
 
 #![allow(
@@ -28,7 +28,6 @@ pub(super) const PRIORITY_DEFAULT: c_int = 0;
 /// `G_TYPE_STRING`.
 pub(super) const TYPE_STRING: GType = 16 << 2;
 /// `G_IO_ERROR_NOT_FOUND`.
-pub(super) const IO_ERROR_NOT_FOUND: c_int = 1;
 
 pub(super) const EVENT_MOTION_NOTIFY: c_int = 3;
 pub(super) const EVENT_BUTTON_PRESS: c_int = 4;
@@ -74,7 +73,6 @@ pub(super) const NETWORK_ERROR_CANCELLED: c_int = 302;
 /// `WEBKIT_POLICY_ERROR_FRAME_LOAD_INTERRUPTED_BY_POLICY_CHANGE`.
 pub(super) const POLICY_ERROR_INTERRUPTED: c_int = 102;
 /// `SOUP_MESSAGE_HEADERS_RESPONSE`.
-pub(super) const SOUP_HEADERS_RESPONSE: c_int = 1;
 
 #[repr(C)]
 pub(super) struct GError {
@@ -248,7 +246,6 @@ pub(super) type SourceFunc = unsafe extern "C" fn(gpointer) -> gboolean;
 pub(super) type DestroyNotify = unsafe extern "C" fn(gpointer);
 /// A signal handler, cast from its real signature as `G_CALLBACK` does.
 pub(super) type Callback = unsafe extern "C" fn();
-pub(super) type SchemeCallback = unsafe extern "C" fn(gpointer, gpointer);
 pub(super) type EventFunc = unsafe extern "C" fn(gpointer, gpointer);
 pub(super) type AsyncReadyCallback = unsafe extern "C" fn(gpointer, gpointer, gpointer);
 
@@ -304,15 +301,6 @@ libraries! {
             data: gpointer,
             notify: Option<DestroyNotify>
         ) -> c_uint;
-        fn g_bytes_new_with_free_func(
-            data: *const c_void,
-            size: usize,
-            free: Option<DestroyNotify>,
-            user_data: gpointer
-        ) -> gpointer;
-        fn g_bytes_unref(bytes: gpointer);
-        fn g_error_new_literal(domain: GQuark, code: c_int, message: *const c_char) -> *mut GError;
-        fn g_error_free(error: *mut GError);
     }
     "libgobject-2.0.so.0" {
         fn g_object_ref(object: gpointer) -> gpointer;
@@ -336,10 +324,6 @@ libraries! {
             destroy: gpointer,
             flags: c_uint
         ) -> c_ulong;
-    }
-    "libgio-2.0.so.0" {
-        fn g_memory_input_stream_new_from_bytes(bytes: gpointer) -> gpointer;
-        fn g_io_error_quark() -> GQuark;
     }
     "libcairo.so.2" {
         fn cairo_surface_flush(surface: gpointer);
@@ -399,16 +383,9 @@ libraries! {
         fn gtk_widget_set_visual(widget: gpointer, visual: gpointer);
         fn gtk_widget_set_app_paintable(widget: gpointer, paintable: gboolean);
     }
-    "libsoup-3.0.so.0" {
-        fn soup_message_headers_new(kind: c_int) -> gpointer;
-        fn soup_message_headers_append(headers: gpointer, name: *const c_char, value: *const c_char);
-    }
     "libjavascriptcoregtk-4.1.so.0" {
         fn jsc_value_get_context(value: gpointer) -> gpointer;
-        fn jsc_context_get_exception(context: gpointer) -> gpointer;
-        fn jsc_context_clear_exception(context: gpointer);
         fn jsc_value_new_from_json(context: gpointer, json: *const c_char) -> gpointer;
-        fn jsc_value_to_json(value: gpointer, indent: c_uint) -> *mut c_char;
         fn jsc_value_to_string(value: gpointer) -> *mut c_char;
         fn jsc_value_is_object(value: gpointer) -> gboolean;
         fn jsc_value_is_string(value: gpointer) -> gboolean;
@@ -442,13 +419,6 @@ libraries! {
         fn webkit_web_context_new() -> gpointer;
         fn webkit_web_context_new_with_website_data_manager(manager: gpointer) -> gpointer;
         fn webkit_web_context_set_sandbox_enabled(context: gpointer, enabled: gboolean);
-        fn webkit_web_context_register_uri_scheme(
-            context: gpointer,
-            scheme: *const c_char,
-            callback: SchemeCallback,
-            data: gpointer,
-            destroy: Option<DestroyNotify>
-        );
         fn webkit_user_content_manager_new() -> gpointer;
         fn webkit_user_content_manager_register_script_message_handler_with_reply(
             manager: gpointer,
@@ -456,14 +426,6 @@ libraries! {
             world: *const c_char
         ) -> gboolean;
         fn webkit_user_content_manager_add_script(manager: gpointer, script: gpointer);
-        fn webkit_user_content_manager_remove_all_scripts(manager: gpointer);
-        fn webkit_user_script_new(
-            source: *const c_char,
-            frames: c_int,
-            time: c_int,
-            allow: *const *const c_char,
-            block: *const *const c_char
-        ) -> gpointer;
         fn webkit_user_script_unref(script: gpointer);
         fn webkit_user_script_new_for_world(source: *const c_char, frames: c_int, time: c_int, world: *const c_char, allow: *const *const c_char, block: *const *const c_char) -> gpointer;
         fn webkit_user_content_manager_add_style_sheet(manager: gpointer, sheet: gpointer);
@@ -490,23 +452,9 @@ libraries! {
             callback: Option<AsyncReadyCallback>,
             data: gpointer
         );
-        fn webkit_web_view_evaluate_javascript_finish(
-            view: gpointer,
-            result: gpointer,
-            error: *mut *mut GError
-        ) -> gpointer;
         fn webkit_web_view_set_background_color(view: gpointer, color: *const GdkRGBA);
         fn webkit_web_view_set_zoom_level(view: gpointer, zoom: c_double);
         fn webkit_web_view_set_input_method_context(view: gpointer, context: gpointer);
-        fn webkit_uri_scheme_request_get_uri(request: gpointer) -> *const c_char;
-        fn webkit_uri_scheme_request_get_web_view(request: gpointer) -> gpointer;
-        fn webkit_uri_scheme_request_finish_error(request: gpointer, error: *mut GError);
-        fn webkit_uri_scheme_request_finish_with_response(request: gpointer, response: gpointer);
-        fn webkit_uri_scheme_response_new(stream: gpointer, length: i64) -> gpointer;
-        fn webkit_uri_scheme_response_set_content_type(response: gpointer, kind: *const c_char);
-        fn webkit_uri_scheme_response_set_http_headers(response: gpointer, headers: gpointer);
-        fn webkit_script_message_reply_ref(reply: gpointer) -> gpointer;
-        fn webkit_script_message_reply_unref(reply: gpointer);
         fn webkit_script_message_reply_return_value(reply: gpointer, value: gpointer);
         fn webkit_script_message_reply_return_error_message(reply: gpointer, message: *const c_char);
         fn webkit_policy_decision_use(decision: gpointer);
@@ -539,7 +487,7 @@ pub(super) fn load() -> Result<&'static Api, String> {
     API.get_or_init(|| {
         Api::bind().map_err(|error| {
             tr!(
-                "Extension pages need WebKitGTK 4.1, which could not be loaded: %@",
+                "Browser pages need WebKitGTK 4.1, which could not be loaded: %@",
                 error.to_string()
             )
             .to_string()

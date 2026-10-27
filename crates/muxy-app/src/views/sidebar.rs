@@ -130,28 +130,7 @@ pub(crate) fn register_commands(
 
 pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppModel>) -> AnyElement {
     let m = model.metrics;
-    if model.extension_sidebar_active() {
-        return div()
-            .debug_selector(|| "workspace-sidebar".into())
-            .flex()
-            .flex_col()
-            .flex_none()
-            .w(px(model.sidebar_width()))
-            .h_full()
-            .min_h(px(0.0))
-            .bg(model.sidebar_background())
-            .map(|sidebar| super::titlebar::top_corners(sidebar, window, true, false))
-            .child(div().h(m.title_bar_height()).flex_none())
-            .children(model.webviews.sidebar.as_ref().map(|sidebar| {
-                div()
-                    .flex()
-                    .flex_1()
-                    .min_h(px(0.0))
-                    .child(sidebar.surface.view.clone())
-            }))
-            .child(super::codesh::sidebar_chrome::bottom(model, window, cx))
-            .into_any_element();
-    }
+
     let contents = match model.appearance.layout {
         AppLayout::ProjectFocused => project_list(model, cx),
         AppLayout::TabFocused | AppLayout::AgentsFocused => {
@@ -285,8 +264,7 @@ impl AppModel {
                 );
             f32::from(self.clamp_expanded_sidebar_width(width))
         } else if !super::codesh::style::HIDE_COLLAPSED_SIDEBAR
-            && (self.appearance.layout == AppLayout::ProjectFocused
-                || self.extension_sidebar_active())
+            && (self.appearance.layout == AppLayout::ProjectFocused)
             && self.appearance.sidebar_collapsed_style == SidebarCollapsedStyle::Icons
         {
             f32::from(self.metrics.sidebar_collapsed_width())

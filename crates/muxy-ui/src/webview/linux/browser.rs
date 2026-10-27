@@ -52,12 +52,10 @@ impl NativeBrowser {
         let setup = page::Setup {
             id,
             url: options.url.unwrap_or("about:blank").to_owned(),
-            source: None,
             browser: Some(page::browser::Setup {
                 profile: options.profile.clone(),
                 allows: options.allows,
             }),
-            script: String::new(),
             transparent: false,
             events: output.clone(),
             shared: shared.clone(),
@@ -149,9 +147,8 @@ impl NativeBrowser {
         if matches!(event, Pointer::Pressed { .. }) {
             self.clicked.set(Some(Instant::now()));
             self.focus();
-            if let Events::Browser(sender, _) = &self.page.events {
-                let _ = sender.try_send(Event::Clicked);
-            }
+            let Events::Browser(sender, _) = &self.page.events;
+            let _ = sender.try_send(Event::Clicked);
         }
         self.page.pointer(event);
     }

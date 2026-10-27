@@ -462,9 +462,6 @@ impl AppModel {
 
     /// Marks only `server`'s panes and requests as disconnected.
     pub(super) fn disconnect(&mut self, server: ServerId, cx: &mut Context<Self>) {
-        if server.is_local() {
-            self.stop_extension_tasks(cx);
-        }
         self.disconnect_side_client(server);
         let current = self.state.current_project().server_id == server;
         if current {

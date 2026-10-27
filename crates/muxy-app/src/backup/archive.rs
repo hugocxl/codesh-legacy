@@ -29,6 +29,19 @@ fn allowed(name: &str, roots: &[&str]) -> bool {
         })
 }
 
+// Older backups included these files. Discard them after checking path safety,
+// without extracting or restoring extension configuration.
+fn retired_configuration(name: &str) -> bool {
+    allowed(
+        name,
+        &[
+            "extension-enabled.json",
+            "extension-folders.json",
+            "extension-settings",
+        ],
+    )
+}
+
 /// What a 1.x backup may contain.
 const LEGACY_ROOTS: &[&str] = &[
     "settings.json",
@@ -187,6 +200,9 @@ pub(super) fn read(source: &Path) -> Result<(Files, bool, Restore)> {
             )));
         }
         if entry.is_dir() || name == "manifest.json" || name.starts_with("__MACOSX/") {
+            continue;
+        }
+        if retired_configuration(&name) {
             continue;
         }
         if !allowed(&name, roots)

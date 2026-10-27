@@ -520,7 +520,7 @@ impl AppModel {
             .filter(|pane| self.editor_dirty(*pane))
             .collect();
         if dirty.is_empty() || request.restart.is_some() {
-            self.check_webview_closes(cx);
+            self.check_next_close(cx);
             return;
         }
         let panes = request.panes.clone();
@@ -550,7 +550,7 @@ impl AppModel {
                 }
                 match answer {
                     Unsaved::Save => model.save_then_close(dirty, &panes, cx),
-                    Unsaved::Discard => model.check_webview_closes(cx),
+                    Unsaved::Discard => model.check_next_close(cx),
                     Unsaved::Cancel => model.close_request = None,
                 }
             });
@@ -576,7 +576,7 @@ impl AppModel {
                 if failed.get() {
                     model.close_request = None;
                 } else {
-                    model.check_webview_closes(cx);
+                    model.check_next_close(cx);
                 }
             });
         }

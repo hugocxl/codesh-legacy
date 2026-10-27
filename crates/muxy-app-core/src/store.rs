@@ -43,15 +43,17 @@ pub fn load(path: impl AsRef<Path>) -> Result<AppState, AppError> {
             });
         }
     };
-    serde_json::from_slice(&bytes)
-        .and_then(|mut value: Value| {
-            migrate_extension_panes(&mut value);
-            serde_json::from_value(value)
-        })
-        .map_err(|source| AppError::Json {
-            path: path.into(),
-            source,
-        })
+    decode(&bytes).map_err(|source| AppError::Json {
+        path: path.into(),
+        source,
+    })
+}
+
+/// Decodes saved desktop state, including retired pane formats in backups.
+pub fn decode(bytes: &[u8]) -> serde_json::Result<AppState> {
+    let mut value: Value = serde_json::from_slice(bytes)?;
+    migrate_extension_panes(&mut value);
+    serde_json::from_value(value)
 }
 
 /// Rewrites panes of the retired bundled `files` and `git` extensions as

@@ -4,7 +4,6 @@ mod backup;
 pub(crate) mod browser;
 mod catalog;
 mod commands;
-pub(crate) mod extensions;
 mod keyboard;
 mod languages;
 mod layout;
@@ -63,12 +62,10 @@ pub(crate) enum Category {
     Browser,
     Server,
     Mobile,
-    Extensions,
     Backup,
 }
 
 impl Category {
-    /// Codesh hides Extensions: its built-in extensions are always on.
     pub(crate) const ALL: [Self; 10] = [
         Self::General,
         Self::Appearance,
@@ -94,7 +91,6 @@ impl Category {
             Self::Browser => tr_key!("Browser"),
             Self::Server => tr_key!("Server"),
             Self::Mobile => tr_key!("Mobile"),
-            Self::Extensions => tr_key!("Extensions"),
             Self::Backup => tr_key!("Backup & Restore"),
         }
     }
@@ -106,10 +102,7 @@ pub(crate) enum Change {
     Theme(bool, String),
     Sidebar(bool),
     SidebarVibrancy(bool),
-    /// The extension whose sidebar replaces the built-in one; empty for built-in.
-    ExtensionSidebar(String),
-    /// The app language as `<extension>:<localization>`; empty for English.
-    Language(String),
+
     Worktrees(&'static str, bool),
     SidebarCollapsedStyle(muxy_app_core::settings::SidebarCollapsedStyle),
     AgentsPanel(bool),
@@ -121,15 +114,14 @@ pub(crate) enum Change {
     Terminal(&'static str, String),
     TerminalEdit(muxy_app_core::settings::TerminalEdit),
     ResetTerminal,
-    /// `[openers] file`: a built-in opener, or `<extension>:<opener>`.
+
     FileOpener(String),
     Directory(muxy_app_core::settings::NewPaneDirectory),
     Field(&'static str, String),
     Binding(String, Option<muxy_app_core::settings::KeyChord>),
     Command(muxy_app_core::settings::CustomCommand),
     RemoveCommand(String),
-    /// Removes an extension command's shortcut.
-    Unassign(String),
+
     ShellIntegration(bool),
     MobileAccess(bool),
     Browser(BrowserChange),
@@ -167,11 +159,7 @@ pub(crate) struct Snapshot {
     pub(crate) mobile_busy: bool,
     pub(crate) mobile_error: Option<String>,
     pub(crate) ai_installed: Vec<&'static str>,
-    /// Enabled extensions that provide a sidebar, as `(extension, label)`.
-    pub(crate) sidebars: Vec<(String, String)>,
-    /// Languages enabled extensions provide, as `(selection, label)`.
-    pub(crate) languages: Vec<(String, String)>,
-    pub(crate) extension_shortcuts: Vec<crate::model::extensions::ExtensionShortcut>,
+
     pub(crate) browser_profiles: Vec<browser::Profile>,
     /// Other browsers' profiles that can be imported, by name, and whether
     /// their cookies can be.
@@ -182,7 +170,6 @@ pub(crate) struct SettingsView {
     backup_busy: bool,
     backup_import: Option<crate::backup::PreparedImport>,
     backup_status: String,
-    pub(crate) extensions: Option<Entity<extensions::ExtensionsView>>,
     navigation_view: Entity<super::cached::CachedView<Self>>,
     content_view: Entity<super::cached::CachedView<Self>>,
     terminal_slider: Option<terminal::Drag>,
@@ -249,7 +236,6 @@ impl SettingsView {
             backup_busy: false,
             backup_import: None,
             backup_status: String::new(),
-            extensions: None,
             navigation_view: super::cached::CachedView::new(
                 |view, window, cx| view.navigation(window, cx),
                 cx,
@@ -286,10 +272,8 @@ impl SettingsView {
                 PickerKind::Theme(true),
                 PickerKind::AiProvider(crate::repository_actions::Action::Commit),
                 PickerKind::AiProvider(crate::repository_actions::Action::CreatePullRequest),
-                PickerKind::ExtensionSidebar,
                 PickerKind::FileOpener,
                 PickerKind::Language,
-                PickerKind::AppLanguage,
             ]
             .into_iter()
             .chain(pickers::FontSlot::ALL.map(PickerKind::Font))
@@ -382,9 +366,7 @@ impl SettingsView {
         self.results.dirty = true;
         self.snapshot = snapshot;
         self.theme = theme;
-        if let Some(extensions) = &self.extensions {
-            extensions.update(cx, |view, cx| view.sync_theme(self.theme.clone(), cx));
-        }
+
         let style = InputStyle::field(&self.theme, &self.metrics);
         self.search
             .update(cx, |input, cx| input.set_style(style, cx));
@@ -533,17 +515,6 @@ impl SettingsView {
         }
     }
 
-    /// Codesh has no marketplace, so it offers no language packs to browse.
-    const BROWSE_LANGUAGES: bool = false;
-
-    /// Shows Extensions → Browse limited to language packs.
-    fn browse_languages(&mut self, cx: &mut Context<Self>) {
-        self.show_extensions(cx);
-        if let Some(extensions) = &self.extensions {
-            extensions.update(cx, extensions::ExtensionsView::browse_languages);
-        }
-    }
-
     pub(crate) fn show_browser(&mut self, cx: &mut Context<Self>) {
         self.category = Category::Browser;
         self.section = None;
@@ -565,13 +536,6 @@ impl SettingsView {
             self.section = None;
             cx.notify();
         }
-    }
-
-    pub(crate) fn show_extensions(&mut self, cx: &mut Context<Self>) {
-        self.category = Category::Extensions;
-        self.query.clear();
-        self.search.update(cx, |input, cx| input.set_text("", cx));
-        cx.notify();
     }
 
     fn matches(&self, category: Category, label: &str) -> bool {
@@ -660,8 +624,6 @@ impl SettingsView {
     fn visible_catalog_row(&self, setting: &catalog::Setting) -> bool {
         let available = match setting.id {
             "voice-model" => muxy_ui::voice::LOCAL_MODEL,
-            "more-languages" => Self::BROWSE_LANGUAGES,
-            "extension-sidebar" => !self.snapshot.sidebars.is_empty(),
             "terminal-import-notes" => !self.snapshot.terminal.diagnostics.is_empty(),
             _ => true,
         };
@@ -676,21 +638,6 @@ impl SettingsView {
         {
             let matching = keyboard::matching(self);
             return (None, matching.last() == Some(&index));
-        }
-        if let Some(shortcut) = self
-            .snapshot
-            .extension_shortcuts
-            .iter()
-            .find(|shortcut| shortcut.id == id)
-        {
-            let matching = keyboard::matching_extensions(self);
-            let last = matching.iter().rev().find(|index| {
-                self.snapshot.extension_shortcuts[**index].extension == shortcut.extension
-            });
-            return (
-                None,
-                last.is_some_and(|index| self.snapshot.extension_shortcuts[*index].id == id),
-            );
         }
         let setting = catalog::setting(id);
         let section = setting
@@ -723,26 +670,10 @@ impl SettingsView {
         let shortcut_index = muxy_core::shortcuts::ALL
             .iter()
             .position(|shortcut| shortcut.id == id);
-        let extension_shortcut = self
-            .snapshot
-            .extension_shortcuts
-            .iter()
-            .find(|shortcut| shortcut.id == id);
         let first = shortcut_index.map_or(section || !catalog, |index| {
             keyboard::matching(self).first() == Some(&index)
         });
-        let first = extension_shortcut.map_or(first, |shortcut| {
-            keyboard::matching_extensions(self)
-                .into_iter()
-                .find(|index| {
-                    self.snapshot.extension_shortcuts[*index].extension == shortcut.extension
-                })
-                .is_some_and(|index| self.snapshot.extension_shortcuts[index].id == id)
-        });
-        (
-            first,
-            !catalog && shortcut_index.is_none() && extension_shortcut.is_none(),
-        )
+        (first, !catalog && shortcut_index.is_none())
     }
 
     /// A row whose label is shown as given, such as a custom command's name.

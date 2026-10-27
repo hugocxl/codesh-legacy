@@ -32,7 +32,7 @@ flowchart TB
 | Worktree project | A Git worktree, shown under the project it came from. |
 | Workspace | A group of projects in one app, used to filter the sidebar. |
 | Tab | Belongs to one project and holds one or more panes. |
-| Pane | One view in a tab: a terminal, a web page, or an extension view. |
+| Pane | One view in a tab: a terminal, browser, editor, diff, or built-in settings view. |
 | Session | A running terminal. Belongs to exactly one project. |
 | Paired device | A phone allowed to connect to the server. |
 

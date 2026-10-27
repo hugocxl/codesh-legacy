@@ -12,10 +12,6 @@ pub(crate) enum Overlay {
     Server,
     /// The tip popover beside the collapsed sidebar's tip button.
     Tip,
-    Webview,
-    /// The open extension popover (`AppModel::webviews.popover`).
-    Popover,
-    Native(Entity<super::native_modal::NativeModal>),
     Commands {
         palette: Entity<muxy_ui::command_palette::CommandPalette<super::command_palette::Handler>>,
         dark: bool,
@@ -47,8 +43,7 @@ pub(crate) enum Overlay {
 }
 
 impl Overlay {
-    /// Whether the overlay marks the area it covers, so native views
-    /// elsewhere stay visible while it is open.
+    /// Whether native browser views can avoid the area the overlay covers.
     pub(crate) fn marks_bounds(&self) -> bool {
         matches!(
             self,
@@ -74,14 +69,6 @@ impl Overlay {
 
 impl AppModel {
     pub(crate) fn dismiss_overlay(&mut self, cx: &mut Context<Self>) {
-        if matches!(self.overlay, Some(Overlay::Webview)) {
-            self.dismiss_webview_modal(cx);
-            return;
-        }
-        if matches!(self.overlay, Some(Overlay::Popover)) {
-            self.close_extension_popover(cx);
-            return;
-        }
         self.project_logo_task = None;
         if matches!(self.overlay, Some(Overlay::ServerForm(_))) {
             self.clear_server_probe();
@@ -168,8 +155,6 @@ fn centered(content: AnyElement) -> AnyElement {
 pub(crate) fn layer(model: &AppModel, window: &Window, cx: &mut Context<AppModel>) -> AnyElement {
     let content = match &model.overlay {
         None => return div().into_any_element(),
-        Some(Overlay::Webview) => return super::webview::modal::render(model, window, cx),
-        Some(Overlay::Popover) => super::webview::popover::render(model, cx),
         Some(Overlay::Server) => {
             let content = marked(super::server_status::render(model, window, cx), model);
             let anchor = model.server_anchor();
@@ -235,7 +220,6 @@ pub(crate) fn layer(model: &AppModel, window: &Window, cx: &mut Context<AppModel
             super::remote_servers::render_password(prompt, model, window, cx),
             model,
         )),
-        Some(Overlay::Native(picker)) => picker.clone().into_any_element(),
         Some(Overlay::GitForm(form)) => div()
             .absolute()
             .top_0()

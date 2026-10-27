@@ -292,14 +292,7 @@ impl AppModel {
             }
             return;
         }
-        if let Some(surface) = self
-            .active_pane()
-            .and_then(|id| self.webviews.panes.get(&id))
-        {
-            surface.view.read(cx).focus.focus(window);
-            surface.view.read(cx).native.focus();
-            return;
-        }
+
         if let Some(view) = self
             .active_pane()
             .and_then(|id| self.editors.get(&id))
@@ -349,11 +342,6 @@ fn action_handlers(cx: &mut Context<AppModel>) -> gpui::Div {
                 model.update_shortcut_hints(event.modifiers, cx);
             }),
         )
-        .on_action(cx.listener(
-            |model, action: &crate::model::extensions::RunCommand, window, cx| {
-                model.run_extension_command(&action.owner, &action.command, window, cx);
-            },
-        ))
         .on_action(cx.listener(
             |model, action: &crate::model::commands::RunCustomCommand, _, cx| {
                 model.run_custom_command(&action.id, cx);
@@ -956,19 +944,19 @@ impl AppModel {
         let _span = crate::profiler::span(crate::profiler::Metric::WorkspacePrepare);
         let panel_focused = self.side_panel_focused(window, cx)
             || self.agents_panel.focus.contains_focused(window, cx);
+        let input_focused = self
+            .sidebar_filter_input
+            .focus_handle(cx)
+            .contains_focused(window, cx)
+            || (self.appearance.agent_sessions_visible
+                && self
+                    .agent_sessions
+                    .input
+                    .as_ref()
+                    .is_some_and(|input| input.focus_handle(cx).contains_focused(window, cx)));
         if self.overlay.is_none()
             && (self.focus_requested
-                || (self.active_pane().is_none()
-                    && self.webviews.panels.is_empty()
-                    && !panel_focused
-                    && !self
-                        .sidebar_filter_input
-                        .focus_handle(cx)
-                        .contains_focused(window, cx)
-                    && !(self.appearance.agent_sessions_visible
-                        && self.agent_sessions.input.as_ref().is_some_and(|input| {
-                            input.focus_handle(cx).contains_focused(window, cx)
-                        }))))
+                || !(self.active_pane().is_some() || panel_focused || input_focused))
         {
             match self.focus_return.take().and_then(|focus| focus.upgrade()) {
                 Some(focus) => focus.focus(window),
@@ -1004,7 +992,7 @@ impl Render for AppModel {
         let _span = crate::profiler::span(crate::profiler::Metric::WorkspaceRender);
         {
             let _span = crate::profiler::span(crate::profiler::Metric::WorkspaceSyncWebviews);
-            self.sync_webviews(window, cx);
+            self.sync_native_surfaces(window, cx);
         }
         self.prepare_workspace(window, cx);
         self.sync_project_logos(window, cx);
@@ -1022,7 +1010,6 @@ impl Render for AppModel {
         let theme = &self.theme;
         let sidebar_width = self.sidebar_width();
         let content = super::splits::render(self, window, cx).unwrap_or_else(|| empty(self, cx));
-        let content = self.webview_panel_content(content, window, cx);
         let content = super::agents_panel::right_panel_content(content, self, window, cx);
         let content = super::agent_sessions::panel_content(content, self, window, cx);
         let content = super::native_panels::panel_content(content, self, window, cx);

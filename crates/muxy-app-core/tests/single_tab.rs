@@ -1,6 +1,6 @@
 use muxy_app_core::{
     AppState, Axis, Direction, Layout, Pane, PaneContent, PaneId, ServerId, Tab, TabId, TabSide,
-    browser::BrowserPane, codesh, project_layouts::Config, webview::WebviewDescriptor,
+    browser::BrowserPane, codesh, project_layouts::Config,
 };
 use muxy_protocol::SessionId;
 use serde_json::json;
@@ -56,37 +56,6 @@ fn terminal_and_adjacent_creation_split_the_focused_leaf() -> Result {
         }
     }
     assert!(container.layout.contains(fourth));
-    Ok(())
-}
-
-#[test]
-fn webviews_share_container_and_singletons_reuse_the_correct_pane() -> Result {
-    let mut state = AppState::bootstrap()?;
-    let home = state.home().id;
-    let tab = state.open_terminal_tab(home)?;
-    let descriptor = WebviewDescriptor {
-        owner: "files".into(),
-        kind: "editor".into(),
-        data: json!({"path": "a.rs"}),
-    };
-    let (editor_tab, editor) = state.open_webview(home, descriptor.clone(), "Editor", false)?;
-    let (_, other) = state.open_webview(home, descriptor.clone(), "Editor", false)?;
-    assert_eq!(editor_tab, tab);
-    assert_ne!(editor, other);
-    let updated = WebviewDescriptor {
-        data: json!({"path": "b.rs"}),
-        ..descriptor
-    };
-    assert_eq!(
-        state.open_webview(home, updated.clone(), "Editor", true)?,
-        (tab, editor)
-    );
-    assert_eq!(active(&state)?, editor);
-    assert_eq!(state.home().tabs[0].panes.len(), 3);
-    assert_eq!(
-        state.home().tabs[0].panes[1].content,
-        PaneContent::Webview(updated)
-    );
     Ok(())
 }
 

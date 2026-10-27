@@ -83,4 +83,4 @@ tabs.
 - Terminal keys such as clear screen, line editing, and scrolling have built-in
   bindings. Add your own in **Settings → Terminal → Key bindings**; they take
   precedence while a terminal is focused.
-- Commands from **Settings → Commands** and extensions can have shortcuts too.
+- Commands from **Settings → Commands** can have shortcuts too.

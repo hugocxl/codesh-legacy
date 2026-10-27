@@ -350,13 +350,13 @@ fn identify_desktop<R: std::io::Read, W: std::io::Write>(
 }
 
 #[test]
-fn pending_extension_replies_do_not_block_app_requests_or_flush() -> TestResult {
+fn pending_side_connection_replies_do_not_block_app_requests_or_flush() -> TestResult {
     let directory = tempfile::Builder::new()
         .prefix("muxy-async-")
         .tempdir_in("/tmp")?;
     let listener = UnixListener::bind(directory.path().join("server.sock"))?;
     let (started, pending) = mpsc::channel();
-    let server = thread::spawn(move || withhold_extension_replies(&listener, &started));
+    let server = thread::spawn(move || withhold_side_connection_replies(&listener, &started));
     let (work, updates) = local_worker(directory.path().join("server.sock"))?;
     work.send((1, Work::Connect))?;
     assert!(matches!(updates.recv_blocking()?.2, Update::ServerInfo(..)));
@@ -429,12 +429,12 @@ fn pending_extension_replies_do_not_block_app_requests_or_flush() -> TestResult 
     server.join().map_err(|_| "fake server panicked")??;
     assert!(
         received.iter().all(|received| *received),
-        "app catalog, activity, settings, project sessions, saved screens and flush must complete while extension replies remain pending: {received:?}"
+        "app catalog, activity, settings, project sessions, saved screens and flush must complete while side connection replies remain pending: {received:?}"
     );
     Ok(())
 }
 
-fn withhold_extension_replies(listener: &UnixListener, started: &Sender<()>) -> TestResult {
+fn withhold_side_connection_replies(listener: &UnixListener, started: &Sender<()>) -> TestResult {
     let (socket, _) = listener.accept()?;
     socket.set_read_timeout(Some(Duration::from_secs(5)))?;
     let mut decoder = Decoder::new(socket.try_clone()?);

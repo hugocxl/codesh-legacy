@@ -45,8 +45,6 @@ const MAPPINGS: &[(&str, &[&str])] = &[
         "muxy.sidebarCollapsedStyle",
         &["appearance", "sidebar_collapsed_style"],
     ),
-    ("muxy.activeSidebar", &["appearance", "extension_sidebar"]),
-    ("muxy.localization", &["appearance", "language"]),
     ("muxy.appLayout", &["appearance", "layout"]),
     (
         "muxy.ai.repositoryActions.commit.provider",

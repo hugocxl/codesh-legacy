@@ -8,8 +8,6 @@ use crate::tr;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Feature {
-    ExtensionScripts,
-    ExtensionWebviews,
     Voice,
     Notifications,
     CommandLineTool,
@@ -18,9 +16,7 @@ pub enum Feature {
 }
 
 impl Feature {
-    pub const ALL: [Self; 7] = [
-        Self::ExtensionScripts,
-        Self::ExtensionWebviews,
+    pub const ALL: [Self; 5] = [
         Self::Voice,
         Self::Notifications,
         Self::CommandLineTool,
@@ -31,12 +27,6 @@ impl Feature {
     /// Why a build without a backend for the feature cannot offer it.
     pub fn unsupported_reason(self) -> Cow<'static, str> {
         match self {
-            Self::ExtensionScripts => {
-                tr!("Extension scripts are not available on this platform yet.")
-            }
-            Self::ExtensionWebviews => {
-                tr!("Extension webviews are not available on this platform yet.")
-            }
             Self::Voice => tr!("Voice input is not available on this platform yet."),
             Self::Notifications => {
                 tr!("Desktop notifications are not available on this platform yet.")

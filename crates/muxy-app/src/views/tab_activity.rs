@@ -90,7 +90,6 @@ pub(super) fn tab_status(tab: &Tab, model: &AppModel) -> Status {
         .filter_map(|pane| match pane.content {
             PaneContent::Terminal { session } => session,
             PaneContent::Settings
-            | PaneContent::Webview(_)
             | PaneContent::Browser(_)
             | PaneContent::Servers
             | PaneContent::Editor { .. }
@@ -171,7 +170,6 @@ fn project_scope_status(id: ProjectId, include_children: bool, model: &AppModel)
         .filter_map(|pane| match pane.content {
             PaneContent::Terminal { session } => session,
             PaneContent::Settings
-            | PaneContent::Webview(_)
             | PaneContent::Browser(_)
             | PaneContent::Servers
             | PaneContent::Editor { .. }

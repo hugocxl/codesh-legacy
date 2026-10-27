@@ -905,3 +905,29 @@ split_right = "cmd-alt-d"
     assert_eq!(TerminalSettings::load_native(&terminal_path)?, terminal);
     Ok(())
 }
+
+#[test]
+fn retired_extension_settings_load_without_claiming_shortcuts() -> Result {
+    let fixture = Fixture::new()?;
+    let path = fixture.write(
+        "settings.toml",
+        include_str!("fixtures/settings-retired-extensions.toml"),
+    )?;
+    let settings = Settings::load(&path)?;
+    assert!(!settings.appearance.status_bar_visible);
+    assert_eq!(settings.openers.file, "files:code-editor");
+    assert_eq!(settings.openers.url, "browser:custom-opener");
+    assert!(settings.keymap.binding("extension.files.open").is_none());
+    assert!(settings.keymap.binding("extension.git.commit").is_none());
+    assert_eq!(
+        settings
+            .keymap
+            .chord(ShortcutId::NewTab)
+            .map(KeyChord::as_str),
+        Some("cmd-alt-n")
+    );
+    settings.keymap.save(&path)?;
+    let reloaded = Settings::load(&path)?;
+    assert_eq!(reloaded, settings);
+    Ok(())
+}

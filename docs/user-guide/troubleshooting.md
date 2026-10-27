@@ -9,7 +9,6 @@ Common problems and fixes. If yours isn't here, please
 | --- | --- |
 | Server | `server.log` in the [profile folder](../features/server.md#files) |
 | Desktop app | Start it with `MUXY_DIAGNOSTICS=1` to write `app-diagnostics-<pid>.log` to the profile folder |
-| Extensions | **Settings → Extensions →** the extension **→ Reveal log** |
 | CLI and terminal UI | Printed in the terminal |
 
 `muxy --build-info` and `muxy server status` show the versions in use.

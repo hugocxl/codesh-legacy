@@ -275,13 +275,7 @@ pub(crate) fn open_with_default_app(path: &Path) -> io::Result<()> {
 }
 
 /// Shows a path in the file manager: a file selected in its folder, or a
-/// folder opened. A path that doesn't exist yet shows its nearest existing
-/// folder.
-pub(crate) fn reveal(path: &Path) -> io::Result<()> {
-    let existing = path.ancestors().find(|path| path.exists()).unwrap_or(path);
-    launch(&finder(existing))
-}
-
+/// folder opened.
 #[cfg(target_os = "macos")]
 fn finder(path: &Path) -> Launch {
     if path.is_dir() {

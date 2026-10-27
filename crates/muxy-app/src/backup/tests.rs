@@ -15,6 +15,58 @@ fn profile() -> tempfile::TempDir {
 }
 
 #[test]
+fn backups_with_retired_webview_panes_restore_native_documents() {
+    let target = profile();
+    let backup = target.path().join("old.muxy");
+    let mut files: Files = BTreeMap::from([
+        (
+            "settings.toml".into(),
+            muxy_app_core::backup::settings_source(&Settings::default())
+                .unwrap()
+                .into_bytes(),
+        ),
+        (
+            "desktop-state.json".into(),
+            include_bytes!(
+                "../../../muxy-app-core/tests/fixtures/desktop-state-extension-panes.json"
+            )
+            .to_vec(),
+        ),
+    ]);
+    files.insert("extension-enabled.json".into(), b"[\"files\"]".to_vec());
+    files.insert("extension-settings/files.json".into(), b"{}".to_vec());
+    let mut zip = zip::ZipWriter::new(fs::File::create(&backup).unwrap());
+    let options = zip::write::SimpleFileOptions::default();
+    zip.start_file("manifest.json", options).unwrap();
+    zip.write_all(&serde_json::to_vec(&serde_json::json!({"schemaVersion":2, "format":"muxy.configuration", "complete":true, "files":files.keys().collect::<Vec<_>>()})).unwrap()).unwrap();
+    for (name, bytes) in files {
+        zip.start_file(name, options).unwrap();
+        zip.write_all(&bytes).unwrap();
+    }
+    zip.finish().unwrap();
+    let import = prepare(target.path(), &backup).unwrap();
+    stage(target.path(), &import).unwrap();
+    assert!(apply_pending(target.path()).unwrap().is_none());
+    assert!(!target.path().join("extension-enabled.json").exists());
+    assert!(!target.path().join("extension-settings").exists());
+    let state = muxy_app_core::store::load(target.path().join("desktop-state.json")).unwrap();
+    let panes: Vec<_> = state
+        .home()
+        .tabs
+        .iter()
+        .flat_map(|tab| &tab.panes)
+        .map(|pane| &pane.content)
+        .collect();
+    assert!(panes.iter().any(
+        |pane| matches!(pane, muxy_app_core::PaneContent::Editor { path } if path == "src/main.rs")
+    ));
+    assert!(panes.iter().any(|pane| matches!(pane, muxy_app_core::PaneContent::Diff { path, staged: false } if path == "README.md")));
+    assert_eq!(panes.len(), 3);
+    let saved = fs::read_to_string(target.path().join("desktop-state.json")).unwrap();
+    assert!(!saved.contains("webview"));
+}
+
+#[test]
 fn backup_round_trip_is_portable_and_restore_waits_for_restart() {
     let source = profile();
     let target = profile();
@@ -26,12 +78,6 @@ fn backup_round_trip_is_portable_and_restore_waits_for_restart() {
     state.open_terminal_tab(id).unwrap();
     fs::create_dir(source.path().join("themes")).unwrap();
     fs::write(source.path().join("themes/custom"), "background = 111111").unwrap();
-    fs::create_dir(source.path().join("extension-settings")).unwrap();
-    fs::write(
-        source.path().join("extension-settings/example.json"),
-        r#"{"enabled":true}"#,
-    )
-    .unwrap();
     fs::write(source.path().join("identity.pem"), "private identity").unwrap();
     fs::write(
         source.path().join("server.toml"),
@@ -62,12 +108,6 @@ fn backup_round_trip_is_portable_and_restore_waits_for_restart() {
         17.0_f32.to_bits()
     );
     assert!(target.path().join("themes/custom").exists());
-    assert!(
-        target
-            .path()
-            .join("extension-settings/example.json")
-            .exists()
-    );
     let restored = muxy_app_core::store::load(target.path().join("desktop-state.json")).unwrap();
     assert!(restored.project(id).is_some());
     let creates = restored
@@ -272,16 +312,9 @@ fn interrupted_restore_recovers_original_files_before_loading_the_profile() {
     fs::write(directory.path().join("ghostty.conf"), "font-size = 23\n").unwrap();
     fs::create_dir(directory.path().join("themes")).unwrap();
     fs::write(directory.path().join("themes/partial"), "incomplete").unwrap();
-    fs::write(recovery.join("extensions.json"), r#"["added"]"#).unwrap();
-    for name in ["added", "kept"] {
-        fs::create_dir_all(directory.path().join("extensions").join(name)).unwrap();
-    }
     fs::write(directory.path().join(PENDING), "invalid backup").unwrap();
     let error = apply_pending(directory.path()).unwrap().unwrap();
     assert!(error.contains("Could not restore backup"));
-    assert!(!directory.path().join("extensions/added").exists());
-    assert!(directory.path().join("pending-extensions/added").exists());
-    assert!(directory.path().join("extensions/kept").exists());
     assert_eq!(
         fs::read_to_string(directory.path().join("ghostty.conf")).unwrap(),
         "font-size = 17\n"
@@ -290,7 +323,6 @@ fn interrupted_restore_recovers_original_files_before_loading_the_profile() {
     assert!(!directory.path().join("restore-in-progress.json").exists());
     assert!(recovery.join("ghostty.conf").exists());
     cancel_pending(directory.path()).unwrap();
-    assert!(!directory.path().join("pending-extensions").exists());
     assert!(apply_pending(directory.path()).unwrap().is_none());
 }
 
@@ -454,11 +486,6 @@ fn full_restore_resets_omitted_configuration_and_partial_import_keeps_it() {
         "shell_integration = false\n",
     )
     .unwrap();
-    fs::write(
-        target.path().join("extension-enabled.json"),
-        r#"["custom"]"#,
-    )
-    .unwrap();
     fs::create_dir(target.path().join("themes")).unwrap();
     fs::write(target.path().join("themes/custom"), "background = 111111").unwrap();
     let json = source.path().join("settings.json");
@@ -471,7 +498,7 @@ fn full_restore_resets_omitted_configuration_and_partial_import_keeps_it() {
     export(source.path(), &archive, &AppState::bootstrap().unwrap()).unwrap();
     stage(target.path(), &prepare(target.path(), &archive).unwrap()).unwrap();
     apply_pending(target.path()).unwrap();
-    for name in ["server.toml", "extension-enabled.json", "themes"] {
+    for name in ["server.toml", "themes"] {
         assert!(!target.path().join(name).exists(), "{name}");
     }
     assert!(
@@ -515,15 +542,6 @@ fn mobile_preferences_exclude_credentials_and_apply_through_the_server() {
     assert_eq!(fs::read(target.path().join("remote.json")).unwrap(), raw);
 }
 
-fn legacy_package(folder: &Path, name: &str) {
-    fs::create_dir_all(folder).unwrap();
-    fs::write(
-        folder.join("package.json"),
-        serde_json::json!({"name":name,"version":"1.0.0","muxy":{}}).to_string(),
-    )
-    .unwrap();
-}
-
 #[test]
 fn installed_one_x_is_imported_once_into_a_new_profile_and_later_imports_merge() {
     let directory = profile();
@@ -532,22 +550,6 @@ fn installed_one_x_is_imported_once_into_a_new_profile_and_later_imports_merge()
     let second = tempfile::tempdir().unwrap();
     let first_id = "01000000-0000-0000-0000-000000000001";
     let second_id = "01000000-0000-0000-0000-000000000002";
-    let extensions = tempfile::tempdir().unwrap();
-    legacy_package(&extensions.path().join("reader"), "reader");
-    legacy_package(&extensions.path().join("renamed"), "other");
-    let reader = extensions.path().join("reader");
-    std::os::unix::fs::symlink("package.json", reader.join("inside")).unwrap();
-    std::os::unix::fs::symlink("/etc/hosts", reader.join("outside")).unwrap();
-    let elsewhere = tempfile::tempdir().unwrap();
-    legacy_package(elsewhere.path(), "locked");
-    fs::create_dir(extensions.path().join("locked")).unwrap();
-    std::os::unix::fs::symlink(
-        elsewhere.path().join("package.json"),
-        extensions.path().join("locked/package.json"),
-    )
-    .unwrap();
-    let enabled = |name: &str| name == "reader" || name == "locked";
-    let legacy_extensions = Some((extensions.path(), &enabled as &dyn Fn(&str) -> bool));
     let projects = |projects: serde_json::Value| {
         fs::write(
             legacy.path().join("projects.json"),
@@ -559,23 +561,11 @@ fn installed_one_x_is_imported_once_into_a_new_profile_and_later_imports_merge()
         {"id":first_id,"name":"First","path":first.path(),"sortOrder":0},
         {"id":second_id,"name":"Unmounted","path":"/missing-muxy-project","sortOrder":1}
     ]));
-    let notice = migrate_once(directory.path(), legacy.path(), legacy_extensions)
+    let notice = migrate_once(directory.path(), legacy.path())
         .unwrap()
         .unwrap();
-    for item in ["Unmounted", "renamed", "locked", "reader (1 links"] {
-        assert!(notice.contains(item), "{item}");
-    }
+    assert!(notice.contains("Unmounted"), "{notice}");
     assert!(apply_pending(directory.path()).unwrap().is_none());
-    let installed = directory.path().join("extensions/reader");
-    assert!(installed.join("inside").exists());
-    assert!(fs::symlink_metadata(installed.join("outside")).is_err());
-    assert!(!directory.path().join("extensions/locked").exists());
-    assert!(!directory.path().join("pending-extensions").exists());
-    let enabled: Vec<String> =
-        serde_json::from_slice(&fs::read(directory.path().join("extension-enabled.json")).unwrap())
-            .unwrap();
-    assert_eq!(enabled, ["reader"]);
-    fs::write(installed.join("settings-made-in-2.json"), "{}").unwrap();
     let path = directory.path().join("desktop-state.json");
     let mut state = muxy_app_core::store::load(&path).unwrap();
     let first_id = first_id.parse().unwrap();
@@ -583,7 +573,7 @@ fn installed_one_x_is_imported_once_into_a_new_profile_and_later_imports_merge()
     state.open_terminal_tab(first_id).unwrap();
     muxy_app_core::store::save(&path, &state).unwrap();
     assert!(
-        migrate_once(directory.path(), legacy.path(), legacy_extensions)
+        migrate_once(directory.path(), legacy.path())
             .unwrap()
             .is_none()
     );
@@ -592,23 +582,18 @@ fn installed_one_x_is_imported_once_into_a_new_profile_and_later_imports_merge()
         {"id":first_id,"name":"First","path":first.path(),"sortOrder":0},
         {"id":second_id,"name":"Second","path":second.path(),"sortOrder":1}
     ]));
-    legacy_package(&extensions.path().join("other"), "other");
     let backups = directory.path().join("Backups");
     fs::rename(&backups, directory.path().join("Backups.saved")).unwrap();
     fs::write(&backups, "").unwrap();
-    let import = prepare_from(directory.path(), legacy.path(), legacy_extensions).unwrap();
+    let import = prepare_from(directory.path(), legacy.path()).unwrap();
     stage(directory.path(), &import).unwrap();
     assert!(apply_pending(directory.path()).unwrap().is_some());
-    assert!(!directory.path().join("extensions/other").exists());
     cancel_pending(directory.path()).unwrap();
-    assert!(!directory.path().join("pending-extensions").exists());
     fs::remove_file(&backups).unwrap();
     fs::rename(directory.path().join("Backups.saved"), &backups).unwrap();
-    let import = prepare_from(directory.path(), legacy.path(), legacy_extensions).unwrap();
+    let import = prepare_from(directory.path(), legacy.path()).unwrap();
     stage(directory.path(), &import).unwrap();
     assert!(apply_pending(directory.path()).unwrap().is_none());
-    assert!(installed.join("settings-made-in-2.json").exists());
-    assert!(directory.path().join("extensions/other").exists());
     let merged = muxy_app_core::store::load(&path).unwrap();
     assert_eq!(merged.project(first_id).unwrap().name, "Renamed");
     assert_eq!(
@@ -654,7 +639,7 @@ fn profile_an_earlier_two_x_left_empty_imports_installed_one_x_once() {
     let empty = AppState::bootstrap().unwrap();
     muxy_app_core::store::save(&path, &empty).unwrap();
     assert!(
-        migrate_once(opened.path(), legacy.path(), None)
+        migrate_once(opened.path(), legacy.path())
             .unwrap()
             .is_none()
     );
@@ -663,7 +648,7 @@ fn profile_an_earlier_two_x_left_empty_imports_installed_one_x_once() {
     assert!(imported.project(id).is_some());
     assert_eq!(imported.workspaces()[0].projects, [id].into());
     muxy_app_core::store::save(&path, &empty).unwrap();
-    migrate_once(opened.path(), legacy.path(), None).unwrap();
+    migrate_once(opened.path(), legacy.path()).unwrap();
     assert!(!opened.path().join(PENDING).exists());
 }
 
@@ -683,7 +668,7 @@ fn automatic_one_x_import_leaves_used_imported_and_staged_profiles_alone() {
         let profile = tempfile::tempdir().unwrap();
         for state in [&used, &empty] {
             muxy_app_core::store::save(profile.path().join("desktop-state.json"), state).unwrap();
-            migrate_once(profile.path(), legacy.path(), None).unwrap();
+            migrate_once(profile.path(), legacy.path()).unwrap();
             assert!(!profile.path().join(PENDING).exists());
         }
     }
@@ -695,12 +680,12 @@ fn automatic_one_x_import_leaves_used_imported_and_staged_profiles_alone() {
             .join("Backups/pre-import-earlier"),
     )
     .unwrap();
-    migrate_once(imported_by_two_one.path(), legacy.path(), None).unwrap();
+    migrate_once(imported_by_two_one.path(), legacy.path()).unwrap();
     assert!(!imported_by_two_one.path().join(PENDING).exists());
 
     let staged = tempfile::tempdir().unwrap();
     fs::write(staged.path().join(PENDING), "staged by the user").unwrap();
-    migrate_once(staged.path(), legacy.path(), None).unwrap();
+    migrate_once(staged.path(), legacy.path()).unwrap();
     assert_eq!(
         fs::read_to_string(staged.path().join(PENDING)).unwrap(),
         "staged by the user"

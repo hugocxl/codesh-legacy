@@ -689,9 +689,7 @@ impl AppModel {
         }
         self.dispatch_git_refresh(request.project, cx);
         self.update_git_picker(cx);
-        if matches!(request.action, GitAction::Summary) {
-            self.sync_extension_events(cx);
-        }
+        if matches!(request.action, GitAction::Summary) {}
         cx.notify();
     }
 }

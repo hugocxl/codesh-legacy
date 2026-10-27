@@ -23,7 +23,6 @@ impl Category {
             Self::Server => (Icon::Network, 0x0029_9fa3),
             Self::Mobile => (Icon::AppWindow, 0x0038_a455),
             Self::Ai => (Icon::Sparkles, 0x00a3_4de0),
-            Self::Extensions => (Icon::Puzzle, 0x0077_777c),
             Self::Backup => (Icon::History, 0x0077_777c),
         };
         div()
@@ -59,7 +58,6 @@ impl Category {
                 tr_key!("Voice"),
             ],
             Self::Appearance => &[
-                tr_key!("Language"),
                 tr_key!("Themes"),
                 tr_key!("Interface"),
                 tr_key!("Agents Panel"),
@@ -72,7 +70,7 @@ impl Category {
                 tr_key!("Server control"),
             ],
             Self::Mobile => &[tr_key!("Access"), tr_key!("Pairing"), tr_key!("Devices")],
-            Self::Extensions | Self::Commands => &[],
+            Self::Commands => &[],
             Self::Backup => &[
                 tr_key!("Backup & Restore"),
                 tr_key!("Migration"),
@@ -452,20 +450,7 @@ impl SettingsView {
         for anchor in self.picker_anchors.values() {
             anchor.set(None);
         }
-        if self.category == Category::Extensions
-            && self.query.is_empty()
-            && let Some(extensions) = &self.extensions
-        {
-            return div()
-                .w_full()
-                .min_w_0()
-                .min_h_0()
-                .h_full()
-                .px(px(style::GUTTER * 2.5))
-                .when(cfg!(target_os = "linux"), |content| content.pt(px(32.0)))
-                .child(extensions.clone())
-                .into_any_element();
-        }
+
         let view = cx.entity();
         div()
             .relative()

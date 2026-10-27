@@ -37,13 +37,7 @@ One app runs per profile: a second launch, and `muxy <folder>`, hand their
 folders to the app that is running. The app, the `muxy` tool and the server are
 installed in one directory and find each other there.
 
-Extensions run on the system's WebKitGTK 4.1, version 2.40 or later, which the
-app loads once an extension is enabled. Without it the app still runs, and
-Settings says why extensions are off. Scripts use its JavaScriptCore, the engine
-macOS uses. A GPUI window cannot hold a WebKitGTK view, so pages render off
-screen and the app draws them and passes them input. Browser panes use the same
-renderer and need WebKitGTK 2.42 or later for cookie automation. On Linux a page therefore
-has:
+Browser panes load the system's WebKitGTK 4.1, version 2.42 or later. A GPUI window cannot hold a WebKitGTK view, so pages render off screen and the app draws them and passes them input. On Linux a page therefore has:
 
 - no context menu, tooltips, or drag and drop;
 - text only on the clipboard, and no clipboard inside a frame;
@@ -73,7 +67,7 @@ backend: `xdg-desktop-portal-gnome`, `xdg-desktop-portal-kde` or
 `xdg-desktop-portal-gtk`.
 
 SF Symbols exist only on macOS. Linux draws a symbol from a bundled icon when
-there is one, and an extension's symbol without one as the extension icon.
+there is one.
 
 Voice input uses local `parec` capture and `whisper-cli` transcription. Install
 PulseAudio's utilities (`pulseaudio-utils` on Ubuntu) and
@@ -129,7 +123,7 @@ development packages `build-essential pkg-config clang cmake libssl-dev
 libfontconfig1-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev
 libwayland-dev libxcb1-dev libvulkan-dev`. Runtime packages include
 `mesa-vulkan-drivers xdg-desktop-portal xdg-desktop-portal-gnome xdg-utils`, and
-`libwebkit2gtk-4.1-0` for extensions.
+`libwebkit2gtk-4.1-0` for the browser.
 The desktop checks also need `xvfb` and `xauth` for isolated window tests.
 Then run `bash scripts/build-desktop-linux.sh`. `MUXY_ZIG` can point at Zig, and
 `CARGO_TARGET_DIR` must point to a guest-local writable directory when the source

@@ -5,7 +5,6 @@ mod backup;
 mod boot;
 mod cli_install;
 mod diagnostics;
-mod extensions;
 mod favicon;
 #[cfg(any(target_os = "linux", test))]
 mod instance;
@@ -38,7 +37,6 @@ mod views {
     pub(crate) mod git;
     pub(crate) mod git_panel;
     pub(crate) mod menu;
-    pub(crate) mod native_modal;
     pub(crate) mod native_panels;
     pub(crate) mod new_tab;
     pub(crate) mod overlays;
@@ -80,7 +78,6 @@ mod views {
         pub(crate) mod typography;
     }
     pub(crate) mod voice;
-    pub(crate) mod webview;
     pub(crate) mod workspace;
     pub(crate) mod worktree_picker;
 }

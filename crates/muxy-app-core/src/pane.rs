@@ -20,7 +20,6 @@ pub enum PaneContent {
         session: Option<SessionId>,
     },
     Settings,
-    Webview(crate::webview::WebviewDescriptor),
     Browser(crate::browser::BrowserPane),
     /// The Remote Servers tab, which manages other computers' servers.
     Servers,
@@ -45,11 +44,7 @@ impl PaneContent {
             } else {
                 basename(path).into()
             }),
-            Self::Terminal { .. }
-            | Self::Settings
-            | Self::Webview(_)
-            | Self::Browser(_)
-            | Self::Servers => None,
+            Self::Terminal { .. } | Self::Settings | Self::Browser(_) | Self::Servers => None,
         }
     }
 }

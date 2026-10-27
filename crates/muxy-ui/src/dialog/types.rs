@@ -7,28 +7,6 @@ pub enum ConfirmationResponse {
     },
 }
 
-/// A choice in an extension consent prompt.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ConsentResponse {
-    AllowAndRemember,
-    Allow,
-    Cancel,
-    DenyAndRemember,
-    Block,
-}
-
-/// A labelled native alert, confirmation, or text prompt.
-#[derive(Clone, Debug, Default)]
-pub struct DialogOptions {
-    pub title: String,
-    pub message: String,
-    pub buttons: Vec<String>,
-    pub default_button: Option<String>,
-    pub cancel_button: Option<String>,
-    pub input: Option<(String, String)>,
-    pub style: String,
-}
-
 pub const ADDITIONAL_PROMPT_LIMIT: usize = 2000;
 
 /// Choices shown between a prompt sheet's message and its buttons.

@@ -220,7 +220,6 @@ impl AppModel {
                 );
                 activity.snapshot = snapshot;
                 self.notifications.clear(&removed);
-                self.activity_notifications_posted(server, &ids, cx);
                 self.sync_activity_panes(server, self.state.session_references(server));
                 let ids: Vec<_> = self
                     .activity_notification_events(server, &ids)
@@ -263,7 +262,6 @@ impl AppModel {
                 );
             }
         }
-        self.sync_extension_events(cx);
         cx.notify();
     }
 

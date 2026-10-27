@@ -207,3 +207,9 @@ fn inside<'a>(root: &str, path: &'a str) -> Option<&'a str> {
     }
     path.strip_prefix(root)?.strip_prefix('/')
 }
+
+/// Unique request ids shared by folder checks and creation on side connections.
+pub(crate) fn next_job() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}

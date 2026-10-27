@@ -235,7 +235,7 @@ impl AppModel {
     ) {
         match event {
             BrowserViewEvent::Shortcut(keystroke) => {
-                super::webviews::dispatch_shortcut(keystroke.clone(), window, cx);
+                super::native_surfaces::dispatch_shortcut(keystroke.clone(), window, cx);
             }
             BrowserViewEvent::Escape => {
                 self.cancel_layout_drag(cx);
@@ -644,7 +644,7 @@ impl AppModel {
             return shortcuts.clone();
         }
         let keymap = &self.settings.keymap;
-        let mut shortcuts: Vec<_> = ALL
+        let shortcuts: Vec<_> = ALL
             .iter()
             .flat_map(|shortcut| {
                 shortcut
@@ -655,7 +655,6 @@ impl AppModel {
             })
             .filter_map(|key| gpui::Keystroke::parse(&key).ok())
             .collect();
-        shortcuts.extend(self.extension_keystrokes());
         let shortcuts = Rc::new(shortcuts);
         self.browsers.shortcuts = Some(shortcuts.clone());
         shortcuts

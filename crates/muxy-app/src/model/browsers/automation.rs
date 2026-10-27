@@ -1,4 +1,4 @@
-//! `browser.*` requests from the CLI and extensions: opening and listing
+//! `browser.*` requests from the CLI: opening and listing
 //! tabs, and driving their pages.
 
 use std::time::{Duration, Instant};
@@ -11,7 +11,6 @@ use muxy_app_core::browser::automation::{
 };
 use muxy_app_core::browser::{is_blank, resolve_target, url_host};
 use muxy_ui::browser::polybrowser::{Cookie, Timestamp};
-use muxy_ui::javascript::is_async_function_body;
 use serde_json::{Value, json};
 
 use super::OpenBrowser;
@@ -94,7 +93,7 @@ impl AppModel {
                 cookies(verb, &view, args, cx)
             }
             "wait" | "waitFor" => {
-                let condition = automation::condition(verb, args, is_async_function_body)?;
+                let condition = automation::condition(verb, args)?;
                 let view = self.browser_page(args, window, cx)?;
                 Ok(wait_until(
                     view.downgrade(),
@@ -112,7 +111,7 @@ impl AppModel {
                 ))
             }
             _ => {
-                let script = automation::script(verb, args, is_async_function_body)?
+                let script = automation::script(verb, args)?
                     .ok_or_else(|| format!("unknown command browser.{verb}"))?;
                 let view = self.browser_page(args, window, cx)?;
                 Ok(run_script(&view, &script, MAX_WAIT, cx))
@@ -315,7 +314,7 @@ fn screenshot(view: &Entity<BrowserView>, cx: &mut Context<AppModel>) -> Reply {
                 pixels
                     .write_to(&mut png, image::ImageFormat::Png)
                     .map_err(|error| error.to_string())?;
-                Ok(json!({ "png": crate::model::extensions::base64(png.get_ref()) }))
+                Ok(json!({ "png": crate::proxy::base64(png.get_ref()) }))
             })
             .await
     })
@@ -407,52 +406,4 @@ fn cookie_json(cookie: &Cookie) -> Value {
         "httpOnly": cookie.http_only,
         "expires": expires,
     })
-}
-
-/// An extension's positional arguments, as `browser.<verb>` takes them.
-pub(crate) fn extension_args(verb: &str, args: &Value) -> Args {
-    let Some(list) = args.get("args").and_then(Value::as_array) else {
-        return args.as_object().cloned().unwrap_or_default();
-    };
-    let mut named = Args::new();
-    if let Some(tab) = args.get("tabId") {
-        named.insert("tabId".into(), tab.clone());
-    }
-    let positions: &[&str] = match verb.strip_prefix("browser.").unwrap_or(verb) {
-        "eval" => &["script"],
-        "click" | "hover" | "scrollIntoView" | "getText" | "getValue" | "getCount" | "getHTML"
-        | "snapshot" => &["selector"],
-        "type" | "fill" => &["selector", "text", "options"],
-        "press" => &["key", "selector"],
-        "select" => &["selector", "value"],
-        "setChecked" => &["selector", "checked"],
-        "is" => &["property", "selector"],
-        "waitFor" => &["selector", "options"],
-        "wait" | "waitForNavigation" | "cookies.set" => &["options"],
-        "getAttribute" => &["selector", "attribute"],
-        "find" => &["kind", "value"],
-        "storage.get" => &["key", "kind"],
-        "storage.set" => &["key", "value", "kind"],
-        "storage.clear" => &["kind"],
-        "cookies.get" => &["url"],
-        "cookies.delete" => &["name", "domain"],
-        _ => &[],
-    };
-    for (name, value) in positions.iter().zip(list) {
-        match (*name, value) {
-            ("options", Value::Object(options)) => {
-                named.extend(
-                    options
-                        .iter()
-                        .map(|(key, value)| (key.clone(), value.clone())),
-                );
-            }
-            ("options", _) => {}
-            (name, value) if !value.is_null() => {
-                named.insert(name.into(), value.clone());
-            }
-            _ => {}
-        }
-    }
-    named
 }

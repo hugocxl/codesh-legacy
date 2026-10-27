@@ -92,7 +92,7 @@ impl AppModel {
                 Err(error) => {
                     let _ = model.update(cx, |model, _| {
                         let message = model.server_message(server, &error);
-                        model.extension_log("", format!("[muxy] {message}"));
+                        crate::diagnostics::event("side_client", format_args!("{message}"));
                     });
                     return;
                 }
@@ -107,7 +107,6 @@ impl AppModel {
                     let install = model.side_clients.next_install;
                     model.side_clients.clients.insert(server, client.clone());
                     model.side_clients.installs.insert(server, install);
-                    model.sync_extension_events(cx);
                     model.rewatch_files(server, cx);
                     model.native_side_ready(server, cx);
                     model.resume_remote(server, cx);
@@ -131,13 +130,13 @@ impl AppModel {
                         }
                         match event {
                             muxy_client::ClientEvent::FilesChanged { project, changes } => {
-                                model.files_changed(project, changes, cx);
+                                model.files_changed(project, &changes, cx);
                             }
                             muxy_client::ClientEvent::Disconnected => {
                                 model.disconnect_side_client(server);
-                                let message = model
-                                    .server_message(server, "extension server connection closed");
-                                model.extension_log("", format!("[muxy] {message}"));
+                                let message =
+                                    model.server_message(server, "side connection closed");
+                                crate::diagnostics::event("side_client", format_args!("{message}"));
                                 if model.ready(server) && model.quitting == super::Quitting::Idle {
                                     model.connect_side_client(server, cx);
                                 }
@@ -160,7 +159,6 @@ impl AppModel {
         if let Some(client) = self.side_clients.clients.remove(&server) {
             client.disconnect();
         }
-        self.forget_extension_watches(server);
     }
 
     /// A watched project's files changed on its server.
@@ -169,18 +167,16 @@ impl AppModel {
     pub(crate) fn files_changed(
         &mut self,
         project: ProjectId,
-        changes: FileChanges,
+        changes: &FileChanges,
         cx: &mut Context<Self>,
     ) {
-        self.native_files_changed(project, &changes, cx);
-        self.extension_files_changed(project, changes, cx);
+        self.native_files_changed(project, changes, cx);
     }
 
     /// A project's repository changed on its server.
     ///
     /// Native panels (Source Control, diffs) subscribe here.
     pub(crate) fn git_changed(&mut self, project: ProjectId, cx: &mut Context<Self>) {
-        self.extension_git_changed(project, cx);
         self.git_invalidated(project, cx);
         self.native_git_changed(project, cx);
     }
@@ -217,7 +213,7 @@ impl AppModel {
 
     /// Stops [`Self::watch_files`]' watch on `project`.
     pub(crate) fn unwatch_files(&mut self, project: ProjectId, cx: &mut Context<Self>) {
-        if !self.side_clients.watched.remove(&project) || self.extension_watches(project) {
+        if !self.side_clients.watched.remove(&project) {
             return;
         }
         let Some(client) = self
@@ -279,7 +275,9 @@ fn forward_events(
     ),
     String,
 > {
-    let events = client.events().ok_or("extension events already taken")?;
+    let events = client
+        .events()
+        .ok_or("side connection events already taken")?;
     let (sender, receiver) = async_channel::bounded(64);
     std::thread::Builder::new()
         .name("side-client-events".into())

@@ -1,5 +1,7 @@
 //! A browser pane: the toolbar, the find bar, and the page in a native view.
 
+mod input;
+
 mod pages;
 #[cfg(test)]
 mod tests;
@@ -117,7 +119,7 @@ pub(crate) struct BrowserView {
     find: Option<FindBar>,
     presentation: Presentation,
     snapshot: Option<Arc<gpui::RenderImage>>,
-    pointer: Rc<super::webview::input::PointerState>,
+    pointer: Rc<input::PointerState>,
     page_origin: Rc<Cell<Point<Pixels>>>,
     cursor: gpui::CursorStyle,
     menu: Option<muxy_ui::webview::OptionMenu>,

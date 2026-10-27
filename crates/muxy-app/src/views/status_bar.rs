@@ -3,7 +3,6 @@ use gpui::{
     AnyElement, AppContext, Context, FontWeight, Hsla, InteractiveElement, IntoElement,
     MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled, canvas, div, px,
 };
-use muxy_app_core::extensions::Side;
 use muxy_protocol::{GitAction, GitPullRequestAction, WorktreeAction, WorktreeIntent};
 use muxy_ui::components::{ButtonInteraction, IconGlyph, SymbolGlyph, Tooltip};
 use muxy_ui::icon::Icon;
@@ -37,13 +36,7 @@ pub(crate) fn status_bar(model: &AppModel, cx: &mut Context<AppModel>) -> impl I
                 .h_full()
                 .px(px(10.0))
                 .child(path_chip(model, cx))
-                .children(git_controls(model, cx))
-                .children(
-                    model
-                        .extension_status_items(Side::Left, cx)
-                        .into_iter()
-                        .flat_map(|item| [item, item_separator(model)]),
-                ),
+                .children(git_controls(model, cx)),
         )
         .child(
             div()
@@ -56,24 +49,8 @@ pub(crate) fn status_bar(model: &AppModel, cx: &mut Context<AppModel>) -> impl I
                 .children(update_control(model, cx))
                 .children(super::disconnected::status(model, cx))
                 .child(super::proxy::control(model, cx))
-                .child(super::server_status::control(model, cx))
-                .children(
-                    model
-                        .extension_status_items(Side::Right, cx)
-                        .into_iter()
-                        .flat_map(|item| [item_separator(model), item]),
-                ),
+                .child(super::server_status::control(model, cx)),
         )
-}
-
-/// The divider main draws beside each extension status-bar item.
-fn item_separator(model: &AppModel) -> AnyElement {
-    div()
-        .w(px(1.0))
-        .h_full()
-        .flex_none()
-        .bg(model.theme.border)
-        .into_any_element()
 }
 
 fn update_control(model: &AppModel, cx: &mut Context<AppModel>) -> Option<AnyElement> {

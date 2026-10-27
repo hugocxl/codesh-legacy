@@ -71,12 +71,6 @@ pub mod browser;
 
 pub mod transcript;
 
-#[allow(
-    unsafe_code,
-    reason = "JavaScriptCore contexts confined to script threads"
-)]
-pub mod javascript;
-
 pub mod accessibility;
 
 #[allow(

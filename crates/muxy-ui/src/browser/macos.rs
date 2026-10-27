@@ -1,5 +1,5 @@
 //! A web page in a pane: a polybrowser view inside the same native host as
-//! extension pages, so it follows its pane, hides under app content, and
+//! GPUI content, so it follows its pane, hides under app content, and
 //! shares the keyboard with Muxy's shortcuts.
 
 use std::cell::Cell;

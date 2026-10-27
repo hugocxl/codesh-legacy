@@ -92,7 +92,7 @@ pub(super) const SETTINGS: &[Setting] = &[
         id: "backup-export",
         label: tr_key!("Export backup"),
         description: tr_key!(
-            "Save settings, themes, extension preferences, projects, workspaces, and terminal layouts to a .muxy file."
+            "Save settings, themes, projects, workspaces, and terminal layouts to a .muxy file."
         ),
         category: Category::Backup,
         section: tr_key!("Backup & Restore"),
@@ -182,7 +182,7 @@ pub(super) const SETTINGS: &[Setting] = &[
         id: "file-opener",
         label: tr_key!("Open files with"),
         description: tr_key!(
-            "Opens files you click in a terminal. An extension opener opens only the files it supports; other files open in the project editor."
+            "Opens files you click in a terminal. Files open in the Codesh editor or system application."
         ),
         category: Category::General,
         section: tr_key!("Files"),
@@ -222,22 +222,6 @@ pub(super) const SETTINGS: &[Setting] = &[
         ),
         category: Category::General,
         section: tr_key!("Worktrees"),
-    },
-    Setting {
-        id: "app-language",
-        label: tr_key!("App language"),
-        description: tr_key!(
-            "English is built in. Additional languages can be provided by enabled extensions."
-        ),
-        category: Category::Appearance,
-        section: tr_key!("Language"),
-    },
-    Setting {
-        id: "more-languages",
-        label: tr_key!("More languages"),
-        description: tr_key!("Find and install language packs in Extensions."),
-        category: Category::Appearance,
-        section: tr_key!("Language"),
     },
     Setting {
         id: "light-theme",
@@ -325,13 +309,6 @@ pub(super) const SETTINGS: &[Setting] = &[
         description: tr_key!(
             "List the current worktree first, then the most recently used. Off, the project comes first, then its worktrees."
         ),
-        category: Category::Appearance,
-        section: tr_key!("Interface"),
-    },
-    Setting {
-        id: "extension-sidebar",
-        label: tr_key!("Active sidebar"),
-        description: tr_key!("Show an enabled extension's sidebar in place of the built-in one."),
         category: Category::Appearance,
         section: tr_key!("Interface"),
     },

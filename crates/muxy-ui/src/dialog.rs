@@ -19,8 +19,8 @@ use crate::tr;
 )]
 mod prompt;
 pub use crate::dialog_types::{
-    ADDITIONAL_PROMPT_LIMIT, ConfirmationResponse, ConsentResponse, DialogOptions, PromptCheckbox,
-    PromptChoices, PromptPicker, PromptResponse,
+    ADDITIONAL_PROMPT_LIMIT, ConfirmationResponse, PromptCheckbox, PromptChoices, PromptPicker,
+    PromptResponse,
 };
 pub use prompt::{PromptConfirmation, confirm_with_prompt};
 
@@ -40,70 +40,6 @@ impl Drop for Confirmation {
                 .endSheet_returnCode(&self.alert.window(), self.dismissal);
         }
     }
-}
-
-fn consent_choice(response: NSModalResponse, block: bool) -> ConsentResponse {
-    let index = response - NSAlertFirstButtonReturn;
-    match (index, block) {
-        (..0 | 2 | 4.., _) => ConsentResponse::Cancel,
-        (_, true) => ConsentResponse::Block,
-        (0, false) => ConsentResponse::AllowAndRemember,
-        (1, false) => ConsentResponse::Allow,
-        (_, false) => ConsentResponse::DenyAndRemember,
-    }
-}
-
-/// Asks whether an extension may perform a gated action. Dropping the returned
-/// handle dismisses the sheet as a cancel.
-pub fn consent(
-    window: &mut gpui::Window,
-    _cx: &mut gpui::App,
-    title: &str,
-    message: &str,
-    block_label: &str,
-    on_complete: impl FnOnce(ConsentResponse) + 'static,
-) -> io::Result<Confirmation> {
-    let main_thread = MainThreadMarker::new()
-        .ok_or_else(|| io::Error::other("native dialogs require the main thread"))?;
-    let parent = parent_window(window, main_thread)?;
-    let alert = NSAlert::new(main_thread);
-    alert.setMessageText(&NSString::from_str(title));
-    alert.setInformativeText(&NSString::from_str(message));
-    alert.setAlertStyle(NSAlertStyle::Warning);
-    for (label, key) in [
-        (tr!("Allow & Remember"), "\r"),
-        (tr!("Allow"), ""),
-        (tr!("Cancel"), "\u{1b}"),
-        (tr!("Deny & Remember"), ""),
-    ] {
-        alert
-            .addButtonWithTitle(&NSString::from_str(&label))
-            .setKeyEquivalent(&NSString::from_str(key));
-    }
-    alert.setShowsSuppressionButton(true);
-    let suppression = alert.suppressionButton();
-    if let Some(button) = &suppression {
-        button.setTitle(&NSString::from_str(block_label));
-    }
-    let completed = Rc::new(Cell::new(false));
-    let finished = Rc::clone(&completed);
-    let callback = Cell::new(Some(on_complete));
-    let handler = RcBlock::new(move |response| {
-        finished.set(true);
-        let block = suppression
-            .as_ref()
-            .is_some_and(|button| button.state() == NSControlStateValueOn);
-        if let Some(callback) = callback.take() {
-            callback(consent_choice(response, block));
-        }
-    });
-    alert.beginSheetModalForWindow_completionHandler(&parent, Some(&handler));
-    Ok(Confirmation {
-        alert,
-        parent,
-        completed,
-        dismissal: NSAlertFirstButtonReturn + 2,
-    })
 }
 
 fn parent_window(
@@ -236,33 +172,6 @@ fn checked_if_confirmed(response: NSModalResponse, checked: bool) -> Option<bool
     (response == NSAlertFirstButtonReturn).then_some(checked)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn consent_buttons_map_to_main_choices_and_block_overrides_allowing() {
-        let button = |index| NSAlertFirstButtonReturn + index;
-        let choices = [
-            ConsentResponse::AllowAndRemember,
-            ConsentResponse::Allow,
-            ConsentResponse::Cancel,
-            ConsentResponse::DenyAndRemember,
-        ];
-        for (index, choice) in (0..).zip(choices) {
-            assert_eq!(consent_choice(button(index), false), choice);
-            let blocked = if choice == ConsentResponse::Cancel {
-                ConsentResponse::Cancel
-            } else {
-                ConsentResponse::Block
-            };
-            assert_eq!(consent_choice(button(index), true), blocked);
-        }
-        assert_eq!(consent_choice(0, false), ConsentResponse::Cancel);
-        assert_eq!(consent_choice(button(7), true), ConsentResponse::Cancel);
-    }
-}
-
 #[derive(Debug)]
 pub struct FolderPicker {
     panel: Retained<objc2_app_kit::NSOpenPanel>,
@@ -355,89 +264,4 @@ fn open_panel(
     });
     panel.beginWithCompletionHandler(&handler);
     Ok(FolderPicker { panel, completed })
-}
-
-pub fn present(
-    window: &mut gpui::Window,
-    _cx: &mut gpui::App,
-    options: DialogOptions,
-    on_complete: impl FnOnce(Option<String>) + 'static,
-) -> io::Result<Confirmation> {
-    let main_thread = MainThreadMarker::new()
-        .ok_or_else(|| io::Error::other("dialogs require the main thread"))?;
-    let windows = NSApplication::sharedApplication(main_thread).windows();
-    let title = window.window_title();
-    let mut matches = (0..windows.count())
-        .map(|index| windows.objectAtIndex(index))
-        .filter(|window| window.title().to_string() == title);
-    let parent = matches
-        .next()
-        .ok_or_else(|| io::Error::other("dialog parent is closed"))?;
-    if matches.next().is_some() {
-        return Err(io::Error::other("dialog parent window is ambiguous"));
-    }
-    if parent.attachedSheet().is_some() {
-        return Err(io::Error::other("an application dialog is already open"));
-    }
-    let alert = NSAlert::new(main_thread);
-    alert.setMessageText(&NSString::from_str(&options.title));
-    alert.setInformativeText(&NSString::from_str(&options.message));
-    alert.setAlertStyle(match options.style.as_str() {
-        "warning" => NSAlertStyle::Warning,
-        "critical" => NSAlertStyle::Critical,
-        _ => NSAlertStyle::Informational,
-    });
-    for (index, label) in options.buttons.iter().enumerate() {
-        let button = alert.addButtonWithTitle(&NSString::from_str(label));
-        let key = if options.default_button.as_ref() == Some(label)
-            || (options.default_button.is_none() && index == 0)
-        {
-            "\r"
-        } else if options.cancel_button.as_ref() == Some(label) {
-            "\u{1b}"
-        } else {
-            ""
-        };
-        button.setKeyEquivalent(&NSString::from_str(key));
-    }
-    let input = options.input.map(|(value, placeholder)| {
-        let input = objc2_app_kit::NSTextField::textFieldWithString(
-            &NSString::from_str(&value),
-            main_thread,
-        );
-        input.setPlaceholderString(Some(&NSString::from_str(&placeholder)));
-        input.setFrame(objc2_foundation::NSRect::new(
-            objc2_foundation::NSPoint::new(0.0, 0.0),
-            objc2_foundation::NSSize::new(320.0, 24.0),
-        ));
-        alert.setAccessoryView(Some(&input));
-        alert.window().setInitialFirstResponder(Some(&input));
-        input
-    });
-    let completed = Rc::new(Cell::new(false));
-    let finished = completed.clone();
-    let callback = Cell::new(Some(on_complete));
-    let handler = RcBlock::new(move |response| {
-        finished.set(true);
-        let label = usize::try_from(response - NSAlertFirstButtonReturn)
-            .ok()
-            .and_then(|index| options.buttons.get(index));
-        let value = match (label, &input) {
-            (Some(label), Some(input)) if options.cancel_button.as_ref() != Some(label) => {
-                Some(input.stringValue().to_string())
-            }
-            (Some(label), None) => Some(label.clone()),
-            _ => None,
-        };
-        if let Some(callback) = callback.take() {
-            callback(value);
-        }
-    });
-    alert.beginSheetModalForWindow_completionHandler(&parent, Some(&handler));
-    Ok(Confirmation {
-        alert,
-        parent,
-        completed,
-        dismissal: objc2_app_kit::NSModalResponseAbort,
-    })
 }

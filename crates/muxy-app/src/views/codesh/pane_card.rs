@@ -5,7 +5,7 @@ use gpui::{
 };
 use muxy_app_core::{Direction, PaneContent, PaneId};
 use muxy_ui::{
-    components::{IconButton, IconGlyph, SymbolGlyph},
+    components::{IconButton, IconGlyph},
     icon::Icon,
 };
 
@@ -45,7 +45,6 @@ pub(crate) fn render(
                 match &pane.content {
                     PaneContent::Terminal { .. } => Icon::Terminal,
                     PaneContent::Browser(_) => Icon::Globe,
-                    PaneContent::Webview(_) => Icon::Puzzle,
                     PaneContent::Servers => Icon::Network,
                     PaneContent::Settings => Icon::Settings,
                     PaneContent::Editor { .. } => Icon::File,
@@ -69,18 +68,6 @@ pub(crate) fn render(
     let leading = leading_toggle(id, model, cx);
     let glyph = if model.state.browser(id).is_some() {
         model.browser_glyph(id, m.scaled(16.0), theme.fg_muted, cx)
-    } else if let Some(surface) = model.webviews.panes.get(&id) {
-        match surface.view.read(cx).icon.as_ref() {
-            Some(crate::views::webview::PageIcon::Svg(image)) => gpui::img(image.clone())
-                .size(m.scaled(16.0))
-                .into_any_element(),
-            Some(crate::views::webview::PageIcon::Symbol(symbol)) => {
-                SymbolGlyph::new(symbol.clone(), m.scaled(16.0), theme.fg_muted)
-                    .or("puzzlepiece.extension")
-                    .into_any_element()
-            }
-            None => IconGlyph::new(icon, m.scaled(16.0), theme.fg_muted).into_any_element(),
-        }
     } else {
         IconGlyph::new(icon, m.scaled(16.0), theme.fg_muted).into_any_element()
     };

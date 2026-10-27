@@ -26,14 +26,13 @@ impl AppModel {
         event(
             "model.state",
             format_args!(
-                "quitting={:?} project={:?} tab={:?} active={:?} pending={:?} replacing={} panels={}",
+                "quitting={:?} project={:?} tab={:?} active={:?} pending={:?} replacing={}",
                 self.quitting,
                 self.state.current_project().id,
                 self.active_tab(),
                 self.active_pane(),
                 self.pending,
                 self.updates.replacing(),
-                self.webviews.panels.len(),
             ),
         );
         for (server, runtime) in self.servers.iter() {

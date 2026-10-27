@@ -228,9 +228,7 @@ impl SettingsWindow {
             super::PickerKind::AiProvider(action) => {
                 self.open_provider_picker(action, request, window, cx);
             }
-            super::PickerKind::ExtensionSidebar => self.open_sidebar_picker(request, window, cx),
             super::PickerKind::FileOpener => self.open_file_opener_picker(request, window, cx),
-            super::PickerKind::AppLanguage => self.open_app_language_picker(request, window, cx),
         }
         cx.notify();
     }
@@ -269,54 +267,6 @@ impl SettingsWindow {
                 PickerEvent::Confirmed(selection) => {
                     root.view.update(cx, |view, cx| {
                         view.choose_terminal_option(id, &selection.id, cx);
-                    });
-                    root.dismiss_overlay(window, cx);
-                }
-                PickerEvent::Dismissed => root.dismiss_overlay(window, cx),
-                _ => (),
-            },
-        ));
-        picker.focus_handle(cx).focus(window);
-        self.overlay = Some(SettingsOverlay::Providers {
-            picker,
-            source: request,
-        });
-    }
-
-    /// Chooses between the built-in sidebar and enabled extension sidebars.
-    fn open_sidebar_picker(
-        &mut self,
-        request: PickerRequest,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let view = self.view.read(cx);
-        let sidebars = view.snapshot.sidebars.clone();
-        let (theme, metrics) = (view.theme.clone(), view.metrics);
-        let picker = cx.new(|cx| {
-            Picker::new(
-                PickerConfig::popover("extension-sidebar", tr!("Search sidebars…")),
-                theme,
-                metrics,
-                cx,
-            )
-        });
-        let items = std::iter::once(PickerItem::Row(PickerRow::new("", tr!("Built-in"))))
-            .chain(
-                sidebars
-                    .into_iter()
-                    .map(|(id, label)| PickerItem::Row(PickerRow::new(id, label))),
-            )
-            .collect();
-        picker.update(cx, |picker, cx| picker.set_items(items, cx));
-        self.overlay_subscription = Some(cx.subscribe_in(
-            &picker,
-            window,
-            move |root, _, event, window, cx| match event {
-                PickerEvent::Confirmed(selection) => {
-                    let owner = selection.id.to_string();
-                    let _ = root.model.update(cx, |model, cx| {
-                        model.change_preference(Change::ExtensionSidebar(owner), cx);
                     });
                     root.dismiss_overlay(window, cx);
                 }
@@ -380,64 +330,7 @@ impl SettingsWindow {
         });
     }
 
-    /// Chooses English or a language an enabled extension provides. A chosen
-    /// language that is no longer available stays listed, disabled.
-    fn open_app_language_picker(
-        &mut self,
-        request: PickerRequest,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let view = self.view.read(cx);
-        let current = view.snapshot.settings.appearance.language.clone();
-        let mut languages = vec![(String::new(), tr!("English").to_string())];
-        languages.extend(view.snapshot.languages.iter().cloned());
-        let unavailable = !languages.iter().any(|(id, _)| *id == current);
-        if unavailable {
-            let label = super::appearance::language_label(&view.snapshot, &current);
-            languages.push((current.clone(), label));
-        }
-        let (theme, metrics) = (view.theme.clone(), view.metrics);
-        let picker = cx.new(|cx| {
-            Picker::new(
-                PickerConfig::popover("app-language", tr!("Search languages…")),
-                theme,
-                metrics,
-                cx,
-            )
-        });
-        let items = languages
-            .into_iter()
-            .map(|(id, label)| {
-                let disabled = unavailable && id == current;
-                let mut row = PickerRow::new(id.clone(), label);
-                row.current = id == current;
-                PickerItem::Row(row).disabled(disabled)
-            })
-            .collect();
-        picker.update(cx, |picker, cx| picker.set_items(items, cx));
-        self.overlay_subscription = Some(cx.subscribe_in(
-            &picker,
-            window,
-            move |root, _, event, window, cx| match event {
-                PickerEvent::Confirmed(selection) => {
-                    let language = selection.id.to_string();
-                    let _ = root.model.update(cx, |model, cx| {
-                        model.change_preference(Change::Language(language), cx);
-                    });
-                    root.dismiss_overlay(window, cx);
-                }
-                PickerEvent::Dismissed => root.dismiss_overlay(window, cx),
-                _ => (),
-            },
-        ));
-        picker.focus_handle(cx).focus(window);
-        self.overlay = Some(SettingsOverlay::Providers {
-            picker,
-            source: request,
-        });
-    }
-
+    /// Chooses the dictation language.
     fn open_language_picker(
         &mut self,
         request: PickerRequest,

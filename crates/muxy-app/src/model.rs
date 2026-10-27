@@ -7,13 +7,12 @@ pub(crate) mod capabilities;
 mod catalog;
 pub(crate) mod commands;
 mod diagnostics;
-pub(crate) mod extensions;
 pub(crate) mod files_panel;
 pub(crate) mod git;
-mod language;
 mod links;
 mod mobile;
 pub(crate) mod native;
+pub(crate) mod native_surfaces;
 mod preferences;
 pub(crate) mod project_layouts;
 pub(crate) mod proxy;
@@ -33,7 +32,6 @@ pub(crate) mod tips;
 mod updates;
 pub(crate) use updates::UpdateAction;
 mod voice;
-mod webviews;
 mod workspaces;
 mod worktrees;
 pub(crate) use worktrees::removes_worktree;
@@ -110,14 +108,13 @@ struct CloseRequest {
 }
 
 pub(crate) struct AppModel {
-    pub(crate) extensions: extensions::Runtime,
     pub(crate) side_clients: side_client::SideClients,
     pub(crate) sidebar_filter_input: Entity<muxy_ui::text_input::TextInput>,
     /// Lowercased once per edit, shared by all project comparisons.
     pub(crate) sidebar_filter: String,
     _sidebar_filter_subscription: Subscription,
     pub(crate) sidebar_view: Entity<crate::views::cached::CachedView<Self>>,
-    pub(crate) webviews: webviews::Webviews,
+    pub(crate) webviews: native_surfaces::Webviews,
     pub(crate) browsers: browsers::Browsers,
     pub(crate) panels: muxy_ui::panel::PanelHost,
     pub(crate) voice: voice::VoiceRuntime,
@@ -157,7 +154,6 @@ pub(crate) struct AppModel {
     pub(crate) remote_links: remote_files::RemoteLinks,
     pub(crate) tips: tips::Tips,
     pub(crate) settings_window: Option<preferences::SettingsWindowState>,
-    pending_extension_updates: Option<Entity<crate::views::settings::extensions::ExtensionsView>>,
     font_sizes: HashMap<PaneId, f32>,
     terminal_preview: Option<preferences::TerminalPreview>,
     terminal_background: preferences::TerminalBackground,
@@ -206,10 +202,8 @@ pub(crate) struct AppModel {
     pub(crate) notice_toast: Option<banners::Toast>,
     problem_task: Option<Task<()>>,
     notice_task: Option<Task<()>>,
-    language_task: Option<Task<()>>,
     path: PathBuf,
     bounds_save: Option<Task<()>>,
-    webview_shortcuts: Option<Rc<Vec<gpui::Keystroke>>>,
     pub(crate) spinners: crate::views::tab_activity::Spinners,
     /// Panes waiting for an attachment or saved output, with the server asked.
     pending: HashMap<PaneId, ServerId>,
@@ -493,7 +487,6 @@ impl AppModel {
         #[cfg(test)]
         let (notifications, opened) = muxy_ui::notifications::Notifications::absent();
         Self::follow_notifications(opened, cx);
-        muxy_ui::webview::set_data_directory(&boot.state_path.with_file_name("webviews"));
         let mut capabilities = capabilities::backends();
         capabilities.set(
             muxy_core::capability::Feature::Notifications,
@@ -527,16 +520,11 @@ impl AppModel {
             sidebar_filter: String::new(),
             _sidebar_filter_subscription: sidebar_filter_subscription,
             side_clients: side_client::SideClients::default(),
-            extensions: extensions::Runtime::new(
-                boot.state_path
-                    .parent()
-                    .unwrap_or_else(|| std::path::Path::new(".")),
-            ),
             sidebar_view: crate::views::cached::CachedView::new(
                 |model, window, cx| crate::views::sidebar::sidebar(model, window, cx),
                 cx,
             ),
-            webviews: webviews::Webviews::default(),
+            webviews: native_surfaces::Webviews::default(),
             browsers: browsers::Browsers::default(),
             panels: muxy_ui::panel::PanelHost::default(),
             voice: voice::VoiceRuntime::default(),
@@ -582,7 +570,6 @@ impl AppModel {
             remote_links: remote_files::RemoteLinks::default(),
             tips: tips::Tips::default(),
             settings_window: None,
-            pending_extension_updates: None,
             font_sizes: HashMap::new(),
             terminal_preview: None,
             terminal_background: preferences::TerminalBackground::default(),
@@ -622,10 +609,8 @@ impl AppModel {
             notice_toast: None,
             problem_task: None,
             notice_task: None,
-            language_task: None,
             path: boot.state_path,
             bounds_save: None,
-            webview_shortcuts: None,
             spinners: crate::views::tab_activity::Spinners::default(),
             pending: HashMap::new(),
             detached_pending: HashSet::new(),
@@ -654,10 +639,9 @@ impl AppModel {
             let home = model.state.home().id;
             let _ = model.state.select_project(home);
         }
+        model.bind_command_keys(cx);
         model.sync_agents_panel(cx);
         model.ensure_servers_search(cx);
-        model.bind_extension_keys(cx);
-        model.refresh_installed_extensions(cx);
         #[cfg(not(test))]
         Self::discover_ai_providers(cx);
         model.sync_visible(cx);
@@ -1530,7 +1514,6 @@ impl AppModel {
             .and_then(|pane| match pane.content {
                 PaneContent::Terminal { session } => session,
                 PaneContent::Settings
-                | PaneContent::Webview(_)
                 | PaneContent::Browser(_)
                 | PaneContent::Servers
                 | PaneContent::Editor { .. }
@@ -1594,7 +1577,6 @@ impl AppModel {
 
     fn changed(&mut self, cx: &mut Context<Self>) {
         self.state.reveal_current_project();
-        self.sync_extension_events(cx);
         self.split_resize.end();
         if let Some(tab) = self.active_tab() {
             self.navigation
@@ -1784,7 +1766,6 @@ impl AppModel {
         let subscription = cx.subscribe(&view, move |model, _, event, cx| match event {
             PaneEvent::Title(title) => {
                 let _ = model.state.set_pane_title(id, title.clone());
-                model.sync_extension_events(cx);
                 cx.notify();
             }
             PaneEvent::OpenLink(target) => model.open_terminal_link(id, target.clone(), cx),
@@ -2605,7 +2586,6 @@ impl AppModel {
         for pane in panes {
             let _ = self.state.set_pane_title(pane, title.clone());
         }
-        self.sync_extension_events(cx);
         cx.notify();
     }
 
@@ -2625,7 +2605,7 @@ impl AppModel {
                 self.receive_progress(server, session, progress, cx);
             }
             ClientEvent::FilesChanged { project, changes } => {
-                self.files_changed(project, changes, cx);
+                self.files_changed(project, &changes, cx);
             }
             ClientEvent::GitChanged { project } => {
                 self.git_changed(project, cx);
@@ -2793,8 +2773,6 @@ impl Drop for AppModel {
 #[cfg(test)]
 mod tests {
     mod capabilities;
-    pub(super) mod extensions;
-    mod webviews;
     use muxy_protocol::ExitReason;
     mod activity;
     mod agent_sessions;

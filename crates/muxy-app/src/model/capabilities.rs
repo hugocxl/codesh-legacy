@@ -5,8 +5,6 @@ use super::AppModel;
 
 fn backend(feature: Feature) -> Capability {
     match feature {
-        Feature::ExtensionScripts => muxy_ui::javascript::CAPABILITY,
-        Feature::ExtensionWebviews => muxy_ui::webview::CAPABILITY,
         Feature::Voice => muxy_ui::voice::CAPABILITY,
         Feature::Notifications => muxy_ui::notifications::CAPABILITY,
         Feature::CommandLineTool => crate::cli_install::CAPABILITY,

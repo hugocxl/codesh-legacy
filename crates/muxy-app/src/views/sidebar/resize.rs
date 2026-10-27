@@ -1,4 +1,3 @@
-use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, Context, DispatchPhase, InteractiveElement, IntoElement, MouseButton,
     MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Styled, canvas, div, px,
@@ -65,9 +64,7 @@ pub(in crate::views) fn handle(model: &AppModel, cx: &mut Context<AppModel>) -> 
                 cx.notify();
             }),
         )
-        .when(model.webviews.sidebar.is_some(), |handle| {
-            handle.child(model.webview_occlusion())
-        })
+        .child(model.webview_grip(None, gpui::CursorStyle::ResizeLeftRight))
         .child(
             canvas(
                 |_, _, _| (),

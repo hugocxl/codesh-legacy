@@ -118,10 +118,6 @@ pub struct Appearance {
     pub sidebar_focus: bool,
     #[serde(rename = "tab_focused_project_order")]
     pub sidebar_project_order: ProjectOrder,
-    /// The extension whose sidebar replaces the built-in one; empty for built-in.
-    pub extension_sidebar: String,
-    /// The app language as `<extension>:<localization>`; empty for English.
-    pub language: String,
     pub agents_panel_visible: bool,
     pub agents_panel_detached: bool,
     pub agents_panel_dock: AgentsPanelDock,
@@ -162,8 +158,6 @@ impl Default for Appearance {
             tab_focused_expanded: std::collections::BTreeMap::new(),
             sidebar_focus: false,
             sidebar_project_order: ProjectOrder::default(),
-            extension_sidebar: String::new(),
-            language: String::new(),
             agents_panel_visible: false,
             agents_panel_detached: false,
             agents_panel_dock: AgentsPanelDock::default(),

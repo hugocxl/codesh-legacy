@@ -32,9 +32,14 @@ fn one_x_settings_keep_unrelated_preferences_and_skip_unsupported_values() {
         settings.appearance.layout,
         muxy_app_core::settings::AppLayout::AgentsFocused
     );
-    assert_eq!(settings.appearance.language, "language-packs:ko");
+    assert!(
+        report
+            .skipped
+            .iter()
+            .any(|item| item.contains("muxy.localization"))
+    );
     assert_eq!(settings.ai.prompts["create_pr"], "My instructions");
-    assert_eq!(report.skipped.len(), 7);
+    assert_eq!(report.skipped.len(), 8);
     let source = backup::settings_source(&settings).unwrap();
     assert!(!source.contains("never-copy"));
     assert!(!source.contains("example.com"));

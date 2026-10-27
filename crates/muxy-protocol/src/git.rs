@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ErrorCode, OperationId, ProjectDescriptor, ProjectId, ServerPath};
 
-mod extension;
-pub use extension::*;
+mod repository;
+pub use repository::*;
 
 /// Git operations always resolve their repository through a server project.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode)]

@@ -683,7 +683,7 @@ impl AppModel {
         let path = path.to_owned();
         let checked_path = path.clone();
         let checking = folders.clone();
-        let job = self.extensions.reserve_job();
+        let job = crate::picker::remote::next_job();
         let window = self.window;
         picker.read(cx).picker.clone().update(cx, |picker, cx| {
             picker.set_status(PickerStatus::Loading(tr!("Checking folder…")), cx);

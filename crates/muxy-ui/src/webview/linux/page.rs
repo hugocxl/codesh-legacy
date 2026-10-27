@@ -13,10 +13,9 @@ use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, mpsc};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use gpui::{Bounds, CursorStyle, Modifiers, MouseButton, Pixels, Point, point, px, size};
-use muxy_core::worker::WorkerPool;
 
 use super::ffi::{
     self, Api, Callback, FALSE, GError, GType, GValue, GdkEventAny, GdkEventButton,
@@ -25,9 +24,7 @@ use super::ffi::{
 };
 use super::{Events, Job, Shared, post};
 use crate::tr;
-use crate::webview::{
-    AssetResult, Event, MenuOption, OptionMenu, Pointer, Snapshot, assets, assets::Source, rules,
-};
+use crate::webview::{Event, MenuOption, OptionMenu, Pointer, Snapshot};
 
 /// Casts a handler to the type `GObject` stores, checking it has the signature
 /// the signal calls it with.
@@ -54,9 +51,7 @@ mod tests;
 pub(super) struct Setup {
     pub(super) id: u64,
     pub(super) url: String,
-    pub(super) source: Option<Source>,
     pub(super) browser: Option<browser::Setup>,
-    pub(super) script: String,
     pub(super) transparent: bool,
     pub(super) events: Events,
     pub(super) shared: Arc<Shared>,
@@ -117,7 +112,6 @@ pub(super) struct Runtime {
     sandboxed: bool,
     /// The engine and its processes, made for the first page and let go
     /// with the last, so an app with no page open runs none of them.
-    context: Cell<gpointer>,
     pages: RefCell<HashMap<u64, Rc<Page>>>,
     started: Instant,
 }
@@ -133,7 +127,7 @@ impl Runtime {
             g.g_set_prgname(c"muxy-app".as_ptr());
             g.gtk_disable_setlocale();
             if g.gtk_init_check(ptr::null_mut(), ptr::null_mut()) == FALSE {
-                return Err(tr!("Extension pages need a desktop session to render in.").into());
+                return Err(tr!("Browser pages need a desktop session to render in.").into());
             }
             // On X11, GTK asks the server about windows that are on no
             // screen, and GDK ends the whole app over the server's refusal
@@ -144,7 +138,6 @@ impl Runtime {
                 g,
                 queue: OnceCell::new(),
                 sandboxed,
-                context: Cell::new(ptr::null_mut()),
                 pages: RefCell::default(),
                 started: Instant::now(),
             })
@@ -171,34 +164,6 @@ impl Runtime {
         self.pages.borrow().get(&id).cloned()
     }
 
-    /// The context pages are made in, made now if no page is open.
-    fn context(&self) -> gpointer {
-        let context = self.context.get();
-        if !context.is_null() {
-            return context;
-        }
-        let g = self.g;
-        // SAFETY: GTK was started on this thread, and the scheme is a static
-        // string the context copies.
-        let context = unsafe {
-            let context = web_context(g, super::data_directory().as_deref());
-            if self.sandboxed {
-                g.webkit_web_context_set_sandbox_enabled(context, TRUE);
-            }
-            let scheme = cstring(rules::SCHEME);
-            g.webkit_web_context_register_uri_scheme(
-                context,
-                scheme.as_ptr(),
-                on_asset,
-                ptr::null_mut(),
-                None,
-            );
-            context
-        };
-        self.context.set(context);
-        context
-    }
-
     /// Milliseconds on the clock events are stamped with.
     #[allow(clippy::cast_possible_truncation)]
     fn time(&self) -> u32 {
@@ -207,15 +172,6 @@ impl Runtime {
 
     pub(super) fn open(self: &Rc<Self>, setup: Setup) {
         let g = self.g;
-        let worker = if setup.source.is_some() {
-            let Ok(worker) = WorkerPool::new("webview-assets", 2, 32) else {
-                let _ = setup.events.try_send(Event::Failed(unloadable()));
-                return;
-            };
-            Some(worker)
-        } else {
-            None
-        };
         #[allow(clippy::cast_possible_truncation, reason = "Linux desktops are 64-bit")]
         let data = setup.id as usize;
         // SAFETY: Each object is made here and kept by the page until it closes.
@@ -236,23 +192,20 @@ impl Runtime {
             };
             let context = browser
                 .as_ref()
-                .map_or_else(|| self.context(), browser::State::context);
+                .map(browser::State::context)
+                .expect("browser context");
             let (manager, view) = web_view(g, context, data, browser.is_some());
             let window = offscreen_window(g, view, setup.transparent, data);
             Rc::new(Page {
                 id: setup.id,
                 token: token(),
-                source: setup.source,
                 browser,
                 events: setup.events,
                 shared: setup.shared,
-                worker,
                 window,
                 view,
                 manager,
                 sequence: Cell::new(0),
-                replies: RefCell::default(),
-                assets: RefCell::default(),
                 menu: Cell::new(ptr::null_mut()),
                 committed: Cell::new(false),
                 failed: Cell::new(false),
@@ -277,8 +230,6 @@ impl Runtime {
                 self.close(page.id);
                 return;
             }
-        } else {
-            page.install(self, &setup.script);
         }
         let url = cstring(&setup.url);
         // SAFETY: The view is live and the URL a valid string.
@@ -291,13 +242,8 @@ impl Runtime {
         };
         let g = self.g;
         page.retire(g);
-        let assets = page.assets.take();
         // SAFETY: The page owned these objects, and nothing uses them after.
         unsafe {
-            for request in assets.into_values() {
-                fail_asset(g, request);
-                g.g_object_unref(request);
-            }
             let menu = page.menu.replace(ptr::null_mut());
             if !menu.is_null() {
                 g.webkit_option_menu_close(menu);
@@ -306,60 +252,6 @@ impl Runtime {
             g.webkit_web_view_stop_loading(page.view);
             g.gtk_widget_destroy(page.window);
             g.g_object_unref(page.manager);
-            if !self
-                .pages
-                .borrow()
-                .values()
-                .any(|page| page.browser.is_none())
-            {
-                let context = self.context.replace(ptr::null_mut());
-                if !context.is_null() {
-                    g.g_object_unref(context);
-                }
-            }
-        }
-    }
-
-    fn finish_asset(&self, page: u64, id: u64, result: AssetResult) {
-        let Some(request) = self
-            .page(page)
-            .and_then(|page| page.assets.borrow_mut().remove(&id))
-        else {
-            return;
-        };
-        let g = self.g;
-        // SAFETY: The request was kept alive for this answer, and the bytes
-        // are owned by the stream until it is done with them.
-        unsafe {
-            match result {
-                Ok((bytes, kind)) => {
-                    let length = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
-                    let bytes = Box::new(bytes);
-                    let shared = g.g_bytes_new_with_free_func(
-                        bytes.as_ptr().cast(),
-                        bytes.len(),
-                        Some(free_bytes),
-                        Box::into_raw(bytes).cast(),
-                    );
-                    let stream = g.g_memory_input_stream_new_from_bytes(shared);
-                    g.g_bytes_unref(shared);
-                    let response = g.webkit_uri_scheme_response_new(stream, length);
-                    let kind = cstring(kind);
-                    g.webkit_uri_scheme_response_set_content_type(response, kind.as_ptr());
-                    let headers = g.soup_message_headers_new(ffi::SOUP_HEADERS_RESPONSE);
-                    g.soup_message_headers_append(
-                        headers,
-                        c"Cache-Control".as_ptr(),
-                        c"no-store".as_ptr(),
-                    );
-                    g.webkit_uri_scheme_response_set_http_headers(response, headers);
-                    g.webkit_uri_scheme_request_finish_with_response(request, response);
-                    g.g_object_unref(response);
-                    g.g_object_unref(stream);
-                }
-                Err(_) => fail_asset(g, request),
-            }
-            g.g_object_unref(request);
         }
     }
 
@@ -388,11 +280,6 @@ unsafe extern "C" fn on_event(event: gpointer, _data: gpointer) {
         }
         g.gtk_main_do_event(event);
     }
-}
-
-unsafe extern "C" fn free_bytes(data: gpointer) {
-    // SAFETY: `data` is the boxed vector `finish_asset` leaked for the stream.
-    drop(unsafe { Box::from_raw(data.cast::<Vec<u8>>()) });
 }
 
 /// A web context that keeps what pages store under `data`.
@@ -438,7 +325,7 @@ unsafe fn web_view(g: &Api, context: gpointer, data: usize, browser: bool) -> (g
     // `WebKitGTK` documents for their signals.
     unsafe {
         let manager = g.webkit_user_content_manager_new();
-        let handler = cstring(rules::HANDLER);
+        let handler = cstring("muxy");
         g.webkit_user_content_manager_register_script_message_handler_with_reply(
             manager,
             handler.as_ptr(),
@@ -448,10 +335,7 @@ unsafe fn web_view(g: &Api, context: gpointer, data: usize, browser: bool) -> (g
                 ptr::null()
             },
         );
-        let signal = cstring(&format!(
-            "script-message-with-reply-received::{}",
-            rules::HANDLER
-        ));
+        let signal = cstring(&format!("script-message-with-reply-received::{}", "muxy"));
         connect(
             g,
             manager,
@@ -656,17 +540,13 @@ pub(super) struct Page {
     /// What the page's own script adds to a request. Nothing in another
     /// frame can read it, so a request without it is not the page's.
     token: String,
-    source: Option<Source>,
     browser: Option<browser::State>,
     events: Events,
     shared: Arc<Shared>,
-    worker: Option<WorkerPool>,
     window: gpointer,
     view: gpointer,
     manager: gpointer,
     sequence: Cell<u64>,
-    replies: RefCell<HashMap<u64, Reply>>,
-    assets: RefCell<HashMap<u64, gpointer>>,
     menu: Cell<gpointer>,
     committed: Cell<bool>,
     failed: Cell<bool>,
@@ -686,93 +566,6 @@ pub(super) struct Page {
     cursor: Cell<CursorStyle>,
 }
 
-/// A request waiting for its answer, and the context the answer is built
-/// in: `WebKit` reads a value made in any other context as empty.
-struct Reply {
-    /// Settles the page's promise, once.
-    promise: gpointer,
-    context: gpointer,
-    received: Instant,
-}
-
-/// How long after a request its own context is surely still the one
-/// `WebKit` reads replies in.
-const FRESH_CONTEXT: Duration = Duration::from_secs(5);
-
-/// A reply waiting for a context `WebKit` can read it in.
-struct Later {
-    pending: Reply,
-    json: String,
-}
-
-unsafe extern "C" fn on_fresh_context(view: gpointer, result: gpointer, data: gpointer) {
-    // SAFETY: `reply` boxed this for the callback, which runs once.
-    let later = unsafe { Box::from_raw(data.cast::<Later>()) };
-    let Some(g) = ffi::loaded() else {
-        return;
-    };
-    // SAFETY: GIO passes the view and the result of its evaluation. A page
-    // that could not evaluate is going, and is answered as it was asked.
-    unsafe {
-        let mut error = ptr::null_mut();
-        let value = g.webkit_web_view_evaluate_javascript_finish(view, result, &raw mut error);
-        if !error.is_null() {
-            g.g_error_free(error);
-        }
-        let context = if value.is_null() {
-            later.pending.context
-        } else {
-            g.jsc_value_get_context(value)
-        };
-        answer(g, later.pending, context, &later.json);
-        if !value.is_null() {
-            g.g_object_unref(value);
-        }
-    }
-}
-
-/// Answers a request with `json`, read as a value in `context`.
-unsafe fn answer(g: &Api, pending: Reply, context: gpointer, json: &str) {
-    // SAFETY: The reply was retained for this answer, and the context is live.
-    unsafe {
-        // The context is shared, and may hold another request's failure.
-        g.jsc_context_clear_exception(context);
-        let value = CString::new(json)
-            .ok()
-            .map(|json| g.jsc_value_new_from_json(context, json.as_ptr()))
-            .filter(|value| !value.is_null());
-        let parsed = g.jsc_context_get_exception(context).is_null();
-        g.jsc_context_clear_exception(context);
-        match value {
-            Some(value) if parsed => {
-                g.webkit_script_message_reply_return_value(pending.promise, value);
-            }
-            _ => {
-                let message = cstring(rules::INVALID_RESPONSE);
-                g.webkit_script_message_reply_return_error_message(
-                    pending.promise,
-                    message.as_ptr(),
-                );
-            }
-        }
-        if let Some(value) = value {
-            g.g_object_unref(value);
-        }
-        pending.release(g);
-    }
-}
-
-impl Reply {
-    /// Releases what the request held, once it is answered.
-    unsafe fn release(self, g: &Api) {
-        // SAFETY: Both were retained when the request was taken in.
-        unsafe {
-            g.webkit_script_message_reply_unref(self.promise);
-            g.g_object_unref(self.context);
-        }
-    }
-}
-
 impl Page {
     fn next(&self) -> u64 {
         let id = self.sequence.get() + 1;
@@ -788,54 +581,6 @@ impl Page {
     fn retire(&self, g: &Api) {
         if let Some(browser) = &self.browser {
             browser.cancel(g);
-        }
-        let message = cstring(rules::DOCUMENT_RETIRED);
-        for pending in self.replies.take().into_values() {
-            // SAFETY: The reply was retained when its request was taken in.
-            unsafe {
-                g.webkit_script_message_reply_return_error_message(
-                    pending.promise,
-                    message.as_ptr(),
-                );
-                pending.release(g);
-            }
-        }
-    }
-
-    /// Whether the main document is one of the extension's own pages.
-    fn shows_own_document(&self, g: &Api) -> bool {
-        // SAFETY: The view is live; the URI is copied before it can change.
-        let url = unsafe { text(g.webkit_web_view_get_uri(self.view)) };
-        url.as_deref()
-            .and_then(rules::origin)
-            .is_some_and(|(scheme, host)| {
-                rules::owns(
-                    scheme,
-                    host,
-                    self.source
-                        .as_ref()
-                        .map_or("", |source| source.owner.as_str()),
-                )
-            })
-    }
-
-    pub(super) fn install(&self, runtime: &Runtime, script: &str) {
-        let g = runtime.g;
-        let Ok(source) = CString::new(format!("{}{script}", guard(&self.token))) else {
-            return;
-        };
-        // SAFETY: The manager is live and copies the script it is given.
-        unsafe {
-            g.webkit_user_content_manager_remove_all_scripts(self.manager);
-            let script = g.webkit_user_script_new(
-                source.as_ptr(),
-                ffi::INJECT_TOP_FRAME,
-                ffi::INJECT_AT_DOCUMENT_START,
-                ptr::null(),
-                ptr::null(),
-            );
-            g.webkit_user_content_manager_add_script(self.manager, script);
-            g.webkit_user_script_unref(script);
         }
     }
 
@@ -858,43 +603,6 @@ impl Page {
                 ptr::null_mut(),
                 None,
                 ptr::null_mut(),
-            );
-        }
-    }
-
-    /// `WebKit` reads a reply in the context it keeps for script values, and
-    /// replaces that context once it has gone unused for ten seconds. A
-    /// request answered later than that is answered in a context fetched now,
-    /// from a script evaluated in the page.
-    pub(super) fn reply(&self, runtime: &Runtime, id: u64, generation: u64, json: &str) {
-        if self.generation() != generation {
-            return;
-        }
-        let Some(pending) = self.replies.borrow_mut().remove(&id) else {
-            return;
-        };
-        let g = runtime.g;
-        if pending.received.elapsed() < FRESH_CONTEXT {
-            let context = pending.context;
-            // SAFETY: The reply and its context were retained for this answer.
-            unsafe { answer(g, pending, context, json) };
-            return;
-        }
-        let later = Box::new(Later {
-            pending,
-            json: json.to_owned(),
-        });
-        // SAFETY: The view is live, and the callback takes back the box.
-        unsafe {
-            g.webkit_web_view_evaluate_javascript(
-                self.view,
-                c"0".as_ptr(),
-                -1,
-                ptr::null(),
-                ptr::null(),
-                ptr::null_mut(),
-                Some(on_fresh_context),
-                Box::into_raw(later).cast(),
             );
         }
     }
@@ -1280,8 +988,6 @@ fn guard(token: &str) -> String {
         "(()=>{{const handler=window.webkit&&window.webkit.messageHandlers&&\
          window.webkit.messageHandlers.{name};if(!handler)return;\
          const post=handler.postMessage.bind(handler);const stamp='{token}';\
-         Object.defineProperty(handler,'postMessage',{{value:body=>post({{document:stamp,body}})}});\
-         Object.defineProperty(window,'__muxyHandler',{{value:handler}});\
          const copy=text=>{{if(text)post({{document:stamp,copied:String(text)}}).catch(()=>{{}})}};\
          const copied=event=>{{if(!event.isTrusted)return;const field=document.activeElement;\
          const chosen=event.clipboardData&&event.clipboardData.getData('text/plain');\
@@ -1310,7 +1016,7 @@ fn guard(token: &str) -> String {
          if(target.dispatchEvent(new ClipboardEvent('paste',\
          {{clipboardData:data,bubbles:true,cancelable:true}})))\
          document.execCommand('insertText',false,text)}});}})();",
-        name = rules::HANDLER,
+        name = "muxy",
         patience = PASTE_PATIENCE_MS,
     )
 }
@@ -1356,7 +1062,7 @@ pub(super) fn quoted(text: &str) -> String {
 
 /// What the app shows in place of a page whose files could not be read.
 fn unloadable() -> String {
-    tr!("The extension's page could not be loaded.").to_string()
+    tr!("The browser page could not be loaded.").to_string()
 }
 
 fn cstring(text: &str) -> CString {
@@ -1484,81 +1190,11 @@ unsafe fn keyval(g: &Api, key: &Key) -> c_uint {
     }
 }
 
-unsafe fn fail_asset(g: &Api, request: gpointer) {
-    // SAFETY: The request is live, and the error is freed once it is copied.
-    unsafe {
-        let message = cstring(&unloadable());
-        let error = g.g_error_new_literal(
-            g.g_io_error_quark(),
-            ffi::IO_ERROR_NOT_FOUND,
-            message.as_ptr(),
-        );
-        g.webkit_uri_scheme_request_finish_error(request, error);
-        g.g_error_free(error);
-    }
-}
-
 /// The runtime and the page a handler was connected for, while it is open.
 fn target(data: gpointer) -> Option<(Rc<Runtime>, Rc<Page>)> {
     let runtime = runtime()?;
     let page = runtime.page(data as usize as u64)?;
     Some((runtime, page))
-}
-
-unsafe extern "C" fn on_asset(request: gpointer, _data: gpointer) {
-    let Some(runtime) = runtime() else {
-        return;
-    };
-    let g = runtime.g;
-    // SAFETY: WebKit passes a live request, which is retained while its
-    // asset is read.
-    unsafe {
-        let view = g.webkit_uri_scheme_request_get_web_view(request);
-        let page = runtime
-            .pages
-            .borrow()
-            .values()
-            .find(|page| page.view == view)
-            .cloned();
-        let url = text(g.webkit_uri_scheme_request_get_uri(request)).unwrap_or_default();
-        let admitted = page
-            .filter(|page| {
-                rules::origin(&url).is_some_and(|(scheme, host)| {
-                    rules::owns(
-                        scheme,
-                        host,
-                        page.source
-                            .as_ref()
-                            .map_or("", |source| source.owner.as_str()),
-                    )
-                }) && rules::admits_asset(page.assets.borrow().len())
-            })
-            .zip(rules::path(&url));
-        let Some((page, relative)) = admitted else {
-            fail_asset(g, request);
-            return;
-        };
-        let id = page.next();
-        page.assets.borrow_mut().insert(id, g.g_object_ref(request));
-        let (Some(source), Some(worker)) = (&page.source, &page.worker) else {
-            return;
-        };
-        let root = source.directory.clone();
-        let owner = page.id;
-        let spawned = worker.try_spawn(move || {
-            let result = assets::read(&root, &relative).map_err(|error| error.to_string());
-            post(move |runtime| {
-                if let Ok(runtime) = runtime {
-                    runtime.finish_asset(owner, id, result);
-                }
-            });
-        });
-        if spawned.is_err() {
-            page.assets.borrow_mut().remove(&id);
-            fail_asset(g, request);
-            g.g_object_unref(request);
-        }
-    }
 }
 
 unsafe extern "C" fn on_message(
@@ -1577,11 +1213,11 @@ unsafe extern "C" fn on_message(
         TRUE
     };
     let Some((_, page)) = target(data) else {
-        return reject(rules::DOCUMENT_RETIRED);
+        return reject("document retired");
     };
     // SAFETY: WebKit passes a live value, and each property read from it is
     // released here.
-    let json = unsafe {
+    unsafe {
         let stamped = !page.token.is_empty() && g.jsc_value_is_object(value) != FALSE && {
             let document = g.jsc_value_object_get_property(value, c"document".as_ptr());
             let stamp = (g.jsc_value_is_string(document) != FALSE)
@@ -1590,8 +1226,8 @@ unsafe extern "C" fn on_message(
             g.g_object_unref(document);
             stamp.as_deref() == Some(page.token.as_str())
         };
-        if !stamped || (page.browser.is_none() && !page.shows_own_document(g)) {
-            return reject(rules::NOT_MAIN_DOCUMENT);
+        if !stamped {
+            return reject("message is not from the main document");
         }
         let copied = g.jsc_value_object_get_property(value, c"copied".as_ptr());
         let copy = (g.jsc_value_is_string(copied) != FALSE)
@@ -1599,7 +1235,7 @@ unsafe extern "C" fn on_message(
             .flatten();
         g.g_object_unref(copied);
         if let Some(copy) = copy {
-            if rules::admits_message(copy.len(), 0) {
+            if copy.len() <= 1024 * 1024 {
                 let _ = page.events.try_send(Event::Copied(copy));
             }
             let done = g.jsc_value_new_from_json(g.jsc_value_get_context(value), c"null".as_ptr());
@@ -1607,46 +1243,8 @@ unsafe extern "C" fn on_message(
             g.g_object_unref(done);
             return TRUE;
         }
-        if page.browser.is_some() {
-            return reject(rules::NOT_MAIN_DOCUMENT);
-        }
-        let body = g.jsc_value_object_get_property(value, c"body".as_ptr());
-        let json = owned(g, g.jsc_value_to_json(body, 0));
-        g.g_object_unref(body);
-        // A body that is not JSON leaves its failure on the shared context.
-        g.jsc_context_clear_exception(g.jsc_value_get_context(value));
-        json
-    };
-    let Some(json) = json else {
-        return reject(rules::INVALID_MESSAGE);
-    };
-    if !rules::admits_message(json.len(), page.replies.borrow().len()) {
-        return reject(rules::REQUEST_LIMIT);
+        reject("unsupported browser message")
     }
-    let id = page.next();
-    // SAFETY: The reply and the value's context are retained until the app
-    // answers or the document goes.
-    let pending = unsafe {
-        Reply {
-            promise: g.webkit_script_message_reply_ref(reply),
-            context: g.g_object_ref(g.jsc_value_get_context(value)),
-            received: Instant::now(),
-        }
-    };
-    page.replies.borrow_mut().insert(id, pending);
-    let message = Event::Message {
-        id,
-        generation: page.generation(),
-        json,
-    };
-    if page.events.try_send(message).is_err() {
-        if let Some(pending) = page.replies.borrow_mut().remove(&id) {
-            // SAFETY: Releases what was retained above.
-            unsafe { pending.release(g) };
-        }
-        return reject(rules::QUEUE_FULL);
-    }
-    TRUE
 }
 
 unsafe extern "C" fn on_policy(
@@ -1665,35 +1263,7 @@ unsafe extern "C" fn on_policy(
         {
             return page.browser_policy(&runtime, decision, kind);
         }
-        let allowed = match kind {
-            ffi::POLICY_NAVIGATION_ACTION => target(data).is_some_and(|(_, page)| {
-                let action = g.webkit_navigation_policy_decision_get_navigation_action(decision);
-                let request = g.webkit_navigation_action_get_request(action);
-                text(g.webkit_uri_request_get_uri(request))
-                    .as_deref()
-                    .and_then(rules::origin)
-                    .is_some_and(|(scheme, host)| {
-                        rules::may_navigate(
-                            scheme,
-                            host,
-                            page.source
-                                .as_ref()
-                                .map_or("", |source| source.owner.as_str()),
-                        )
-                    })
-            }),
-            // Anything WebKit cannot show would become a download.
-            ffi::POLICY_RESPONSE => {
-                g.webkit_response_policy_decision_is_mime_type_supported(decision) != FALSE
-            }
-            // A page opens no windows.
-            _ => false,
-        };
-        if allowed {
-            g.webkit_policy_decision_use(decision);
-        } else {
-            g.webkit_policy_decision_ignore(decision);
-        }
+        g.webkit_policy_decision_ignore(decision);
     }
     TRUE
 }

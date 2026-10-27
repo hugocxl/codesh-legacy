@@ -777,7 +777,6 @@ fn a_project_whose_folder_name_is_not_text_opens_like_any_other(cx: &mut TestApp
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update(cx, |model, cx| {
         model.select_project(project, cx);
-        model.sync_extension_events(cx);
         assert_eq!(model.state.current_project().directory, odd);
     });
 }

@@ -164,7 +164,6 @@ impl AppModel {
 /// How wide the tab's content grows, so rows stay easy to scan.
 const CONTENT_WIDTH: f32 = 960.0;
 
-/// The Remote Servers tab in `pane`, laid out like the Extensions manager.
 pub(crate) fn render(pane: PaneId, model: &AppModel, cx: &Context<AppModel>) -> AnyElement {
     let theme = &model.theme;
     let servers = model.remote_servers();
@@ -257,7 +256,6 @@ fn icon_button(
         .into_any_element()
 }
 
-/// A short status label, in accent while connected, as Extensions marks one
 /// that is enabled.
 fn badge(server: &RemoteServer, model: &AppModel) -> gpui::Div {
     let m = model.metrics;
@@ -476,7 +474,6 @@ fn select_bar(
         .into_any_element()
 }
 
-/// No servers yet, or none matching the search, as Extensions says so.
 fn empty_state(model: &AppModel, cx: &Context<AppModel>) -> AnyElement {
     let m = model.metrics;
     let theme = &model.theme;

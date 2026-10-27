@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use super::*;
+use std::time::Duration;
 
 #[test]
 #[ignore = "Requires WebKitGTK and a display; runs in the Linux desktop guard"]
@@ -34,6 +35,6 @@ fn offscreen_views_disable_acceleration_before_realizing() {
     assert_eq!(
         receive.recv_timeout(Duration::from_secs(20)).unwrap(),
         [ffi::HARDWARE_ACCELERATION_NEVER; 2],
-        "extension and browser views must not request GL from an offscreen window"
+        "browser views must not request GL from an offscreen window"
     );
 }

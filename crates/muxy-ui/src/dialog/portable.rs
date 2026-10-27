@@ -3,8 +3,8 @@ use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 use gpui::{App, AppContext, AsyncApp, Global, WeakEntity, Window, WindowId};
 
 pub use crate::dialog_types::{
-    ADDITIONAL_PROMPT_LIMIT, ConfirmationResponse, ConsentResponse, DialogOptions, PromptCheckbox,
-    PromptChoices, PromptPicker, PromptResponse,
+    ADDITIONAL_PROMPT_LIMIT, ConfirmationResponse, PromptCheckbox, PromptChoices, PromptPicker,
+    PromptResponse,
 };
 use crate::{
     controls::Style,
@@ -250,53 +250,6 @@ pub fn confirm_with_checkbox(
     )
 }
 
-pub fn consent(
-    window: &mut Window,
-    cx: &mut App,
-    title: &str,
-    message: &str,
-    block_label: &str,
-    on_complete: impl FnOnce(ConsentResponse) + 'static,
-) -> io::Result<Confirmation> {
-    show(
-        window,
-        cx,
-        title,
-        message,
-        &[
-            tr!("Allow & Remember").to_string(),
-            tr!("Allow").to_string(),
-            tr!("Cancel").to_string(),
-            tr!("Deny & Remember").to_string(),
-        ],
-        Request {
-            choices: PromptChoices {
-                picker: None,
-                checkboxes: vec![PromptCheckbox {
-                    label: block_label.into(),
-                    checked: false,
-                    enabled: true,
-                }],
-            },
-            cancel: Some(2),
-            default: Some(2),
-            ..Request::default()
-        },
-        move |answer| {
-            on_complete(
-                match (answer.index, answer.checked.first() == Some(&true)) {
-                    (None | Some(2), _) => ConsentResponse::Cancel,
-                    (_, true) => ConsentResponse::Block,
-                    (Some(0), false) => ConsentResponse::AllowAndRemember,
-                    (Some(1), false) => ConsentResponse::Allow,
-                    (Some(3), false) => ConsentResponse::DenyAndRemember,
-                    _ => ConsentResponse::Cancel,
-                },
-            );
-        },
-    )
-}
-
 #[allow(clippy::too_many_arguments, reason = "Prompt fields and GPUI context")]
 pub fn confirm_with_prompt(
     window: &mut Window,
@@ -330,52 +283,6 @@ pub fn confirm_with_prompt(
                 picked: answer.picked,
                 checked: answer.checked,
             }));
-        },
-    )
-}
-
-pub fn present(
-    window: &mut Window,
-    cx: &mut App,
-    options: DialogOptions,
-    on_complete: impl FnOnce(Option<String>) + 'static,
-) -> io::Result<Confirmation> {
-    let cancel = options
-        .buttons
-        .iter()
-        .position(|label| Some(label) == options.cancel_button.as_ref());
-    let default = options
-        .buttons
-        .iter()
-        .position(|label| Some(label) == options.default_button.as_ref())
-        .or(Some(0));
-    let input = options.input.is_some();
-    let labels = options.buttons.clone();
-    show(
-        window,
-        cx,
-        &options.title,
-        &options.message,
-        &options.buttons,
-        Request {
-            input: options.input,
-            cancel,
-            default,
-            ..Request::default()
-        },
-        move |answer| {
-            on_complete(
-                answer
-                    .index
-                    .filter(|index| Some(*index) != cancel)
-                    .and_then(|index| {
-                        if input {
-                            Some(answer.prompt)
-                        } else {
-                            labels.get(index).cloned()
-                        }
-                    }),
-            );
         },
     )
 }

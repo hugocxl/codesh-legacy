@@ -14,7 +14,6 @@ pub struct Settings {
     pub voice: super::VoiceSettings,
     pub ai: AiSettings,
     pub commands: Vec<super::CustomCommand>,
-    pub panel_pins: BTreeMap<String, BTreeMap<String, bool>>,
     pub appearance: Appearance,
     pub window: WindowSettings,
     pub keymap: Keymap,
@@ -161,31 +160,6 @@ impl Settings {
         crate::settings::appearance::save_entries(path, "ai", table, entries)
             .and_then(|saved| saved.try_into().map_err(Into::into))
             .map_err(|error| Error::new("ai", error))
-    }
-
-    pub fn panel_pinned(&self, owner: &str, panel: &str, default: bool) -> bool {
-        self.panel_pins
-            .get(owner)
-            .and_then(|panels| panels.get(panel))
-            .copied()
-            .unwrap_or(default)
-    }
-
-    pub fn set_panel_pinned(
-        &mut self,
-        owner: &str,
-        panel: &str,
-        pinned: bool,
-        path: &Path,
-    ) -> Result<()> {
-        let mut pins = self.panel_pins.clone();
-        pins.entry(owner.into())
-            .or_default()
-            .insert(panel.into(), pinned);
-        crate::settings::appearance::save_section(path, "panel_pins", &pins)
-            .map_err(|error| Error::new("panel_pins", error))?;
-        self.panel_pins = pins;
-        Ok(())
     }
 
     pub fn set_confirm_running_process(&mut self, enabled: bool, path: &Path) -> Result<()> {

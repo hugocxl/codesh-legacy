@@ -5,6 +5,7 @@ use crate::browser::Options;
 use crate::webview::linux::browser::NativeBrowser;
 use gpui::Keystroke;
 use polybrowser::Profile;
+use std::time::Duration;
 
 const WAIT: Duration = Duration::from_secs(20);
 

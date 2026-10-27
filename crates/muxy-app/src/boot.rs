@@ -55,7 +55,6 @@ impl Boot {
             )
         });
         let import_message = crate::backup::apply_pending(profile)?.or(migration);
-        crate::extensions::builtin::install(profile);
         let state = store::load(&state_path)?;
         let settings =
             muxy_app_core::settings::Settings::load(&state_path.with_file_name("settings.toml"))?;
@@ -818,7 +817,7 @@ fn open_connection(
                         Ok(client)
                     } else {
                         client.disconnect();
-                        Err("server changed while connecting extensions".into())
+                        Err("server changed while connecting side client".into())
                     }
                 });
             if let Err(error) = reply.try_send(connection)

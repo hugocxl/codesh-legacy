@@ -15,7 +15,6 @@ immediately, and Settings works while the server is offline.
 | Browser | The [built-in browser](../features/browser.md): terminal links, search engine, home page, profiles, import |
 | Server | This computer's [server](../features/server.md#settings): shell, history, shell integration, stop and restart |
 | Mobile | [Phone access](../features/mobile.md) and paired phones |
-| Extensions | Installed extensions and the marketplace |
 | AI | Tools and prompts for [Git](../features/git.md) actions |
 | Backup & Restore | Export, restore, and import from 1.x |
 
@@ -97,12 +96,12 @@ colors the app and its terminals.
 ## Backup and restore
 
 - **Export…** saves a `.muxy` file with your settings, `terminal.toml`, themes,
-  server settings, extension preferences, remote server list, and local
+  server settings, remote server list, and local
   projects with their layouts.
 - **Choose file…** under **Restore backup** restores on the next launch. Muxy
   keeps a recovery copy in the profile's `Backups/` folder. Existing projects
   are kept and get the saved layouts.
-- Backups never include running terminals, paired phones, extension packages,
+- Backups never include running terminals, paired phones,
   remote projects, or project files.
 
 ## Import from Muxy 1.x
@@ -112,16 +111,10 @@ file…** takes a 1.x `.muxy` backup or `settings.json`. Muxy imports supported
 settings, shortcuts, custom commands, local projects, workspaces, worktrees, and
 terminal tabs, and lists what it skipped. Projects, tabs, and workspaces you
 already have are kept. **Import installed 1.x** also brings the default shell
-and extensions.
+only.
 
-## Extensions
+## Native features
 
-**Settings → Extensions → Browse** installs extensions from the marketplace.
-New extensions start disabled; review their permissions and turn them on.
-Updates are manual: use **Update all**, or update one from its page. Building
-your own? See [Extensions](../extensions/overview.md).
-
-Language packs are extensions too. Pick a language in **Settings → Appearance →
-App language**, or choose **Browse language extensions…**.
+Codesh has no extensions. Files, Source Control, editors, diffs, and the browser are built in. The interface uses English.
 
 Standalone dictation preferences are in **General → Voice**, stored in `[voice]`.

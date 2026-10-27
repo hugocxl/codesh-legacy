@@ -8,9 +8,6 @@ use serde_json::{Map, Value};
 
 pub type Args = Map<String, Value>;
 
-/// Whether some JavaScript parses as the body of an async function.
-pub type Parses = fn(&str) -> bool;
-
 pub const DEFAULT_WAIT: Duration = Duration::from_millis(5000);
 pub const DEFAULT_NAVIGATION_WAIT: Duration = Duration::from_millis(10_000);
 pub const MAX_WAIT: Duration = Duration::from_millis(60_000);
@@ -53,7 +50,7 @@ pub fn timeout(args: &Args, default: Duration) -> Duration {
 
 /// The script for a verb that runs in the page, or `None` when the app
 /// handles `verb` itself.
-pub fn script(verb: &str, args: &Args, parses: Parses) -> Result<Option<String>, String> {
+pub fn script(verb: &str, args: &Args) -> Result<Option<String>, String> {
     let element = |body: &str| -> Result<String, String> {
         Ok(format!(
             "{HELPERS}const el = document.querySelector({});\nif (!el) return false;\n{body}\nreturn true;",
@@ -67,7 +64,7 @@ pub fn script(verb: &str, args: &Args, parses: Parses) -> Result<Option<String>,
         ))
     };
     let body = match verb {
-        "eval" => function_body(string(args, "script")?, parses),
+        "eval" => function_body(string(args, "script")?),
         "read" => "return { title: document.title, url: location.href, text: (document.body ? document.body.innerText : '').slice(0, 1000000) };".into(),
         "click" => element("el.click();")?,
         "fill" => element(&format!("el.focus();\nsetValue(el, {});", literal(string(args, "text")?)))?,
@@ -138,7 +135,7 @@ pub fn script(verb: &str, args: &Args, parses: Parses) -> Result<Option<String>,
 
 /// A check for `wait` and `waitFor` that returns whether the condition
 /// holds. Errors count as not yet.
-pub fn condition(verb: &str, args: &Args, parses: Parses) -> Result<String, String> {
+pub fn condition(verb: &str, args: &Args) -> Result<String, String> {
     let check = match verb {
         "waitFor" => format!(
             "return document.querySelector({}) !== null;",
@@ -148,7 +145,7 @@ pub fn condition(verb: &str, args: &Args, parses: Parses) -> Result<String, Stri
             if let Some(function) = optional_string(args, "function") {
                 format!(
                     "return Boolean(await (async () => {{ {} }})());",
-                    function_body(function, parses)
+                    function_body(function)
                 )
             } else if let Some(selector) = optional_string(args, "selector") {
                 format!(
@@ -175,14 +172,20 @@ pub fn condition(verb: &str, args: &Args, parses: Parses) -> Result<String, Stri
 
 /// A script given on the command line: a single expression whose value is
 /// the result, or a statement list that returns.
-fn function_body(script: &str, parses: Parses) -> String {
+fn function_body(script: &str) -> String {
     let statements = script.trim();
     let expression = format!("return (\n{}\n);", statements.trim_end_matches(';'));
-    if parses(&expression) {
-        expression
-    } else {
-        statements.to_owned()
-    }
+    // Compile in the page's engine. Only syntax errors choose the statement form;
+    // an exception while running an expression must never run it a second time.
+    format!(
+        "const AsyncFunction = Object.getPrototypeOf(async function() {{}}).constructor;\n\
+         let run;\n\
+         try {{ run = new AsyncFunction({}); }}\n\
+         catch (error) {{ if (!(error instanceof SyntaxError)) throw error; run = new AsyncFunction({}); }}\n\
+         return await run.call(this);",
+        literal(&expression),
+        literal(statements)
+    )
 }
 
 fn storage(args: &Args) -> Result<&'static str, String> {
@@ -303,31 +306,6 @@ mod tests {
         }
     }
 
-    fn parses_all(_: &str) -> bool {
-        true
-    }
-
-    fn parses_none(_: &str) -> bool {
-        false
-    }
-
-    #[test]
-    fn parsed_expressions_return_their_value_and_other_bodies_run_as_given() -> Result<(), String> {
-        let expression = script(
-            "eval",
-            &args(json!({"script": " document.title; "})),
-            parses_all,
-        )?;
-        assert_eq!(expression.as_deref(), Some("return (\ndocument.title\n);"));
-        let body = script(
-            "eval",
-            &args(json!({"script": " const a = 1; return a; "})),
-            parses_none,
-        )?;
-        assert_eq!(body.as_deref(), Some("const a = 1; return a;"));
-        Ok(())
-    }
-
     #[test]
     fn arguments_are_embedded_as_literals() -> Result<(), String> {
         let script = script(
@@ -335,7 +313,6 @@ mod tests {
             &args(
                 json!({"selector": "input[name=\"q\"]", "text": "a'b\"c\u{2028}", "submit": true}),
             ),
-            parses_none,
         )?
         .unwrap_or_default();
         assert!(script.contains(r#"document.querySelector("input[name=\"q\"]")"#));
@@ -347,15 +324,11 @@ mod tests {
     #[test]
     fn missing_arguments_are_reported() {
         assert_eq!(
-            script("click", &Args::new(), parses_none),
+            script("click", &Args::new()),
             Err("missing argument 'selector'".to_owned())
         );
         assert_eq!(
-            script(
-                "storage.get",
-                &args(json!({"key": "a", "kind": "disk"})),
-                parses_none
-            ),
+            script("storage.get", &args(json!({"key": "a", "kind": "disk"})),),
             Err("unknown storage 'disk'; use local or session".to_owned())
         );
     }
@@ -363,7 +336,7 @@ mod tests {
     #[test]
     fn app_verbs_have_no_page_script() -> Result<(), String> {
         for verb in ["open", "navigate", "screenshot", "cookies.get", "reload"] {
-            assert_eq!(script(verb, &Args::new(), parses_none)?, None, "{verb}");
+            assert_eq!(script(verb, &Args::new())?, None, "{verb}");
         }
         Ok(())
     }
@@ -373,18 +346,13 @@ mod tests {
         let function = condition(
             "wait",
             &args(json!({"function": "window.ready", "selector": "#a"})),
-            parses_all,
         )?;
-        assert!(function.contains("return (\nwindow.ready\n);"));
+        assert!(function.contains(&literal("return (\nwindow.ready\n);")));
         assert!(function.contains("catch (error)"));
-        let text = condition(
-            "wait",
-            &args(json!({"text": "Done", "urlContains": "x"})),
-            parses_none,
-        )?;
+        let text = condition("wait", &args(json!({"text": "Done", "urlContains": "x"})))?;
         assert!(text.contains(r#".includes("Done")"#));
-        assert!(condition("wait", &Args::new(), parses_none)?.contains("return true;"));
-        assert!(condition("waitFor", &Args::new(), parses_none).is_err());
+        assert!(condition("wait", &Args::new())?.contains("return true;"));
+        assert!(condition("waitFor", &Args::new()).is_err());
         Ok(())
     }
 

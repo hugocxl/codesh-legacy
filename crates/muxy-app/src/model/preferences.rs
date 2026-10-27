@@ -124,22 +124,9 @@ impl AppModel {
         {
             return;
         }
-        self.retain_extension_updates(cx);
         self.settings_window = None;
         let snapshot = self.preferences_snapshot();
         self.refresh_theme(cx);
-        let model = cx.weak_entity();
-        let extensions = self.pending_extension_updates.take().unwrap_or_else(|| {
-            cx.new(|cx| {
-                crate::views::settings::extensions::ExtensionsView::new(
-                    model,
-                    self.theme.clone(),
-                    muxy_ui::theme::Metrics::new(1.0),
-                    cx,
-                )
-            })
-        });
-        extensions.update(cx, |view, cx| view.sync_theme(self.theme.clone(), cx));
         let view = cx.new(|cx| {
             let mut view = SettingsView::new(
                 snapshot,
@@ -147,7 +134,6 @@ impl AppModel {
                 muxy_ui::theme::Metrics::new(1.0),
                 cx,
             );
-            view.extensions = Some(extensions.clone());
             view.set_backup_pending(self.path.with_file_name("pending-import.muxy").exists());
             view
         });
@@ -191,9 +177,6 @@ impl AppModel {
                 self.read_remote_access(cx);
             }
             Err(error) => {
-                if extensions.read(cx).updating_all() {
-                    self.pending_extension_updates = Some(extensions);
-                }
                 self.fail(
                     tr!("Could not open Settings: %@", error.to_string()).to_string(),
                     cx,
@@ -205,18 +188,8 @@ impl AppModel {
     pub(crate) fn settings_closed(&mut self, cx: &mut Context<Self>) {
         self.flush_preferences(cx);
         self.withdraw_pairing(cx);
-        self.retain_extension_updates(cx);
         self.settings_window = None;
         cx.notify();
-    }
-
-    fn retain_extension_updates(&mut self, cx: &Context<Self>) {
-        if let Some(settings) = &self.settings_window
-            && let Some(extensions) = &settings.view.read(cx).extensions
-            && extensions.read(cx).updating_all()
-        {
-            self.pending_extension_updates = Some(extensions.clone());
-        }
     }
 
     fn preferences_snapshot(&self) -> Snapshot {
@@ -243,9 +216,6 @@ impl AppModel {
                 .iter()
                 .map(|provider| provider.id)
                 .collect(),
-            sidebars: self.extension_sidebars(),
-            languages: self.app_languages(),
-            extension_shortcuts: self.extension_shortcuts(),
             browser_profiles: self.settings_browser_profiles(),
             browser_sources: self
                 .browsers
@@ -371,10 +341,7 @@ impl AppModel {
         let theme_changed = matches!(change, Change::Theme(..));
         let bindings_changed = matches!(
             change,
-            Change::Binding(..)
-                | Change::Unassign(_)
-                | Change::Command(_)
-                | Change::RemoveCommand(_)
+            Change::Binding(..) | Change::Command(_) | Change::RemoveCommand(_)
         );
         match change {
             Change::VoiceAutoSend(value) => {
@@ -444,14 +411,7 @@ impl AppModel {
                 settings.appearance.sidebar_vibrancy = value;
                 settings.appearance = settings.appearance.save_changes(&self.appearance, &path)?;
             }
-            Change::ExtensionSidebar(owner) => {
-                settings.appearance.extension_sidebar = owner;
-                settings.appearance = settings.appearance.save_changes(&self.appearance, &path)?;
-            }
-            Change::Language(selection) => {
-                settings.appearance.language = selection;
-                settings.appearance = settings.appearance.save_changes(&self.appearance, &path)?;
-            }
+
             Change::Field("sidebar-vibrancy-level", value) => {
                 let level: u8 = value
                     .parse()
@@ -508,25 +468,17 @@ impl AppModel {
                 settings.save_commands(&path)?;
             }
             Change::Binding(id, chord) => {
-                if let Some(chord) = &chord {
-                    if let Some(conflict) = self.custom_shortcut_conflict(&id, chord) {
-                        return Err(conflict.into());
-                    }
-                    if (id.starts_with("extension.") || id.starts_with("command."))
-                        && let Some(conflict) = self.extension_shortcut_conflict(&id, chord)
-                    {
-                        return Err(conflict.into());
-                    }
+                if let Some(chord) = &chord
+                    && let Some(conflict) = self.custom_shortcut_conflict(&id, chord)
+                {
+                    return Err(conflict.into());
                 }
                 settings.keymap = settings.keymap.with_binding(&id, chord)?;
                 settings.validate_command_shortcuts(&self.terminal)?;
                 settings.keymap.save(&path)?;
                 cx.set_menus(crate::menus());
             }
-            Change::Unassign(id) => {
-                settings.keymap = settings.keymap.with_unassigned(&id)?;
-                settings.keymap.save(&path)?;
-            }
+
             Change::Field(id @ ("worktree-template" | "worktree-folder"), value) => {
                 if id == "worktree-template" {
                     settings.worktrees.default_location.path_template = value;
@@ -578,22 +530,19 @@ impl AppModel {
         let theme_changed = theme_changed
             || self.appearance.dark_theme != settings.appearance.dark_theme
             || self.appearance.light_theme != settings.appearance.light_theme;
-        let language_changed = self.appearance.language != settings.appearance.language;
         self.appearance = settings.appearance.clone();
         self.settings = settings;
         self.sync_agents_panel(cx);
         self.sync_agent_sessions(cx);
         self.filter_agent_sessions(cx);
-        self.invalidate_webview_shortcuts();
+        self.invalidate_browser_shortcuts();
         if bindings_changed {
-            self.bind_extension_keys(cx);
+            self.bind_command_keys(cx);
         }
         if theme_changed {
             self.refresh_theme(cx);
         }
-        if language_changed {
-            self.sync_language(cx);
-        }
+
         for pane in self.grids.values() {
             pane.view.update(cx, |pane, cx| {
                 pane.copy_on_select = self.settings.clipboard.copy_on_select;
@@ -956,8 +905,6 @@ fn change_id(change: &Change) -> &str {
         Change::Theme(true, _) => "dark-theme",
         Change::Sidebar(_) => "sidebar",
         Change::SidebarVibrancy(_) => "sidebar-vibrancy",
-        Change::ExtensionSidebar(_) => "extension-sidebar",
-        Change::Language(_) => "app-language",
         Change::Worktrees(key, _) => key,
         Change::SidebarCollapsedStyle(_) => "sidebar-collapsed-style",
         Change::AgentsPanel(_) => "agents-panel",
@@ -978,7 +925,7 @@ fn change_id(change: &Change) -> &str {
             TerminalEdit::CodepointMap { .. } => "font-codepoint-map",
             TerminalEdit::Binding { .. } => "terminal-keybindings",
         },
-        Change::Binding(id, _) | Change::Unassign(id) => id,
+        Change::Binding(id, _) => id,
         Change::ShellIntegration(_) => "shell-integration",
         Change::MobileAccess(_) => "mobile-access",
         Change::Browser(change) => match change {

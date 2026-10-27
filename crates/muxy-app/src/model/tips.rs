@@ -45,9 +45,6 @@ pub(crate) const TIPS: &[&str] = &[
         "In a Git project, click Commit in the status bar. Choose the AI CLI, whether to include unstaged changes, and whether to push. The CLI writes the message and Muxy commits."
     ),
     tr_key!(
-        "Browse extensions in Settings → Extensions. Each one lists the permissions it requests and runs only after you enable it."
-    ),
-    tr_key!(
         "Click Server in the status bar to connect, restart, or stop the background server. Restarting or stopping ends every terminal on this Mac."
     ),
     tr_key!(
@@ -106,7 +103,7 @@ pub(crate) enum TipPlacement {
 impl AppModel {
     /// Where the built-in sidebar shows tips, or `None` when it shows none.
     pub(crate) fn tip_placement(&self) -> Option<TipPlacement> {
-        if !self.appearance.tips_visible || self.extension_sidebar_active() {
+        if !self.appearance.tips_visible {
             None
         } else if self.appearance.sidebar_expanded {
             Some(TipPlacement::Card)

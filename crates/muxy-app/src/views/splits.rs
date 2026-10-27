@@ -336,7 +336,7 @@ fn split(
             hoverable,
             model.theme.accent,
         ))
-        .when(!model.webviews.panes.is_empty(), |hit| {
+        .when(!model.browsers.views.is_empty(), |hit| {
             hit.child(model.webview_grip(None, resize_cursor(axis)))
         })
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
@@ -396,7 +396,6 @@ fn split(
         .into_any_element()
 }
 
-/// Paints `divider` in the accent color while it is dragged, or while the
 /// pointer is over this element and `hoverable`.
 fn highlight(
     divider: Rc<Cell<Bounds<Pixels>>>,
@@ -481,9 +480,7 @@ fn pane_body(id: muxy_app_core::PaneId, model: &AppModel, cx: &Context<AppModel>
     if !model.grids.contains_key(&id) && model.state.is_servers_pane(id) {
         return super::servers_tab::render(id, model, cx);
     }
-    if let Some(surface) = model.webviews.panes.get(&id) {
-        return surface.view.clone().into_any_element();
-    }
+
     if let Some(view) = model.browser_view(id) {
         return view.clone().into_any_element();
     }
@@ -503,37 +500,6 @@ fn pane_body(id: muxy_app_core::PaneId, model: &AppModel, cx: &Context<AppModel>
             .child(super::browser::placeholder(
                 &reason,
                 !model.browser_enabled(),
-                &model.theme,
-                model.metrics,
-            ))
-            .into_any_element();
-    }
-    if let Some(descriptor) = model
-        .state
-        .projects()
-        .iter()
-        .flat_map(|p| &p.tabs)
-        .flat_map(|t| &t.panes)
-        .find_map(|pane| match &pane.content {
-            muxy_app_core::PaneContent::Webview(descriptor) if pane.id == id => Some(descriptor),
-            _ => None,
-        })
-    {
-        return div()
-            .size_full()
-            .bg(model.theme.bg)
-            .id(SharedString::from(format!("webview-placeholder-{id}")))
-            .debug_selector(|| "webview-placeholder".into())
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |model, _, window, cx| {
-                    model.focus_pane(id, cx);
-                    model.focus_active(window, cx);
-                }),
-            )
-            .child(super::webview::placeholder(
-                &descriptor.owner,
-                &descriptor.kind,
                 &model.theme,
                 model.metrics,
             ))

@@ -293,7 +293,7 @@ fn replacing_a_pending_load_does_not_erase_the_address() {
 
 #[test]
 #[ignore = "Requires WebKitGTK and a display; runs in the Linux desktop guard"]
-fn navigation_scripts_hidden_screenshots_and_extension_isolation() {
+fn navigation_scripts_and_hidden_screenshots() {
     let _serial = super::super::tests::alone();
     let server = Server::new();
     let page = Page::new(&Profile::ephemeral(), &server.url);

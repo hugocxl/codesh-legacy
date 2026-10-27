@@ -958,7 +958,6 @@ impl AppState {
                 Ok(())
             }
             PaneContent::Settings
-            | PaneContent::Webview(_)
             | PaneContent::Browser(_)
             | PaneContent::Servers
             | PaneContent::Editor { .. }

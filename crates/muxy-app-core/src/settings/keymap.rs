@@ -121,29 +121,10 @@ impl Keymap {
         self.0.get(id)
     }
 
-    /// Whether the user removed an extension command's shortcut, which an
-    /// empty override records.
-    pub fn unassigned(&self, id: &str) -> bool {
-        self.1.get(id).is_some_and(String::is_empty)
-    }
-
-    /// Removes an extension command's shortcut, including its manifest default.
-    pub fn with_unassigned(&self, id: &str) -> Result<Self> {
-        if !extension_action(id) {
-            return Err(Error::new(
-                "keymap",
-                "only extension shortcuts can be unassigned",
-            ));
-        }
-        let mut overrides = self.1.clone();
-        overrides.insert(id.into(), String::new());
-        Self::from_overrides(overrides)
-    }
-
     /// A command can't take a key a built-in action uses now. One that had its
     /// key before a built-in default claimed it keeps it, and that default yields.
     pub fn with_binding(&self, id: &str, chord: Option<KeyChord>) -> Result<Self> {
-        if shortcuts::find(id).is_none() && !extension_action(id) && !command_action(id) {
+        if shortcuts::find(id).is_none() && !command_action(id) {
             return Err(Error::new("keymap", "unknown action"));
         }
         if command_action(id)
@@ -163,7 +144,7 @@ impl Keymap {
             overrides.remove(id);
         }
         let resolved = Self::from_overrides(overrides)?;
-        if reset && !extension_action(id) && resolved.binding(id) != Self::default().binding(id) {
+        if reset && resolved.binding(id) != Self::default().binding(id) {
             return Err(Error::new(
                 format!("keymap.{id}"),
                 "the default shortcut is assigned to another action; reset that action first",
@@ -182,19 +163,14 @@ impl Keymap {
     }
 
     fn from_overrides(mut overrides: BTreeMap<String, String>) -> Result<Self> {
-        overrides.retain(|name, _| !RETIRED.contains(&name.as_str()));
+        overrides
+            .retain(|name, _| !RETIRED.contains(&name.as_str()) && !name.starts_with("extension."));
         let mut keymap = Self(Self::default().0, overrides.clone());
         let mut explicit = BTreeMap::new();
         for (name, value) in overrides {
             let key = format!("keymap.{name}");
-            if shortcuts::find(&name).is_none()
-                && !extension_action(&name)
-                && !command_action(&name)
-            {
+            if shortcuts::find(&name).is_none() && !command_action(&name) {
                 return Err(Error::new(&key, "unknown action"));
-            }
-            if value.is_empty() && extension_action(&name) {
-                continue;
             }
             let chord: KeyChord = value
                 .parse()
@@ -363,10 +339,6 @@ fn overlaps(left: &Shortcut, right: &Shortcut) -> bool {
     })
 }
 
-fn extension_action(id: &str) -> bool {
-    id.starts_with("extension.") && id.len() <= 300 && id.split('.').count() >= 3
-}
-
 fn command_action(id: &str) -> bool {
     id.strip_prefix("command.")
         .is_some_and(super::commands::valid_id)
@@ -376,15 +348,9 @@ fn same_scope(left: &str, right: &str) -> bool {
     if command_action(left) || command_action(right) {
         return true;
     }
-    match (extension_action(left), extension_action(right)) {
-        // Extension commands may share a key: an extension that is off keeps
-        // its binding, and among those that are on the first to claim it wins.
-        (true, true) => false,
-        (true, false) | (false, true) => true,
-        (false, false) => shortcuts::find(left)
-            .zip(shortcuts::find(right))
-            .is_some_and(|(left, right)| overlaps(left, right)),
-    }
+    shortcuts::find(left)
+        .zip(shortcuts::find(right))
+        .is_some_and(|(left, right)| overlaps(left, right))
 }
 
 impl ShortcutSettings for Keymap {
@@ -393,7 +359,7 @@ impl ShortcutSettings for Keymap {
             return Vec::new();
         };
         let Some(shortcut) = shortcuts::find(id) else {
-            return if extension_action(id) || command_action(id) {
+            return if command_action(id) {
                 vec![primary.as_str().to_owned()]
             } else {
                 Vec::new()

@@ -390,20 +390,7 @@ fn pruning_uses_remaining_queue_capacity_and_resumes_after_reconciliation(cx: &m
 
 fn assert_cannot_open_tabs(state: &mut AppState, project: ProjectId) {
     assert!(state.open_terminal_tab(project).is_err());
-    assert!(
-        state
-            .open_webview(
-                project,
-                muxy_app_core::webview::WebviewDescriptor {
-                    owner: "test".into(),
-                    kind: "test".into(),
-                    data: serde_json::Value::Null,
-                },
-                "test",
-                false
-            )
-            .is_err()
-    );
+    assert!(state.open_editor_pane(project, "test.rs").is_err());
 }
 
 #[test]

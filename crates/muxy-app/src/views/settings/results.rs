@@ -13,8 +13,7 @@ pub(super) struct Results {
     focus: HashMap<Category, FocusHandle>,
     pub(super) row_focus: HashMap<String, FocusHandle>,
     pub(super) shortcut_focus: Vec<[FocusHandle; 2]>,
-    /// Record, reset, and unassign for each extension shortcut, by keymap id.
-    pub(super) extension_focus: HashMap<String, [FocusHandle; 3]>,
+
     pub(super) command_focus: HashMap<String, [FocusHandle; 4]>,
     pub(super) reveal_focus: Rc<Cell<bool>>,
     pub(super) dirty: bool,
@@ -29,9 +28,7 @@ enum Item {
     CommandsHeading,
     CustomCommand(usize),
     Shortcut(usize),
-    /// The heading above an extension's shortcuts, named by its first one.
-    ExtensionHeading(usize),
-    ExtensionShortcut(usize),
+
     Empty,
     Footer,
 }
@@ -60,7 +57,6 @@ impl Results {
                     ]
                 })
                 .collect(),
-            extension_focus: HashMap::new(),
             command_focus: HashMap::new(),
             reveal_focus: Rc::new(Cell::new(false)),
             dirty: true,
@@ -102,12 +98,6 @@ impl SettingsView {
                     };
                     Some((item, &self.results.shortcut_focus[*index][..count]))
                 }
-                Item::ExtensionShortcut(index) => self
-                    .snapshot
-                    .extension_shortcuts
-                    .get(*index)
-                    .and_then(|shortcut| self.results.extension_focus.get(&shortcut.id))
-                    .map(|focus| (item, &focus[..])),
                 Item::CustomCommand(index) => self
                     .snapshot
                     .settings
@@ -118,15 +108,6 @@ impl SettingsView {
                 _ => None,
             })
             .flat_map(|(item, handles)| handles.iter().map(move |focus| (item, focus)))
-            .filter(|(item, focus)| {
-                if let Item::ExtensionShortcut(index) = self.results.items[*item] {
-                    let shortcut = &self.snapshot.extension_shortcuts[index];
-                    shortcut.chord != shortcut.default_chord
-                        || *focus != &self.results.extension_focus[&shortcut.id][1]
-                } else {
-                    true
-                }
-            })
             .collect();
         let target = controls
             .iter()
@@ -192,19 +173,9 @@ impl SettingsView {
             }
             if category == Category::Keyboard {
                 let shortcuts = keyboard::matching(self);
-                let extensions = keyboard::matching_extensions(self);
-                if !shortcuts.is_empty() || !extensions.is_empty() {
+                if !shortcuts.is_empty() {
                     items.push(Item::KeyboardHeading);
                     items.extend(shortcuts.into_iter().map(Item::Shortcut));
-                }
-                let mut previous = None;
-                for index in extensions {
-                    let extension = &self.snapshot.extension_shortcuts[index].extension;
-                    if previous != Some(extension) {
-                        items.push(Item::ExtensionHeading(index));
-                        previous = Some(extension);
-                    }
-                    items.push(Item::ExtensionShortcut(index));
                 }
             } else if category == Category::Commands {
                 let commands = super::commands::matching(self);
@@ -225,7 +196,7 @@ impl SettingsView {
             items.push(Item::Empty);
         }
         items.push(Item::Footer);
-        self.refresh_shortcut_focus(&items, cx);
+        self.refresh_shortcut_focus(cx);
         let offset = self.results.state.logical_scroll_top();
         self.scrollbar.reset();
         if self.results.overdraw == overdraw {
@@ -246,9 +217,6 @@ impl SettingsView {
                 Item::Shortcut(index) => {
                     Some(self.results.row_focus[muxy_core::shortcuts::ALL[*index].id].clone())
                 }
-                Item::ExtensionShortcut(index) => Some(
-                    self.results.row_focus[&self.snapshot.extension_shortcuts[*index].id].clone(),
-                ),
                 _ => None,
             }),
         );
@@ -260,19 +228,7 @@ impl SettingsView {
         self.results.reset_scroll = false;
     }
 
-    fn refresh_shortcut_focus(&mut self, items: &[Item], cx: &mut Context<Self>) {
-        for item in items {
-            if let Item::ExtensionShortcut(index) = item {
-                let id = &self.snapshot.extension_shortcuts[*index].id;
-                if !self.results.row_focus.contains_key(id) {
-                    self.results.row_focus.insert(id.clone(), cx.focus_handle());
-                    self.results.extension_focus.insert(
-                        id.clone(),
-                        [(); 3].map(|()| cx.focus_handle().tab_stop(true)),
-                    );
-                }
-            }
-        }
+    fn refresh_shortcut_focus(&mut self, cx: &mut Context<Self>) {
         let command_ids: std::collections::HashSet<_> = self
             .snapshot
             .settings
@@ -319,25 +275,6 @@ impl SettingsView {
             Category::Server => server::rows(self, cx),
             Category::Mobile => super::mobile::rows(self, cx),
             Category::Keyboard | Category::Commands => Vec::new(),
-            Category::Extensions => {
-                if self.matches(
-                    Category::Extensions,
-                    tr_key!("Manage extensions marketplace installed unpacked"),
-                ) {
-                    vec![
-                        muxy_ui::controls::button(
-                            self.style(),
-                            "manage-extensions",
-                            &tr!("Manage Extensions"),
-                            true,
-                            cx.listener(|view, _, _, cx| view.show_extensions(cx)),
-                        )
-                        .into_any_element(),
-                    ]
-                } else {
-                    Vec::new()
-                }
-            }
         }
     }
 
@@ -395,13 +332,7 @@ impl SettingsView {
                 { self.shortcut_row_count += 1; }
                 keyboard::row(self, index, cx)
             },
-            Item::ExtensionHeading(index) => {
-                let extension = self.snapshot.extension_shortcuts[index].extension.clone();
-                muxy_ui::form::section_heading(self.layout_style(), &extension)
-                    .debug_selector(move || format!("settings-heading-extension-{extension}"))
-                    .into_any_element()
-            }
-            Item::ExtensionShortcut(index) => keyboard::extension_row(self, index, cx),
+
             Item::Empty => div()
                 .w_full()
                 .debug_selector(|| "settings-empty".into())

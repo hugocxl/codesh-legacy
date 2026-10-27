@@ -13,6 +13,20 @@ pub(crate) struct RunCustomCommand {
 }
 
 impl AppModel {
+    pub(super) fn bind_command_keys(&self, cx: &mut Context<Self>) {
+        cx.clear_key_bindings();
+        crate::views::workspace::bind_keys(&self.settings.keymap, cx);
+        let mut registry = muxy_ui::shortcuts::Registry::new(&self.settings.keymap);
+        for (command, key) in self.custom_bindings() {
+            registry.register_dynamic(
+                key.as_str(),
+                command,
+                Some("WorkspaceTabs && !TextInput && !Menu && !Picker && !CommandPalette"),
+            );
+        }
+        cx.bind_keys(registry.into_bindings());
+    }
+
     pub(super) fn custom_bindings(&self) -> impl Iterator<Item = (RunCustomCommand, &KeyChord)> {
         self.settings.commands.iter().filter_map(|command| {
             self.settings

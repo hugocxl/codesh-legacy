@@ -1,7 +1,6 @@
 //! A native page shown over GPUI. The page sits in a container view that
 //! follows its pane, hides the parts app content covers, and shares the
-//! keyboard with Muxy's shortcuts. Extension pages and browser pages both
-//! live in one.
+//! keyboard with Codesh's shortcuts.
 
 use std::cell::{Cell, RefCell};
 use std::ptr;
@@ -835,6 +834,18 @@ fn route_key_event(
         page_key_down();
         true
     }
+}
+
+pub(crate) fn parent_view(window: &gpui::Window) -> Result<Retained<NSView>, String> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let RawWindowHandle::AppKit(handle) = HasWindowHandle::window_handle(window)
+        .map_err(|error| error.to_string())?
+        .as_raw()
+    else {
+        return Err("expected AppKit window".into());
+    };
+    unsafe { Retained::retain(handle.ns_view.as_ptr().cast::<NSView>()) }
+        .ok_or_else(|| "missing native view".into())
 }
 
 #[cfg(test)]

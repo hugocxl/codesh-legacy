@@ -50,7 +50,7 @@ tabs and `muxy browser`. Terminal links then open in your system browser.
 ## Linux
 
 The browser uses WebKitGTK 4.1, version 2.42 or newer. It shares the Linux
-extension renderer's [input and clipboard limits](../tech/constraints.md#experimental-linux-desktop).
+browser renderer's [input and clipboard limits](../tech/constraints.md#experimental-linux-desktop).
 Navigation, profiles, history, find, Web Inspector and CLI automation work through
 this renderer, including screenshots of hidden tabs. The app still starts without
 WebKitGTK installed; opening a browser reports the missing engine.
