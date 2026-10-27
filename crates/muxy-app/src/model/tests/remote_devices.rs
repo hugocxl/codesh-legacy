@@ -142,6 +142,7 @@ fn click(cx: &mut VisualTestContext, selector: &'static str) {
 }
 
 #[gpui::test]
+#[ignore = "Codesh never shows the status bar"]
 fn the_status_bar_shows_and_restarts_the_current_projects_server(cx: &mut TestAppContext) {
     let remote = ServerId::new();
     let (mut boot, local_work, remotes) = boot_with(vec![entry(remote, "box")]);
