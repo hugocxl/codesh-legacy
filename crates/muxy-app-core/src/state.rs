@@ -654,7 +654,7 @@ impl AppState {
         ]
         .into_iter()
         .find_map(|direction| target.layout.neighbor(pane, direction));
-        target.layout.remove(pane);
+        target.layout.remove_equalized(pane);
         target.panes.retain(|candidate| candidate.id != pane);
         if target.zoomed == Some(pane) {
             target.zoomed = None;
@@ -678,6 +678,7 @@ impl AppState {
             proxy: false,
         };
         tab.layout.split(pane, new.id, edge);
+        tab.layout.equalize_parent(new.id);
         let id = new.id;
         tab.zoomed = None;
         tab.panes.push(new);

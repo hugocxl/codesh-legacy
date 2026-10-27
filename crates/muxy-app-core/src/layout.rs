@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{AppError, PaneId};
 
 mod docking;
+mod equalize;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

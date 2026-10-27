@@ -241,6 +241,7 @@ impl AppState {
             proxy: false,
         };
         tab.layout.split(pane, new.id, Direction::Right);
+        tab.layout.equalize_parent(new.id);
         let id = new.id;
         tab.zoomed = None;
         tab.panes.push(new);

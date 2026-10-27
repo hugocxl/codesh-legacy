@@ -35,6 +35,9 @@ fn nested_splits_focus_zoom_and_collapse_survive_roundtrip() -> Result {
     assert_eq!(state.home().tabs[0].visible_panes(), [left, right, bottom]);
     state.close_pane(right)?;
     assert_eq!(state.home().tabs[0].layout.leaves(), [left, bottom]);
+    for (_, rect) in state.home().tabs[0].layout.rects() {
+        assert!((rect[2] - 0.5).abs() < 1e-5);
+    }
     assert_eq!(state.window().active_pane, Some(bottom));
     state.toggle_zoom(bottom)?;
     state.close_pane(bottom)?;
@@ -57,6 +60,8 @@ fn equalizing_splits_evens_a_long_row_and_keeps_the_zoom() -> Result {
         last = state.split_pane(last, Direction::Right)?;
     }
     let panes = state.home().tabs[0].layout.leaves();
+    let tab_id = state.home().tabs[0].id;
+    state.set_ratio(tab_id, &[], 0.7)?;
     state.toggle_zoom(last)?;
     state.equalize_splits(first)?;
     let tab = &state.home().tabs[0];

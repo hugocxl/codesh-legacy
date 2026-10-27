@@ -48,6 +48,15 @@ impl Layout {
     }
 }
 
+/// Equalizes just this row or column, retaining each member's internal shape.
+pub(super) fn equalize_container(layout: &Layout) -> Option<Layout> {
+    let mut root = Node::from(layout);
+    if let Node::Group(group) = &mut root {
+        group.equalize_members();
+    }
+    root.into_layout()
+}
+
 enum Node {
     Pane(PaneId),
     Group(Group),
@@ -114,16 +123,10 @@ impl Node {
         let Self::Group(group) = self else {
             return;
         };
-        #[allow(
-            clippy::cast_precision_loss,
-            reason = "A row or column holds far fewer members than f32 counts exactly"
-        )]
-        let share = 1.0 / group.members.len() as f32;
+        group.equalize_members();
         for member in &mut group.members {
-            member.size = share;
             member.node.equalize();
         }
-        group.shape = None;
     }
 
     /// Paths of the nodes a pane can dock against along `edge` of `anchor`,
@@ -330,6 +333,18 @@ impl Node {
 }
 
 impl Group {
+    fn equalize_members(&mut self) {
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "A row or column holds far fewer members than f32 counts exactly"
+        )]
+        let share = 1.0 / self.members.len() as f32;
+        for member in &mut self.members {
+            member.size = share;
+        }
+        self.shape = None;
+    }
+
     /// Index of the member that touches `edge`, which must run across the
     /// group.
     fn end(&self, edge: Direction) -> Option<usize> {
