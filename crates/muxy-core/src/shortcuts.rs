@@ -16,7 +16,15 @@ pub struct Shortcut {
 impl Shortcut {
     /// The name Settings shows, also the key of its translation.
     pub fn label(&self) -> String {
-        self.id.replace(['_', '.'], " ")
+        let label = match self.id {
+            "new_tab" => "new terminal".into(),
+            "new_tab_in_project" => "new terminal in project".into(),
+            _ => self.id.replace(['_', '.'], " "),
+        };
+        let mut chars = label.chars();
+        chars.next().map_or_else(String::new, |first| {
+            first.to_uppercase().collect::<String>() + chars.as_str()
+        })
     }
 
     /// The feature whose backend the shortcut's command needs.
@@ -28,12 +36,11 @@ impl Shortcut {
     }
 }
 
-const FEATURES: [(ShortcutId, Feature); 9] = [
+const FEATURES: [(ShortcutId, Feature); 8] = [
     (ShortcutId::InstallCommandLineTool, Feature::CommandLineTool),
     (ShortcutId::HideApp, Feature::AppHiding),
     (ShortcutId::HideOthers, Feature::AppHiding),
     (ShortcutId::ShowAll, Feature::AppHiding),
-    (ShortcutId::ComposerVoice, Feature::Voice),
     (ShortcutId::ToggleVoiceRecording, Feature::Voice),
     (ShortcutId::VoiceFinish, Feature::Voice),
     (ShortcutId::VoiceCancel, Feature::Voice),
@@ -195,11 +202,6 @@ pub enum ShortcutId {
     PreviousSettingsControl,
     InstallCommandLineTool,
     ToggleCommandPalette,
-    ToggleComposer,
-    ComposerSubmit,
-    ComposerInsert,
-    ComposerClose,
-    ComposerVoice,
     ToggleVoiceRecording,
     VoiceFinish,
     VoiceCancel,
@@ -282,8 +284,8 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "close_tab",
         keys: platform_keys!(&["cmd-shift-w"], &["ctrl-alt-w"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "split_right",
@@ -336,8 +338,8 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "close_pane",
         keys: platform_keys!(&["cmd-w"], &["ctrl-shift-w"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "next_tab",
@@ -483,66 +485,54 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "copy",
         keys: platform_keys!(&["cmd-c"], &["ctrl-shift-c"]),
-        contexts: &[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ],
-        key_contexts: &[&[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ]],
+        contexts: &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
+        key_contexts: &[&[Some(WORKSPACE_CLIPBOARD_CONTEXT)]],
     },
     Shortcut {
         id: "paste",
         keys: platform_keys!(&["cmd-v"], &["ctrl-shift-v"]),
-        contexts: &[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ],
-        key_contexts: &[&[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ]],
+        contexts: &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
+        key_contexts: &[&[Some(WORKSPACE_CLIPBOARD_CONTEXT)]],
     },
     Shortcut {
         id: "find",
         keys: platform_keys!(&["cmd-f"], &["ctrl-shift-f"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "find_next",
         keys: platform_keys!(&["cmd-g"], &["ctrl-shift-g"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "find_previous",
         keys: platform_keys!(&["cmd-shift-g"], &["ctrl-alt-g"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "scroll_to_bottom",
         keys: platform_keys!(&["cmd-end"], &["ctrl-shift-end"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "increase_font_size",
         keys: platform_keys!(&["cmd-+", "cmd-=", "cmd-shift-="], &["ctrl-+", "ctrl-="]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
+        contexts: &[Some("WorkspaceTabs")],
         key_contexts: &[
-            &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-            &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-            &[Some("WorkspaceTabs"), Some("QuickTerminal")],
+            &[Some("WorkspaceTabs")],
+            &[Some("WorkspaceTabs")],
+            &[Some("WorkspaceTabs")],
         ],
     },
     Shortcut {
         id: "decrease_font_size",
         keys: platform_keys!(&["cmd--"], &["ctrl--"]),
-        contexts: &[Some("WorkspaceTabs"), Some("QuickTerminal")],
-        key_contexts: &[&[Some("WorkspaceTabs"), Some("QuickTerminal")]],
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "new_home_tab",
@@ -1119,8 +1109,8 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "popover.confirm",
         keys: &["enter"],
-        contexts: &[Some("Picker"), Some("QuickTerminalConfirmation")],
-        key_contexts: &[&[Some("Picker"), Some("QuickTerminalConfirmation")]],
+        contexts: &[Some("Picker")],
+        key_contexts: &[&[Some("Picker")]],
     },
     Shortcut {
         id: "popover.secondary_confirm",
@@ -1146,8 +1136,8 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "popover.dismiss",
         keys: &["escape"],
-        contexts: &[Some("Picker"), Some("QuickTerminalConfirmation")],
-        key_contexts: &[&[Some("Picker"), Some("QuickTerminalConfirmation")]],
+        contexts: &[Some("Picker")],
+        key_contexts: &[&[Some("Picker")]],
     },
     Shortcut {
         id: "popover.next_tab",
@@ -1236,46 +1226,25 @@ pub const ALL: &[Shortcut] = &[
     Shortcut {
         id: "previous_prompt",
         keys: platform_keys!(&["cmd-up", "cmd-shift-up"], &["ctrl-shift-up"]),
-        contexts: &[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ],
+        contexts: &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
         key_contexts: &[
-            &[
-                Some(WORKSPACE_CLIPBOARD_CONTEXT),
-                Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-            ],
-            &[
-                Some(WORKSPACE_CLIPBOARD_CONTEXT),
-                Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-            ],
+            &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
+            &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
         ],
     },
     Shortcut {
         id: "next_prompt",
         keys: platform_keys!(&["cmd-down", "cmd-shift-down"], &["ctrl-shift-down"]),
-        contexts: &[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ],
+        contexts: &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
         key_contexts: &[
-            &[
-                Some(WORKSPACE_CLIPBOARD_CONTEXT),
-                Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-            ],
-            &[
-                Some(WORKSPACE_CLIPBOARD_CONTEXT),
-                Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-            ],
+            &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
+            &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
         ],
     },
     Shortcut {
         id: "select_command_output",
         keys: &[],
-        contexts: &[
-            Some(WORKSPACE_CLIPBOARD_CONTEXT),
-            Some("QuickTerminal && !TextInput && !TerminalSearchInput"),
-        ],
+        contexts: &[Some(WORKSPACE_CLIPBOARD_CONTEXT)],
         key_contexts: &[],
     },
     Shortcut {
@@ -1325,36 +1294,6 @@ pub const ALL: &[Shortcut] = &[
         keys: platform_keys!(&["cmd-shift-p"], &["ctrl-shift-p"]),
         contexts: &[Some("WorkspaceTabs")],
         key_contexts: &[&[Some("WorkspaceTabs")]],
-    },
-    Shortcut {
-        id: "toggle_composer",
-        keys: platform_keys!(&["cmd-i"], &["ctrl-shift-i"]),
-        contexts: &[Some("WorkspaceTabs")],
-        key_contexts: &[&[Some("WorkspaceTabs")]],
-    },
-    Shortcut {
-        id: "composer.submit",
-        keys: platform_keys!(&["cmd-enter"], &["ctrl-enter"]),
-        contexts: &[Some("Composer")],
-        key_contexts: &[&[Some("Composer")]],
-    },
-    Shortcut {
-        id: "composer.insert",
-        keys: platform_keys!(&["cmd-shift-enter"], &["ctrl-shift-enter"]),
-        contexts: &[Some("Composer")],
-        key_contexts: &[&[Some("Composer")]],
-    },
-    Shortcut {
-        id: "composer.close",
-        keys: &["escape"],
-        contexts: &[Some("Composer && !Picker")],
-        key_contexts: &[&[Some("Composer && !Picker")]],
-    },
-    Shortcut {
-        id: "composer.voice",
-        keys: &[],
-        contexts: &[Some("Composer")],
-        key_contexts: &[],
     },
     Shortcut {
         id: "toggle_voice_recording",
@@ -1441,3 +1380,41 @@ pub const ALL: &[Shortcut] = &[
         key_contexts: &[&[Some("Browser")]],
     },
 ];
+
+/// A shortcut's platform display, independent of its persisted key syntax.
+pub fn display_chord(chord: &str) -> String {
+    if !cfg!(target_os = "macos") {
+        return chord.to_owned();
+    }
+    let mut rest = chord;
+    let mut symbols = [false; 5];
+    while let Some((modifier, tail)) = rest.split_once('-') {
+        let Some(index) = ["ctrl", "alt", "shift", "cmd", "fn"]
+            .iter()
+            .position(|name| *name == modifier)
+        else {
+            break;
+        };
+        symbols[index] = true;
+        rest = tail;
+    }
+    let mut display = String::new();
+    for (enabled, symbol) in symbols.into_iter().zip(["⌃", "⌥", "⇧", "⌘", "fn"]) {
+        if enabled {
+            display.push_str(symbol);
+        }
+    }
+    display.push_str(match rest {
+        "left" => "←",
+        "right" => "→",
+        "up" => "↑",
+        "down" => "↓",
+        "enter" => "↩",
+        "tab" => "⇥",
+        "escape" => "⎋",
+        "backspace" => "⌫",
+        "delete" => "⌦",
+        _ => return display + &rest.to_uppercase(),
+    });
+    display
+}

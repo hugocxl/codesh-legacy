@@ -44,6 +44,22 @@ impl AppModel {
         self.show_settings(cx);
     }
 
+    /// Debug builds: opens Settings at the category `CODESH_OPEN_SETTINGS`
+    /// names, so a section can be brought up for screenshots.
+    pub(crate) fn open_requested_settings(&mut self, cx: &mut Context<Self>) {
+        #[cfg(debug_assertions)]
+        if let Ok(label) = std::env::var("CODESH_OPEN_SETTINGS") {
+            self.show_settings(cx);
+            if let Some(settings) = &self.settings_window {
+                settings
+                    .view
+                    .update(cx, |view, cx| view.show_labelled(&label, cx));
+            }
+        }
+        #[cfg(not(debug_assertions))]
+        let _ = cx;
+    }
+
     /// Opens Settings at Browser, where profiles are managed.
     pub(crate) fn show_browser_settings(&mut self, cx: &mut Context<Self>) {
         self.show_settings(cx);
@@ -79,7 +95,7 @@ impl AppModel {
                 crate::views::settings::extensions::ExtensionsView::new(
                     model,
                     self.theme.clone(),
-                    muxy_ui::theme::Metrics::new(1.15),
+                    muxy_ui::theme::Metrics::new(1.0),
                     cx,
                 )
             })
@@ -89,7 +105,7 @@ impl AppModel {
             let mut view = SettingsView::new(
                 snapshot,
                 self.theme.clone(),
-                muxy_ui::theme::Metrics::new(1.15),
+                muxy_ui::theme::Metrics::new(1.0),
                 cx,
             );
             view.extensions = Some(extensions.clone());
@@ -148,7 +164,6 @@ impl AppModel {
     }
 
     pub(crate) fn settings_closed(&mut self, cx: &mut Context<Self>) {
-        self.record_quick_shortcut(false, cx);
         self.flush_preferences(cx);
         self.withdraw_pairing(cx);
         self.retain_extension_updates(cx);
@@ -169,7 +184,6 @@ impl AppModel {
         let mut settings = self.settings.clone();
         settings.appearance = self.appearance.clone();
         Snapshot {
-            quick_shortcut_status: self.quick_shortcut_status(),
             capabilities: self.capabilities.clone(),
             settings,
             terminal: self.terminal.clone(),
@@ -313,11 +327,6 @@ impl AppModel {
         reason = "Exhaustive preference change dispatch"
     )]
     fn apply_preference(&mut self, change: Change, cx: &mut Context<Self>) -> Result<()> {
-        let composer = matches!(&change, Change::Composer(..))
-            || matches!(&change, Change::Field(id, _) if id.starts_with("composer-"));
-        if composer {
-            return self.apply_composer_preference(change, cx);
-        }
         let path = self.path.with_file_name("settings.toml");
         let mut settings = self.settings.clone();
         settings.appearance = self.appearance.clone();
@@ -330,9 +339,17 @@ impl AppModel {
                 | Change::RemoveCommand(_)
         );
         match change {
-            Change::QuickTerminal(quick) => {
-                self.apply_quick_settings(quick, cx)?;
-                return Ok(());
+            Change::VoiceAutoSend(value) => {
+                settings.voice.auto_send = value;
+                settings.save_voice(&path)?;
+            }
+            Change::Field("voice-language", value) => {
+                settings.voice.language = value;
+                settings.save_voice(&path)?;
+            }
+            Change::Field("voice-model", value) => {
+                settings.voice.model = value;
+                settings.save_voice(&path)?;
             }
             Change::Browser(change) => {
                 if !self.apply_browser_profile_change(&change, cx)? {
@@ -345,16 +362,6 @@ impl AppModel {
                 settings.save_browser(&path)?;
             }
             Change::Field("browser-profile-name", _) => return Ok(()),
-            Change::Field(id @ ("quick-width" | "quick-height"), value) => {
-                let mut quick = settings.quick_terminal;
-                if id == "quick-width" {
-                    quick.width = value.parse()?;
-                } else {
-                    quick.height = value.parse()?;
-                }
-                self.apply_quick_settings(quick, cx)?;
-                return Ok(());
-            }
             Change::Theme(dark, name) => {
                 if dark {
                     settings.appearance.dark_theme = name;
@@ -464,7 +471,6 @@ impl AppModel {
             }
             Change::Binding(id, chord) => {
                 if let Some(chord) = &chord {
-                    self.validate_quick_conflict(chord)?;
                     if let Some(conflict) = self.custom_shortcut_conflict(&id, chord) {
                         return Err(conflict.into());
                     }
@@ -559,59 +565,11 @@ impl AppModel {
         Ok(())
     }
 
-    fn apply_composer_preference(&mut self, change: Change, cx: &mut Context<Self>) -> Result<()> {
-        let path = self.path.with_file_name("settings.toml");
-        let mut settings = self.settings.clone();
-        match change {
-            Change::Composer(id, value) => {
-                match id {
-                    "composer-clear-after" => settings.composer.clear_after_sending = value,
-                    "composer-clear-close" => settings.composer.clear_on_close = value,
-                    "voice-auto-send" => settings.composer.voice_auto_send = value,
-                    "composer-images" => {
-                        settings.composer.image_strategy = if value {
-                            muxy_app_core::composer::submission::ImageSubmissionStrategy::Clipboard
-                        } else {
-                            muxy_app_core::composer::submission::ImageSubmissionStrategy::InlinePath
-                        }
-                    }
-                    _ => return Err(tr!("Unknown composer preference").to_string().into()),
-                }
-                settings.save_composer(&path)?;
-            }
-            Change::Field(
-                id @ ("composer-font"
-                | "composer-line-height"
-                | "composer-language"
-                | "composer-voice-model"),
-                value,
-            ) => {
-                match id {
-                    "composer-font" => settings.composer.font_family = value,
-                    "composer-language" => settings.composer.language = value,
-                    "composer-voice-model" => settings.composer.voice_model = value,
-                    _ => settings.composer.line_height = value.parse()?,
-                }
-                settings.save_composer(&path)?;
-            }
-            _ => return Err(tr!("Unknown composer preference").to_string().into()),
-        }
-        self.settings.composer = settings.composer;
-        self.composer.preferences_dirty = false;
-        if let Some(view) = &self.composer.view {
-            view.update(cx, |view, cx| {
-                view.settings = self.settings.composer.clone();
-                view.refresh_style(cx);
-            });
-        }
-        Ok(())
-    }
-
     #[cfg(all(target_os = "macos", not(test)))]
     pub(crate) fn sync_background_effects(&mut self, window: &Window, cx: &mut Context<Self>) {
         self.sync_sidebar_vibrancy(window);
         let options = &self.terminal.options;
-        if options.background_vibrancy == 0 || !self.terminal_effects_allowed() {
+        if options.background_vibrancy == 0 || !muxy_ui::accessibility::transparency_allowed() {
             self.terminal_background.native = None;
             self.set_terminal_vibrancy_available(false, cx);
             return;
@@ -629,7 +587,7 @@ impl AppModel {
         self.set_terminal_vibrancy_available(self.terminal_background.native.is_some(), cx);
     }
 
-    #[cfg(any(target_os = "macos", test))]
+    #[cfg(all(target_os = "macos", not(test)))]
     pub(super) fn set_terminal_vibrancy_available(
         &mut self,
         available: bool,
@@ -639,8 +597,8 @@ impl AppModel {
             return;
         }
         self.terminal_background.available = available;
-        for (id, pane) in &self.grids {
-            let enabled = available && !self.is_quick_terminal(*id);
+        for pane in self.grids.values() {
+            let enabled = available;
             pane.view.update(cx, |pane, cx| {
                 if pane.native_vibrancy != enabled {
                     pane.native_vibrancy = enabled;
@@ -955,7 +913,7 @@ fn terminal_field(id: &str) -> bool {
 fn change_id(change: &Change) -> &str {
     match change {
         Change::Command(_) | Change::RemoveCommand(_) => "commands",
-        Change::QuickTerminal(_) => "quick-shortcut",
+        Change::VoiceAutoSend(_) => "voice-auto-send",
         Change::Theme(false, _) => "light-theme",
         Change::Theme(true, _) => "dark-theme",
         Change::Sidebar(_) => "sidebar",
@@ -975,7 +933,7 @@ fn change_id(change: &Change) -> &str {
         Change::Terminal("padding-left" | "padding-right", _) => "window-padding-x",
         Change::Terminal("padding-top" | "padding-bottom", _) => "window-padding-y",
         Change::Terminal("dismiss-import-notes", _) => "terminal-import-notes",
-        Change::Terminal(id, _) | Change::Composer(id, _) | Change::Field(id, _) => id,
+        Change::Terminal(id, _) | Change::Field(id, _) => id,
         Change::ResetTerminal => "terminal-reset",
         Change::TerminalEdit(edit) => match edit {
             TerminalEdit::Fallbacks(_) => "font-fallbacks",

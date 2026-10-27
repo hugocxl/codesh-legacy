@@ -69,13 +69,10 @@ A line feed is a new line in many AI tools, but shells treat it like Return.
 In a browser, `Cmd+[` and `Cmd+]` go back and forward instead of switching
 tabs.
 
-## Composer and dictation
+## Standalone dictation
 
-| Action | Shortcut |
-| --- | --- |
-| Toggle composer | `Cmd+I` |
-| Send / send without Return | `Cmd+Return` / `Cmd+Shift+Return` |
-| Dictation | `Cmd+Shift+I` |
+`Cmd+Shift+I` starts dictation into the active live terminal. See
+[Dictation](../features/dictation.md).
 
 ## Changing shortcuts
 
@@ -87,4 +84,3 @@ tabs.
   bindings. Add your own in **Settings → Terminal → Key bindings**; they take
   precedence while a terminal is focused.
 - Commands from **Settings → Commands** and extensions can have shortcuts too.
-- The Quick Terminal shortcut is set in **Settings → Quick Terminal**.

@@ -103,10 +103,6 @@ impl SettingsWindow {
         let activation = cx.observe_window_activation(window, |root, window, cx| {
             if window.is_window_active() {
                 root.reload_terminal(cx);
-            } else {
-                root.view.update(cx, |view, cx| {
-                    view.cancel_quick_recording(cx);
-                });
             }
         });
         let mut subscriptions = vec![events, appearance, focus_lost, activation];
@@ -459,7 +455,7 @@ impl SettingsWindow {
         cx: &mut Context<Self>,
     ) {
         let view = self.view.read(cx);
-        let active = view.snapshot.settings.composer.language.clone();
+        let active = view.snapshot.settings.voice.language.clone();
         let theme = view.theme.clone();
         let metrics = view.metrics;
         let picker = cx.new(|cx| LanguagePicker::new(active, theme, metrics, cx));
@@ -469,7 +465,7 @@ impl SettingsWindow {
                     if let LanguageEvent::Selected(language) = event {
                         let _ = root.model.update(cx, |model, cx| {
                             model.change_preference(
-                                Change::Field("composer-language", language.clone()),
+                                Change::Field("voice-language", language.clone()),
                                 cx,
                             );
                         });
@@ -543,11 +539,6 @@ impl SettingsWindow {
 
     fn handle_event(&mut self, event: &SettingsEvent, window: &mut Window, cx: &mut Context<Self>) {
         match event {
-            SettingsEvent::QuickRecording(recording) => {
-                let _ = self
-                    .model
-                    .update(cx, |model, cx| model.record_quick_shortcut(*recording, cx));
-            }
             SettingsEvent::Backup(action) => self.backup_action(*action, cx),
             SettingsEvent::PreviewTerminal(id, value) => {
                 let _ = self.model.update(cx, |model, cx| {

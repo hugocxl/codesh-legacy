@@ -133,7 +133,15 @@ pub(super) fn rows(
         rows.push(pane.row(
             "sidebar-vibrancy-level",
             tr_key!("Sidebar vibrancy level"),
-            pane.field("sidebar-vibrancy-level"),
+            super::terminal::slider(
+                pane,
+                "sidebar-vibrancy-level",
+                f32::from(appearance.sidebar_vibrancy_level.min(100)),
+                (0.0, 100.0),
+                1.0,
+                "",
+                cx,
+            ),
         ));
     }
     if category == Category::Appearance && pane.matches(category, tr_key!("Show tips")) {

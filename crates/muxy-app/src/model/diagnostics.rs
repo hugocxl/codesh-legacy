@@ -49,7 +49,7 @@ impl AppModel {
                 ),
             );
         }
-        for id in self.attached_panes() {
+        for id in self.visible_panes() {
             let pane = self.terminal(&id).map(|pane| pane.view.read(cx));
             event(
                 "terminal.state",

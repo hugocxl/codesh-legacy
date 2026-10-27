@@ -69,6 +69,13 @@ pub(super) fn summary(path: &Path) -> Result<GitSummary> {
         .transpose()?,
         ..GitSummary::default()
     };
+    if let Some(head) = summary.head.as_deref() {
+        let commit = text(&run(path, &["log", "-1", "--format=%ct%n%s", head, "--"])?)?;
+        if let Some((timestamp, subject)) = commit.split_once('\n') {
+            summary.commit_timestamp = timestamp.parse().ok();
+            summary.commit_subject = Some(subject.to_owned());
+        }
+    }
     if summary.upstream.is_some() {
         let counts = text(&run(
             path,

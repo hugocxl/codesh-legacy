@@ -19,7 +19,7 @@ pub fn row(
         .gap(metrics.scaled(5.0))
         .child(
             div()
-                .text_size(metrics.font_headline())
+                .text_size(metrics.scaled(13.0))
                 .text_color(theme.fg)
                 .child(label.to_owned()),
         )
@@ -35,8 +35,10 @@ pub fn row(
     div()
         .flex()
         .min_w(px(0.0))
-        .py(metrics.scaled(22.0))
-        .gap(metrics.spacing9())
+        .min_h(metrics.scaled(36.0))
+        .py(metrics.scaled(10.0))
+        .px(metrics.scaled(12.0))
+        .gap(metrics.scaled(12.0))
         .map(|row| {
             if stacked {
                 row.flex_col().gap(metrics.spacing6())
@@ -51,21 +53,20 @@ pub fn row(
 pub fn section_heading(style: Style, title: &str) -> Div {
     let Style { theme, metrics } = style;
     div()
-        .pt(metrics.spacing8())
-        .pb(metrics.spacing6())
-        .border_b_1()
-        .border_color(theme.border)
-        .font_family(".SystemUIFontMonospaced")
-        .text_size(metrics.font_body())
-        .text_color(theme.fg_muted)
+        .pt(metrics.scaled(24.0))
+        .pb(metrics.scaled(8.0))
+        .font_weight(gpui::FontWeight::SEMIBOLD)
+        .text_size(metrics.scaled(13.0))
+        .text_color(theme.fg)
         .child(title.to_owned())
 }
 
 pub fn note(style: Style, text: &str, error: bool) -> Div {
     let Style { theme, metrics } = style;
     div()
-        .py(metrics.spacing7())
-        .text_size(metrics.font_footnote())
+        .py(metrics.scaled(8.0))
+        .px(metrics.scaled(12.0))
+        .text_size(metrics.scaled(11.0))
         .text_color(if error { theme.danger } else { theme.fg_muted })
         .child(text.to_owned())
 }

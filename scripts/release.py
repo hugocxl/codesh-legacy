@@ -144,10 +144,10 @@ def bundle_info(version, build):
         "LSMinimumSystemVersion": "14.0",
         "LSApplicationCategoryType": "public.app-category.developer-tools",
         "NSHighResolutionCapable": True,
+        "NSMicrophoneUsageDescription": "Codesh uses your microphone to dictate text into the active terminal.",
+        "NSSpeechRecognitionUsageDescription": "Codesh transcribes your dictation on this device and inserts it into the active terminal.",
         "NSSupportsAutomaticGraphicsSwitching": True,
         "NSPrincipalClass": "NSApplication",
-        "NSMicrophoneUsageDescription": "Codesh uses your microphone to dictate text into Composer.",
-        "NSSpeechRecognitionUsageDescription": "Codesh transcribes your dictation on this device and inserts it into Composer.",
         "NSLocalNetworkUsageDescription": "Commands you run in Codesh terminals can connect to devices on your local network.",
         "NSAppTransportSecurity": {"NSAllowsArbitraryLoadsInWebContent": True},
     }

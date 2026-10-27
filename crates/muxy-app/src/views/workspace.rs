@@ -50,7 +50,6 @@ actions!(
         ToggleFullScreen,
         ToggleThemePicker,
         ToggleCommandPalette,
-        ToggleComposer,
         ToggleVoiceRecording,
         NavigateBack,
         NavigateForward,
@@ -113,16 +112,11 @@ fn workspace_bindings(keymap: &impl muxy_core::shortcuts::ShortcutSettings) -> V
     registry.register(ShortcutId::ToggleAgentSessions, &ToggleAgentSessions);
     registry.register(ShortcutId::ToggleFullScreen, &ToggleFullScreen);
     registry.register(ShortcutId::ToggleThemePicker, &ToggleThemePicker);
-    registry.register(ShortcutId::ToggleCommandPalette, &ToggleCommandPalette);
-    registry.register(ShortcutId::ToggleComposer, &ToggleComposer);
     registry.register(ShortcutId::ToggleVoiceRecording, &ToggleVoiceRecording);
     registry.register(ShortcutId::VoiceFinish, &super::voice::Finish);
     registry.register(ShortcutId::VoiceCancel, &super::voice::Cancel);
     registry.register(ShortcutId::VoicePause, &super::voice::Pause);
-    registry.register(ShortcutId::ComposerSubmit, &super::composer::Submit);
-    registry.register(ShortcutId::ComposerInsert, &super::composer::Insert);
-    registry.register(ShortcutId::ComposerClose, &super::composer::Close);
-    registry.register(ShortcutId::ComposerVoice, &super::composer::ToggleVoice);
+    registry.register(ShortcutId::ToggleCommandPalette, &ToggleCommandPalette);
     registry.register(ShortcutId::NavigateBack, &NavigateBack);
     registry.register(ShortcutId::NavigateForward, &NavigateForward);
     registry.register(ShortcutId::Quit, &Quit);
@@ -497,31 +491,6 @@ fn action_handlers(cx: &mut Context<AppModel>) -> gpui::Div {
         .on_action(cx.listener(|model, _: &DecreaseFontSize, _, cx| model.zoom_terminal(-1.0, cx)))
 }
 
-fn register_composer_commands(
-    registry: &mut muxy_ui::command_palette::Registry<super::command_palette::Handler>,
-    model: &AppModel,
-) {
-    use super::command_palette::action;
-
-    registry.register(action(
-        model,
-        ShortcutId::ToggleComposer,
-        tr_key!("Toggle Composer"),
-        ToggleComposer,
-    ));
-    if model
-        .capabilities
-        .has_backend(muxy_core::capability::Feature::Voice)
-    {
-        registry.register(action(
-            model,
-            ShortcutId::ToggleVoiceRecording,
-            tr_key!("Toggle Voice Recording"),
-            ToggleVoiceRecording,
-        ));
-    }
-}
-
 /// Commands that act on the focused terminal.
 fn register_terminal_commands(
     registry: &mut muxy_ui::command_palette::Registry<super::command_palette::Handler>,
@@ -762,7 +731,6 @@ pub(crate) fn register_commands(
             .active_tab()
             .and_then(|tab| model.tab(tab))
             .is_none_or(|tab| tab.panes.len() < 2);
-    register_composer_commands(registry, model);
     for command in [
         action(model, ShortcutId::NewTab, tr_key!("New Terminal"), NewTab).disabled(missing),
         action(
@@ -836,6 +804,17 @@ pub(crate) fn register_commands(
     }
     register_panel_commands(registry, model);
     register_worktree_commands(registry, model);
+    if model
+        .capabilities
+        .has_backend(muxy_core::capability::Feature::Voice)
+    {
+        registry.register(action(
+            model,
+            ShortcutId::ToggleVoiceRecording,
+            tr_key!("Toggle Voice Recording"),
+            ToggleVoiceRecording,
+        ));
+    }
     register_terminal_commands(registry, model);
     register_pane_focus_commands(registry, model, unsplit);
     register_app_commands(registry, model);
@@ -868,9 +847,6 @@ impl AppModel {
             self.split_resize.end();
         }
         for (id, pane) in &self.grids {
-            if self.is_quick_terminal(*id) {
-                continue;
-            }
             pane.view.update(cx, |pane, cx| {
                 pane.set_focused(Some(*id) == active, cx);
                 let border = None;
@@ -883,14 +859,9 @@ impl AppModel {
                     cx.notify();
                 }
                 let native_visible = self.overlay.is_none()
-                    && self.voice.view.is_none()
-                    && self.voice.closing.is_none()
                     && self.close_prompt.is_none()
-                    && self.composer.closing.is_none()
-                    && (self.composer.view.is_none()
-                        || (self.settings.composer.pinned
-                            && self.settings.composer.presentation
-                                == muxy_app_core::settings::ComposerPresentation::Panel));
+                    && self.voice.view.is_none()
+                    && self.voice.closing.is_none();
                 if pane.native_visible != native_visible {
                     pane.native_visible = native_visible;
                     cx.notify();
@@ -910,7 +881,6 @@ impl AppModel {
         if self.overlay.is_none()
             && (self.focus_requested
                 || (self.active_pane().is_none()
-                    && self.composer.view.is_none()
                     && self.webviews.panels.is_empty()
                     && !self.agents_panel.focus.contains_focused(window, cx)
                     && !self
@@ -962,6 +932,12 @@ impl Render for AppModel {
         self.sync_project_logos(window, cx);
         #[cfg(all(target_os = "macos", not(test)))]
         self.sync_background_effects(window, cx);
+        self.window_buttons = if cfg!(target_os = "macos") && !window.is_fullscreen() {
+            f32::from(self.metrics.traffic_light_width())
+                + super::codesh::style::TRAFFIC_LIGHT_SHIFT
+        } else {
+            0.0
+        };
         self.sync_toast(cx);
         #[cfg(target_os = "linux")]
         self.fit_sidebar_to_window(window, 0.0, cx);
@@ -971,13 +947,9 @@ impl Render for AppModel {
         let content = self.webview_panel_content(content, window, cx);
         let content = super::agents_panel::right_panel_content(content, self, window, cx);
         let content = super::agent_sessions::panel_content(content, self, window, cx);
-        let content = self.composer_content(content, window, cx);
         let workspace = action_handlers(cx)
             .on_action(cx.listener(|model, _: &ToggleVoiceRecording, window, cx| {
                 model.toggle_voice(window, cx);
-            }))
-            .on_action(cx.listener(|model, _: &ToggleComposer, window, cx| {
-                model.toggle_composer(window, cx);
             }))
             .on_action(cx.listener(|model, _: &ToggleCommandPalette, window, cx| {
                 model.toggle_command_palette(window, cx);
@@ -987,7 +959,6 @@ impl Render for AppModel {
             .relative()
             .flex()
             .size_full()
-            .bg(theme.bg)
             .text_color(theme.fg)
             .font_family(".SystemUIFont")
             .line_height(relative(1.2))
@@ -998,6 +969,9 @@ impl Render for AppModel {
                 div()
                     .flex()
                     .flex_col()
+                    // The window background may be translucent over the
+                    // native vibrancy; only pane cards are opaque.
+                    .bg(self.sidebar_background())
                     .flex_1()
                     .min_w(px(0.0))
                     .min_h(px(0.0))
@@ -1042,7 +1016,6 @@ impl Render for AppModel {
             })
             .child(super::splits::drag::track_pointer(cx))
             .child(super::splits::drag::overlay(self))
-            .child(self.floating_composer(window, cx))
             .child(self.voice_panel())
             .children(super::banners::render(self, window, cx))
             .children(super::agents_panel::floating(self, window, cx))
@@ -1118,10 +1091,25 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
                         .child(chord.to_string()),
                 )),
         ));
+    let card = card.relative().when(
+        super::codesh::style::HIDE_COLLAPSED_SIDEBAR && !model.appearance.sidebar_expanded,
+        |card| {
+            card.child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left(super::codesh::style::spacing())
+                    .h(px(super::codesh::style::HEADER))
+                    .flex()
+                    .items_center()
+                    .child(super::codesh::pane_card::sidebar_toggle(model, cx)),
+            )
+        },
+    );
     div()
         .size_full()
         .p(px(super::codesh::style::GUTTER))
-        .bg(theme.bg)
+        .bg(model.sidebar_background())
         .child(card)
         .into_any_element()
 }

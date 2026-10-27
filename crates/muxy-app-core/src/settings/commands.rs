@@ -68,25 +68,11 @@ impl Settings {
         if self.commands.len() > 256 {
             return Err(Error::new("commands", "at most 256 commands are supported"));
         }
-        let quick = self
-            .quick_terminal
-            .shortcut
-            .key_combo()
-            .and_then(muxy_core::quick_terminal::keys::KeyCombo::keystroke)
-            .and_then(|key| key.parse::<super::KeyChord>().ok());
         let mut ids = HashSet::new();
         for command in &self.commands {
             command.validate()?;
             if !ids.insert(&command.id) {
                 return Err(Error::new("commands", "command IDs must be unique"));
-            }
-            if let Some(quick) = &quick
-                && self.keymap.binding(&command.shortcut_id()) == Some(quick)
-            {
-                return Err(Error::new(
-                    "commands",
-                    "shortcut conflicts with Quick Terminal",
-                ));
             }
         }
         Ok(())

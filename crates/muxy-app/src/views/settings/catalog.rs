@@ -12,6 +12,31 @@ pub(super) struct Setting {
 
 pub(super) const SETTINGS: &[Setting] = &[
     Setting {
+        id: "voice-auto-send",
+        label: tr_key!("Send after recording"),
+        description: tr_key!(
+            "Press Return after inserting standalone voice dictation into the terminal."
+        ),
+        category: Category::General,
+        section: tr_key!("Voice"),
+    },
+    Setting {
+        id: "voice-language",
+        label: tr_key!("Dictation language"),
+        description: tr_key!("Choose an installed on-device speech language."),
+        category: Category::General,
+        section: tr_key!("Voice"),
+    },
+    Setting {
+        id: "voice-model",
+        label: tr_key!("Offline voice model"),
+        description: tr_key!(
+            "Path to a local multilingual Whisper model. Used by Linux dictation."
+        ),
+        category: Category::General,
+        section: tr_key!("Voice"),
+    },
+    Setting {
         id: "browser-enabled",
         label: tr_key!("Enable built-in browser"),
         description: tr_key!(
@@ -134,103 +159,6 @@ pub(super) const SETTINGS: &[Setting] = &[
         ),
         category: Category::Ai,
         section: tr_key!("Create Pull Request"),
-    },
-    Setting {
-        id: "voice-auto-send",
-        label: tr_key!("Send after recording"),
-        description: tr_key!(
-            "Press Return after inserting standalone voice dictation into the terminal."
-        ),
-        category: Category::Composer,
-        section: tr_key!("Voice"),
-    },
-    Setting {
-        id: "composer-language",
-        label: tr_key!("Dictation language"),
-        description: tr_key!("Choose an installed on-device speech language."),
-        category: Category::Composer,
-        section: tr_key!("Voice"),
-    },
-    Setting {
-        id: "composer-voice-model",
-        label: tr_key!("Offline voice model"),
-        description: tr_key!(
-            "Path to a local multilingual Whisper model. Used by Linux dictation."
-        ),
-        category: Category::Composer,
-        section: tr_key!("Voice"),
-    },
-    Setting {
-        id: "composer-clear-after",
-        label: tr_key!("Clear after sending"),
-        description: tr_key!("Clear the draft only after every terminal confirms delivery."),
-        category: Category::Composer,
-        section: tr_key!("Behavior"),
-    },
-    Setting {
-        id: "composer-clear-close",
-        label: tr_key!("Clear on close"),
-        description: tr_key!("Discard the draft when closing Composer or switching projects."),
-        category: Category::Composer,
-        section: tr_key!("Behavior"),
-    },
-    Setting {
-        id: "composer-images",
-        label: tr_key!("Image submission"),
-        description: tr_key!(
-            "Paste image contents into compatible terminal apps or insert the saved image path."
-        ),
-        category: Category::Composer,
-        section: tr_key!("Behavior"),
-    },
-    Setting {
-        id: "composer-font",
-        label: tr_key!("Composer font"),
-        description: tr_key!("Font family used for composing text."),
-        category: Category::Composer,
-        section: tr_key!("Text"),
-    },
-    Setting {
-        id: "composer-line-height",
-        label: tr_key!("Composer line height"),
-        description: tr_key!("Line spacing from 1.1 to 2.0."),
-        category: Category::Composer,
-        section: tr_key!("Text"),
-    },
-    Setting {
-        id: "quick-enabled",
-        label: tr_key!("Enable Quick Terminal"),
-        description: tr_key!("Show a persistent home-directory shell with a shortcut."),
-        category: Category::QuickTerminal,
-        section: tr_key!("General"),
-    },
-    Setting {
-        id: "quick-shortcut",
-        label: tr_key!("Open Quick Terminal"),
-        description: tr_key!("Record a system-wide shortcut to open Quick Terminal."),
-        category: Category::QuickTerminal,
-        section: tr_key!("Shortcut"),
-    },
-    Setting {
-        id: "quick-size",
-        label: tr_key!("Terminal size"),
-        description: tr_key!("Width 480–1200; height 280–800 pixels."),
-        category: Category::QuickTerminal,
-        section: tr_key!("Size"),
-    },
-    Setting {
-        id: "quick-transparency",
-        label: tr_key!("Terminal transparency"),
-        description: tr_key!("Transparency of the terminal background."),
-        category: Category::QuickTerminal,
-        section: tr_key!("Appearance"),
-    },
-    Setting {
-        id: "quick-blur",
-        label: tr_key!("Background vibrancy"),
-        description: tr_key!("Vibrancy of the glass background."),
-        category: Category::QuickTerminal,
-        section: tr_key!("Appearance"),
     },
     Setting {
         id: "close-behavior",

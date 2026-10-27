@@ -103,7 +103,9 @@ impl Metadata {
 
     fn prompt(&mut self, value: &Value) {
         if self.prompt.is_none() {
-            self.prompt = text(value);
+            // Slash commands and harness notes are stored as tagged markup;
+            // the first prompt a person actually typed makes the title.
+            self.prompt = text(value).filter(|text| !text.starts_with('<'));
         }
     }
 

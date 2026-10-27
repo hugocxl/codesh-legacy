@@ -4,13 +4,13 @@ use gpui::{
     AppContext, Context, Entity, Focusable, IntoElement, ParentElement, Styled, Subscription,
     Window, div,
 };
-use muxy_app_core::{PaneId, ServerId, composer::DraftId};
+use muxy_app_core::{PaneId, ProjectId, ServerId};
 use muxy_core::capability::Feature;
 use muxy_protocol::{ChannelId, Modes};
 use muxy_ui::tr;
 
 struct Target {
-    project: DraftId,
+    project: (ServerId, ProjectId),
     pane: PaneId,
     attachment: (ServerId, ChannelId),
     generation: u64,
@@ -38,16 +38,14 @@ impl AppModel {
         if !self.require(Feature::Voice, cx) {
             return;
         }
-        if let Some(view) = &self.composer.view {
-            view.update(cx, crate::views::composer::Composer::toggle_voice);
-            view.focus_handle(cx).focus(window);
-            return;
-        }
         let target = self.active_pane().and_then(|pane| {
             let view = self.grids.get(&pane)?.view.read(cx);
             let attachment = view.attachment()?;
             Some(Target {
-                project: self.composer_key(),
+                project: (
+                    self.state.current_project().server_id,
+                    self.state.current_project().id,
+                ),
                 pane,
                 attachment,
                 generation: self.generation(attachment.0),
@@ -66,9 +64,9 @@ impl AppModel {
         self.voice.exit = None;
         let view = cx.new(|cx| {
             VoicePanel::new(
-                self.settings.composer.language.clone(),
-                self.settings.composer.voice_model.clone(),
-                self.settings.composer.voice_auto_send,
+                self.settings.voice.language.clone(),
+                self.settings.voice.model.clone(),
+                self.settings.voice.auto_send,
                 self.theme.clone(),
                 self.metrics,
                 cx,
@@ -116,7 +114,10 @@ impl AppModel {
 
     fn voice_target_current(&self, target: &Target, cx: &gpui::App) -> bool {
         self.generation(target.attachment.0) == target.generation
-            && self.composer_key() == target.project
+            && (
+                self.state.current_project().server_id,
+                self.state.current_project().id,
+            ) == target.project
             && self
                 .grids
                 .get(&target.pane)
@@ -132,7 +133,7 @@ impl AppModel {
             return;
         }
         let mut bytes = crate::views::terminal::clipboard::paste(text, target.modes);
-        if self.settings.composer.voice_auto_send {
+        if self.settings.voice.auto_send {
             bytes.push(b'\r');
         }
         self.close_voice(cx);
@@ -145,9 +146,7 @@ impl AppModel {
             return;
         };
         cx.spawn(async move |model, cx| {
-            if let Err(error) =
-                super::composer::deliver(&worker, target.generation, channel, bytes).await
-            {
+            if let Err(error) = deliver(&worker, target.generation, channel, bytes).await {
                 let _ = model.update(cx, |model, cx| {
                     model.set_banner_error(Some(
                         tr!("Dictation delivery failed: %@", &error).to_string(),
@@ -178,4 +177,27 @@ impl AppModel {
             )
             .into_any_element()
     }
+}
+
+pub(super) async fn deliver(
+    worker: &crate::boot::Worker,
+    generation: u64,
+    channel: ChannelId,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    let (completion, result) = async_channel::bounded(1);
+    worker
+        .send((
+            generation,
+            crate::boot::Work::WriteInput {
+                channel,
+                bytes,
+                completion,
+            },
+        ))
+        .map_err(|error| error.to_string())?;
+    result
+        .recv()
+        .await
+        .map_err(|_| tr!("Terminal connection closed before delivery was confirmed").to_string())?
 }

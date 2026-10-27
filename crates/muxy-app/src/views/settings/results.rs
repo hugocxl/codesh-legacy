@@ -89,7 +89,19 @@ impl SettingsView {
             .iter()
             .enumerate()
             .filter_map(|(item, entry)| match entry {
-                Item::Shortcut(index) => Some((item, &self.results.shortcut_focus[*index][..])),
+                Item::Shortcut(index) => {
+                    let count = if self
+                        .snapshot
+                        .settings
+                        .keymap
+                        .is_default(muxy_core::shortcuts::ALL[*index].id)
+                    {
+                        1
+                    } else {
+                        2
+                    };
+                    Some((item, &self.results.shortcut_focus[*index][..count]))
+                }
                 Item::ExtensionShortcut(index) => self
                     .snapshot
                     .extension_shortcuts
@@ -106,6 +118,15 @@ impl SettingsView {
                 _ => None,
             })
             .flat_map(|(item, handles)| handles.iter().map(move |focus| (item, focus)))
+            .filter(|(item, focus)| {
+                if let Item::ExtensionShortcut(index) = self.results.items[*item] {
+                    let shortcut = &self.snapshot.extension_shortcuts[index];
+                    shortcut.chord != shortcut.default_chord
+                        || *focus != &self.results.extension_focus[&shortcut.id][1]
+                } else {
+                    true
+                }
+            })
             .collect();
         let target = controls
             .iter()
@@ -154,8 +175,6 @@ impl SettingsView {
         } else {
             [
                 Category::General,
-                Category::QuickTerminal,
-                Category::Composer,
                 Category::Appearance,
                 Category::Terminal,
                 Category::Keyboard,
@@ -286,8 +305,13 @@ impl SettingsView {
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
         match category {
-            Category::General | Category::Appearance => appearance::rows(self, category, cx),
-            Category::Composer => super::composer::rows(self, cx),
+            Category::General | Category::Appearance => {
+                let mut rows = appearance::rows(self, category, cx);
+                if category == Category::General {
+                    rows.extend(super::voice::rows(self, cx));
+                }
+                rows
+            }
             Category::Browser => super::browser::rows(self, cx),
             Category::Ai => super::ai::rows(self, cx),
             Category::Backup => super::backup::rows(self, cx),
@@ -314,7 +338,6 @@ impl SettingsView {
                     Vec::new()
                 }
             }
-            Category::QuickTerminal => super::quick_terminal::rows(self, cx),
         }
     }
 
@@ -326,7 +349,8 @@ impl SettingsView {
             } else {
                 metrics.spacing9()
             })
-            .text_size(metrics.font_display())
+            .text_size(px(13.0))
+            .font_weight(gpui::FontWeight::SEMIBOLD)
             .child(muxy_ui::l10n::translate(category.label()))
             .into_any_element()
     }
@@ -349,20 +373,20 @@ impl SettingsView {
                 .min_w(px(0.0))
                 .track_focus(&self.results.focus[&category])
                 .debug_selector(move || format!("settings-section-{}", category.label()))
-                .child(self.section_heading(category, index == 0))
+                .children((!self.query.is_empty()).then(|| self.section_heading(category, index == 0)))
                 .children(self.section_rows(category, window, cx))
                 .into_any_element(),
             Item::CommandsHeading => div()
                 .w_full()
                 .track_focus(&self.results.focus[&Category::Commands])
-                .child(self.section_heading(Category::Commands, index == 0))
+                .children((!self.query.is_empty()).then(|| self.section_heading(Category::Commands, index == 0)))
                 .child(super::commands::heading(self, cx))
                 .into_any_element(),
             Item::CustomCommand(index) => super::commands::row(self, index, cx),
             Item::KeyboardHeading => div()
                 .w_full()
                 .debug_selector(|| "settings-section-Keyboard".into())
-                .child(self.section_heading(Category::Keyboard, index == 0))
+                .children((!self.query.is_empty()).then(|| self.section_heading(Category::Keyboard, index == 0)))
                 .child(self.subsection_heading(tr_key!("Shortcuts")))
                 .child(self.note(&tr!("Click a shortcut to record it. Escape cancels. Conflicts in the same context must be resolved first."), false))
                 .into_any_element(),

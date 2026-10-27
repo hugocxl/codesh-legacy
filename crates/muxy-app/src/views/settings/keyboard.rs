@@ -1,6 +1,7 @@
 use super::{Category, Change, SettingsEvent, SettingsView};
 use gpui::{
-    AnyElement, Context, InteractiveElement, IntoElement, Keystroke, ParentElement, Styled, div, px,
+    AnyElement, Context, InteractiveElement, IntoElement, Keystroke, ParentElement, Styled, div,
+    prelude::FluentBuilder, px,
 };
 use muxy_ui::{controls, tr};
 
@@ -39,7 +40,7 @@ pub(super) fn extension_row(
     } else {
         shortcut.chord.as_ref().map_or_else(
             || tr!("Not assigned"),
-            |chord| chord.as_str().to_owned().into(),
+            |chord| muxy_core::shortcuts::display_chord(chord.as_str()).into(),
         )
     };
     let focus = &pane.results.extension_focus[&id];
@@ -60,19 +61,23 @@ pub(super) fn extension_row(
             )
             .track_focus(&focus[0]),
         )
-        .child(
-            controls::button(
-                pane.style(),
-                &format!("reset-{id}"),
-                &tr!("Reset"),
-                true,
-                cx.listener(move |pane, _, _, cx| {
-                    pane.recording = None;
-                    cx.emit(SettingsEvent::Change(Change::Binding(reset.clone(), None)));
-                }),
+        .when(shortcut.chord != shortcut.default_chord, |control| {
+            control.child(
+                controls::button(
+                    pane.style(),
+                    &format!("reset-{id}"),
+                    "↺",
+                    true,
+                    cx.listener(move |pane, _, _, cx| {
+                        pane.recording = None;
+                        cx.emit(SettingsEvent::Change(Change::Binding(reset.clone(), None)));
+                    }),
+                )
+                .bg(gpui::transparent_black())
+                .border_0()
+                .track_focus(&focus[1]),
             )
-            .track_focus(&focus[1]),
-        )
+        })
         .child(
             controls::button(
                 pane.style(),
@@ -108,7 +113,7 @@ pub(super) fn row(pane: &SettingsView, index: usize, cx: &mut Context<SettingsVi
     } else {
         chord.map_or_else(
             || tr!("Not assigned"),
-            |chord| chord.as_str().to_owned().into(),
+            |chord| muxy_core::shortcuts::display_chord(chord.as_str()).into(),
         )
     };
     let control = div()
@@ -125,21 +130,29 @@ pub(super) fn row(pane: &SettingsView, index: usize, cx: &mut Context<SettingsVi
                     pane.begin_recording(id, window, cx);
                 }),
             )
+            .debug_selector(move || format!("settings-shortcut-{id}"))
+            .h(px(22.0))
+            .text_size(px(12.0))
             .track_focus(&pane.results.shortcut_focus[index][0]),
         )
-        .child(
-            controls::button(
-                pane.style(),
-                &format!("reset-{id}"),
-                &tr!("Reset"),
-                true,
-                cx.listener(move |pane, _, _, cx| {
-                    pane.recording = None;
-                    cx.emit(SettingsEvent::Change(Change::Binding(id.into(), None)));
-                }),
+        .when(!pane.snapshot.settings.keymap.is_default(id), |control| {
+            control.child(
+                controls::button(
+                    pane.style(),
+                    &format!("reset-{id}"),
+                    "↺",
+                    true,
+                    cx.listener(move |pane, _, _, cx| {
+                        pane.recording = None;
+                        cx.emit(SettingsEvent::Change(Change::Binding(id.into(), None)));
+                    }),
+                )
+                .bg(gpui::transparent_black())
+                .border_0()
+                .debug_selector(move || format!("settings-reset-{id}"))
+                .track_focus(&pane.results.shortcut_focus[index][1]),
             )
-            .track_focus(&pane.results.shortcut_focus[index][1]),
-        );
+        });
     pane.row_with_description(
         id,
         &pane.shortcut_names[index],
@@ -156,7 +169,6 @@ impl SettingsView {
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) {
-        self.cancel_quick_recording(cx);
         self.results.dirty = true;
         self.recording = Some(id.into());
         self.errors.remove(id);

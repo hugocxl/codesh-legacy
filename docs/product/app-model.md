@@ -32,8 +32,8 @@ opens a tab there and switches workspace if needed; a remote server opens in
 its Home, connecting first if needed. Clicking a server in the Remote popover
 offers **New Tab** too.
 
-Files and images dropped or pasted on a remote terminal, or sent from the
-composer, are copied to that computer and its path is pasted. Clicking a file
+Files and images dropped or pasted on a remote terminal are copied to that
+computer and their paths are pasted. Clicking a file
 path in a remote terminal offers a read-only copy here, or its path.
 
 Each app keeps its own layout: tabs, splits, workspaces, and project order.
@@ -119,8 +119,7 @@ proxy icon. Terminals get the proxy as `http_proxy`, `https_proxy`,
 - App preferences live in `settings.toml`, terminal preferences in
   `terminal.toml`, and custom themes in `themes/`.
 - Every app shortcut can be changed in Settings → Keyboard. Terminal key
-  bindings are set in Settings → Terminal, and the Quick Terminal
-  shortcut has its own setting. Normal keystrokes in a terminal always go to
+  bindings are set in Settings → Terminal. Normal keystrokes in a terminal go to
   the terminal.
 - **Settings → Appearance → App language** picks the interface language. English
   is built in; other languages come from language-pack extensions, the same ones
@@ -163,9 +162,6 @@ ends.
 
 ## Desktop features
 
-- **Composer.** Write a draft, with files, images, or dictation, and send it to
-  the active terminal or to every visible split. Each project keeps its own
-  draft, and a failed send keeps it.
 - **Web views.** Extension pages as tabs, docked panels, popovers, or dialogs.
   They stay alive while hidden. Extension panels belong to a project: switching
   projects closes them, and switching back reopens them.

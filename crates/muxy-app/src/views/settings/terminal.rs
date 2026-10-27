@@ -265,8 +265,13 @@ pub(super) struct Drag {
 
 impl Drag {
     pub(super) fn change(self) -> Option<Change> {
-        self.value
-            .map(|value| Change::Terminal(self.slider.id, value))
+        self.value.map(|value| {
+            if self.slider.id == "sidebar-vibrancy-level" {
+                Change::Field(self.slider.id, value)
+            } else {
+                Change::Terminal(self.slider.id, value)
+            }
+        })
     }
 }
 
@@ -403,7 +408,7 @@ fn picker(pane: &SettingsView, id: &'static str, cx: &mut Context<SettingsView>)
     pane.picker(PickerKind::Terminal(id), label, cx)
 }
 
-fn slider(
+pub(super) fn slider(
     pane: &SettingsView,
     id: &'static str,
     value: f32,
@@ -752,7 +757,13 @@ impl SettingsView {
         );
         if drag.value.as_ref() != Some(&value) {
             drag.value = Some(value.clone());
-            cx.emit(SettingsEvent::PreviewTerminal(spec.id, value));
+            if spec.id == "sidebar-vibrancy-level" {
+                self.snapshot.settings.appearance.sidebar_vibrancy_level =
+                    value.parse().unwrap_or(0);
+                cx.notify();
+            } else {
+                cx.emit(SettingsEvent::PreviewTerminal(spec.id, value));
+            }
         }
     }
 

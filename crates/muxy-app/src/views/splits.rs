@@ -106,7 +106,6 @@ pub(crate) fn render(
             .relative()
             .size_full()
             .p(px(style::GUTTER))
-            .when(!model.appearance.sidebar_expanded, |grid| grid.pt(px(64.0)))
             .child(content)
             .child(resize_tracker(model, cx))
             .child(super::tab_strip::drag::track_pointer(

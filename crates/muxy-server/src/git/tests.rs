@@ -94,6 +94,22 @@ impl Drop for Repo {
 }
 
 #[test]
+fn summary_activity_tracks_commits_and_detached_heads() {
+    let repo = Repo::new(true);
+    assert_eq!(repo.summary().commit_subject.as_deref(), Some("initial"));
+    run(&repo.path, &["checkout", "--detach"]).unwrap();
+    run(
+        &repo.path,
+        &["commit", "--allow-empty", "-m", "Detached activity\n\nBody"],
+    )
+    .unwrap();
+    let summary = repo.summary();
+    assert!(summary.branch.is_none());
+    assert_eq!(summary.commit_subject.as_deref(), Some("Detached activity"));
+    assert!(summary.commit_timestamp.is_some_and(|time| time > 0));
+}
+
+#[test]
 fn unborn_stage_unstage_and_literal_unix_paths() {
     let repo = Repo::new(false);
     #[cfg(target_os = "linux")]
@@ -102,6 +118,8 @@ fn unborn_stage_unstage_and_literal_unix_paths() {
     let relative = ServerPath(b"odd\n[*].txt".to_vec());
     std::fs::write(repo.path.join(path(&relative)), b"one\ntwo\n").unwrap();
     assert!(repo.summary().head.is_none());
+    assert!(repo.summary().commit_subject.is_none());
+    assert!(repo.summary().commit_timestamp.is_none());
     assert_eq!(repo.summary().untracked, 1);
     repo.git(GitAction::Stage(vec![relative.clone()])).unwrap();
     assert_eq!(repo.summary().staged, 1);

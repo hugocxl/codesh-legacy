@@ -26,7 +26,6 @@ pub(crate) type Updates = async_channel::Receiver<(ServerId, u64, Update)>;
 #[derive(Debug)]
 pub(crate) struct Boot {
     pub(crate) import_message: Option<String>,
-    pub(crate) composer: muxy_app_core::composer::ComposerStore,
     pub(crate) state: AppState,
     pub(crate) state_path: PathBuf,
     pub(crate) settings: muxy_app_core::settings::Settings,
@@ -73,11 +72,6 @@ impl Boot {
         work.send((1, Work::Connect))?;
         Ok(Self {
             import_message,
-            composer: muxy_app_core::composer::ComposerStore::load_from(
-                state_path
-                    .parent()
-                    .unwrap_or_else(|| std::path::Path::new(".")),
-            ),
             state,
             state_path,
             settings,

@@ -52,8 +52,8 @@ them.
 
 ## Home
 
-Every server has one Home project for the user's home folder. Quick Terminal
-and other one-off terminals live there. Home is always first in the sidebar. It
+Every server has one Home project for the user's home folder. One-off terminals
+live there. Home is always first in the sidebar. It
 can't be deleted, have worktrees, or join a workspace. A remote server's Home
 goes by the server's name and is listed only under **Remote Servers**.
 

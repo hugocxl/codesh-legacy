@@ -4,11 +4,7 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, div, px,
 };
 use muxy_app_core::{Project, ProjectId, ProjectStatus};
-use muxy_ui::{
-    components::{IconButton, IconGlyph},
-    icon::Icon,
-    tr,
-};
+use muxy_ui::{components::IconGlyph, icon::Icon, tr};
 
 use crate::model::AppModel;
 
@@ -79,13 +75,6 @@ impl AppModel {
             .unwrap_or(parent)
     }
 
-    pub(crate) fn toggle_worktree_list(&mut self, id: ProjectId, cx: &mut Context<Self>) {
-        if !self.expanded_worktrees.remove(&id) {
-            self.expanded_worktrees.insert(id);
-        }
-        cx.notify();
-    }
-
     pub(crate) fn new_worktree_target(&self) -> Option<ProjectId> {
         let current = self.state.current_project();
         let project = self
@@ -97,49 +86,6 @@ impl AppModel {
             && !self.not_a_repository(project.id))
         .then_some(project.id)
     }
-}
-
-pub(super) fn disclosure(
-    project: &Project,
-    model: &AppModel,
-    cx: &mut Context<AppModel>,
-) -> AnyElement {
-    let id = project.id;
-    let expanded = model.expanded_worktrees.contains(&id);
-    let theme = &model.theme;
-    div()
-        .debug_selector(move || format!("project-worktrees-toggle-{id}"))
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .child(
-            IconButton::new(
-                SharedString::from(format!("project-worktrees-toggle-{id}")),
-                if expanded {
-                    Icon::ChevronDown
-                } else {
-                    Icon::ChevronRight
-                },
-                model.metrics.icon_xs(),
-                model.metrics.control_small(),
-                theme.fg_muted,
-                theme.fg,
-            )
-            .tooltip(
-                if expanded {
-                    tr!("Collapse Worktrees")
-                } else {
-                    tr!("Expand Worktrees")
-                },
-                theme.raised(),
-                theme.fg,
-                theme.border,
-                theme.bg,
-            )
-            .on_click(cx.listener(move |model, _, _, cx| {
-                cx.stop_propagation();
-                model.toggle_worktree_list(id, cx);
-            })),
-        )
-        .into_any_element()
 }
 
 pub(super) fn group(
@@ -154,15 +100,13 @@ pub(super) fn group(
         .flex_col()
         .child(super::project_row(project, index, shortcut, model, cx));
     if model.appearance.sidebar_expanded
-        && (model.expanded_worktrees.contains(&project.id) || !model.sidebar_filter.is_empty())
         && model.has_worktrees(project)
         && project.status() == ProjectStatus::Available
     {
         let mut worktrees = div()
             .flex()
             .flex_col()
-            .gap(model.metrics.scaled(1.0))
-            .pt(model.metrics.spacing1())
+            .gap(model.metrics.scaled(2.0))
             .pb(model.metrics.spacing2())
             .when(model.sidebar_name_matches(project), |rows| {
                 rows.child(row(project, true, model, cx))
@@ -180,7 +124,7 @@ pub(super) fn group(
         group = group.child(worktrees.child(new_worktree(project.id, model, cx)));
     }
     if model.appearance.sidebar_expanded && !model.has_worktrees(project) {
-        group = group.child(row(project, false, model, cx));
+        group = group.child(row(project, !project.home, model, cx));
     }
     group.into_any_element()
 }
@@ -197,14 +141,14 @@ fn row(
     let active = model.state.current_project().id == id;
     let missing = project.status() == ProjectStatus::Missing;
     let unavailable = missing || model.worktree_removing(id);
+    let activity = super::activity_card::Data::new(project, model);
     div()
         .id(SharedString::from(format!("worktree-{id}")))
         .debug_selector(move || format!("worktree-{id}"))
         .flex()
-        .items_center()
-        .gap(m.scaled(8.0))
+        .flex_col()
         .px(m.scaled(10.0))
-        .h(m.scaled(28.0))
+        .py(m.scaled(6.0))
         .rounded(m.scaled(8.0))
         .border_1()
         .border_color(gpui::transparent_black())
@@ -240,57 +184,181 @@ fn row(
                 }
             }),
         )
-        .child(row_glyph(project, model))
+        .child(card_content(project, primary, activity, model))
+        .into_any_element()
+}
+
+fn card_content(
+    project: &Project,
+    primary: bool,
+    activity: super::activity_card::Data,
+    model: &AppModel,
+) -> impl IntoElement {
+    let m = model.metrics;
+    let theme = &model.theme;
+    div()
+        .flex()
+        .flex_col()
+        .gap(m.scaled(3.0))
+        .min_w(px(0.0))
+        .child(headline(activity.headline, activity.provider, model))
         .child(
             div()
-                .flex_1()
-                .min_w(px(0.0))
                 .flex()
                 .items_center()
-                .gap(m.spacing2())
-                .child(div().min_w(px(0.0)).truncate().child(project.name.clone()))
-                .when(primary, |label| {
-                    label.child(
+                .gap(m.scaled(6.0))
+                .text_size(m.scaled(11.0))
+                .text_color(theme.fg_muted)
+                .child(
+                    div()
+                        .flex_shrink()
+                        .min_w(px(0.0))
+                        .truncate()
+                        .child(project.name.clone()),
+                )
+                .children(activity.branch.map(|branch| {
+                    div()
+                        .flex_shrink()
+                        .min_w(px(0.0))
+                        .truncate()
+                        .text_color(theme.fg_dim)
+                        .child(branch)
+                }))
+                .when(primary, |line| {
+                    line.child(
                         div()
                             .flex_none()
-                            .px(m.scaled(10.0))
-                            .py(m.scaled(1.0))
+                            .px(m.scaled(6.0))
                             .rounded_full()
                             .bg(theme.surface)
                             .text_size(m.font_micro())
                             .font_weight(FontWeight::BOLD)
                             .child(tr!("PRIMARY")),
                     )
+                })
+                .child(div().flex_1())
+                .when_some(activity.pr, |line, number| {
+                    line.child(
+                        div()
+                            .flex_none()
+                            .text_color(theme.accent)
+                            .child(format!("#{number}")),
+                    )
+                })
+                .child(row_glyph(project, model))
+                .when_some(activity.age, |line, age| {
+                    line.child(div().flex_none().child(age))
                 }),
         )
-        .into_any_element()
+}
+
+/// The card's top line: the running command, the agent and its task, or a
+/// quiet shell chip when nothing runs.
+fn headline(
+    headline: super::activity_card::Headline,
+    provider: Option<muxy_protocol::AgentProvider>,
+    model: &AppModel,
+) -> AnyElement {
+    use super::activity_card::Headline;
+    use muxy_protocol::AgentState;
+    let m = model.metrics;
+    let theme = &model.theme;
+    let line = div()
+        .flex()
+        .items_center()
+        .gap(m.scaled(6.0))
+        .min_w(px(0.0))
+        .text_size(m.scaled(13.0));
+    let chip = |icon: Icon, color: gpui::Hsla| {
+        div()
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .size(m.scaled(18.0))
+            .rounded(m.scaled(5.0))
+            .bg(theme.surface)
+            .border_1()
+            .border_color(super::super::codesh::style::border(theme))
+            .child(IconGlyph::new(icon, m.scaled(11.0), color))
+    };
+    let text = |content: String, color: gpui::Hsla, weight: FontWeight| {
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .truncate()
+            .text_color(color)
+            .font_weight(weight)
+            .child(content)
+    };
+    match headline {
+        Headline::Command(command) => line
+            .child(chip(Icon::Terminal, theme.fg))
+            .child(text(command, theme.fg, FontWeight::SEMIBOLD))
+            .into_any_element(),
+        Headline::Browser(page) => line
+            .child(chip(Icon::Globe, theme.fg))
+            .child(text(page, theme.fg, FontWeight::SEMIBOLD))
+            .into_any_element(),
+        Headline::Agent { state, task } => {
+            let (label, color) = match state {
+                AgentState::Working => (tr!("Working"), theme.accent),
+                AgentState::Blocked => (tr!("Needs input"), theme.warning),
+                _ => (tr!("Ready"), theme.fg_muted),
+            };
+            line.child(provider.map_or_else(
+                || chip(Icon::Terminal, theme.fg).into_any_element(),
+                |provider| {
+                    super::super::tab_activity::provider_icon(provider, m.scaled(18.0), model)
+                },
+            ))
+            .child(
+                div()
+                    .flex_none()
+                    .text_color(color)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(label),
+            )
+            .child(div().flex_none().text_color(theme.fg_dim).child("·"))
+            .child(match task {
+                Some(task) => text(task, theme.fg, FontWeight::MEDIUM),
+                None => text(
+                    provider
+                        .map_or("Agent", muxy_protocol::AgentProvider::name)
+                        .to_owned(),
+                    theme.fg_muted,
+                    FontWeight::NORMAL,
+                ),
+            })
+            .into_any_element()
+        }
+        Headline::Shell { shell, directory } => line
+            .child(chip(Icon::Terminal, theme.diff_add))
+            .child(div().flex_none().text_color(theme.fg_muted).child(shell))
+            .when_some(directory, |line, directory| {
+                line.child(text(directory, theme.fg_dim, FontWeight::NORMAL))
+            })
+            .into_any_element(),
+        Headline::Empty => line
+            .child(chip(Icon::Terminal, theme.fg_dim))
+            .child(text(
+                tr!("No terminal").to_string(),
+                theme.fg_dim,
+                FontWeight::NORMAL,
+            ))
+            .into_any_element(),
+    }
 }
 
 fn row_glyph(project: &Project, model: &AppModel) -> gpui::Div {
     let id = project.id;
     let m = model.metrics;
-    let theme = &model.theme;
     let activity = super::super::tab_activity::worktree_status(id, model);
     div()
         .flex_none()
-        .w(m.scaled(16.0))
         .flex()
         .items_center()
         .justify_center()
-        .when(
-            activity == super::super::tab_activity::Status::None,
-            |glyph| {
-                glyph.child(IconGlyph::new(
-                    if project.home {
-                        Icon::House
-                    } else {
-                        Icon::GitBranch
-                    },
-                    m.scaled(16.0),
-                    theme.fg_muted,
-                ))
-            },
-        )
         .when(
             activity != super::super::tab_activity::Status::None,
             |glyph| {

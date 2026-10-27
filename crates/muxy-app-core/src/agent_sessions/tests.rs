@@ -94,6 +94,21 @@ fn reads_native_formats_and_scopes_to_the_exact_project() -> Result {
     let listing = catalog.scan(&roots, &worktree);
     assert_eq!(listing.sessions.len(), 1);
     assert_eq!(listing.sessions[0].id, "worktree-1");
+    let batch = catalog.scan_projects(&roots, &[project.clone(), worktree.clone()]);
+    assert_eq!(batch.sessions.len(), 8);
+    assert_eq!(
+        batch
+            .sessions
+            .iter()
+            .filter(|session| session.directory == normalized(&worktree))
+            .count(),
+        1
+    );
+    assert_eq!(
+        catalog.scan(&roots, &project).sessions.len(),
+        7,
+        "a batched sidebar scan must not leak another checkout into the session panel"
+    );
     Ok(())
 }
 

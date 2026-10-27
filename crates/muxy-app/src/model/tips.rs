@@ -33,12 +33,6 @@ pub(crate) const TIPS: &[&str] = &[
         "In a Git project, right-click the project and choose Worktrees → Show Worktrees, then New Worktree…, to work on a branch in its own folder with its own tabs."
     ),
     tr_key!(
-        "By default, ⌘I opens Composer to draft prompts with files, images, or dictation, and ⌘↩ sends it. Send to All Split Panes in its menu targets every split."
-    ),
-    tr_key!(
-        "Record a shortcut in Settings → Quick Terminal → Shortcut to open a floating Home shell over any app."
-    ),
-    tr_key!(
         "To pair a phone, turn on Settings → Mobile → Allow mobile devices and click Show Pairing Code, or run muxy mobile enable and then muxy mobile pair."
     ),
     tr_key!(

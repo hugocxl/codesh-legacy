@@ -80,15 +80,6 @@ terminal's folder, and you can:
 - Select a command's output with **Select Command Output** in the Edit menu or
   the right-click menu.
 
-## Quick Terminal
-
-A terminal that drops down from the top of the screen from anywhere. Record a
-global shortcut in **Settings → Quick Terminal** first; none is set by default.
-
-It keeps one terminal in Home, hides when it loses focus, and has its own size
-and transparency settings. `Cmd+W` closes it and ends its terminal, whatever
-the close setting, unless another pane still shows it.
-
 ## Appearance and configuration
 
 Fonts, colors, transparency, vibrancy, cursor, padding, selection, scrolling,

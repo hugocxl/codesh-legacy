@@ -39,6 +39,9 @@ pub(crate) struct AgentSessions {
     pub(crate) highlighted_provider: usize,
     pub(crate) task: Option<Task<()>>,
     pub(crate) roots: Option<Roots>,
+    pub(crate) latest: std::collections::HashMap<ProjectId, Session>,
+    card_clock: Option<Task<()>>,
+    refresh_pending: bool,
     catalog: Catalog,
     subscription: Option<Subscription>,
 }
@@ -63,6 +66,9 @@ impl AgentSessions {
             } else {
                 Roots::from_environment()
             },
+            latest: std::collections::HashMap::new(),
+            card_clock: None,
+            refresh_pending: false,
             catalog: Catalog::default(),
             subscription: None,
         }
@@ -136,7 +142,9 @@ impl AppModel {
             self.agent_sessions.scope = scope;
             self.agent_sessions.listing = Listing::default();
             self.filter_agent_sessions(cx);
-            self.refresh_agent_sessions(cx);
+            if self.agent_sessions.scope.is_some() {
+                self.refresh_agent_sessions(cx);
+            }
         }
     }
 
@@ -170,33 +178,85 @@ impl AppModel {
     }
 
     pub(crate) fn refresh_agent_sessions(&mut self, cx: &mut Context<Self>) {
+        if !cfg!(test) && self.agent_sessions.card_clock.is_none() {
+            // Invalidate only the cached sidebar once a minute for relative ages.
+            self.agent_sessions.card_clock = Some(cx.spawn(async move |model, cx| {
+                loop {
+                    cx.background_executor()
+                        .timer(std::time::Duration::from_secs(60))
+                        .await;
+                    if model
+                        .update(cx, |model, cx| {
+                            if model.appearance.sidebar_expanded {
+                                model.sidebar_view.update(cx, |_, cx| cx.notify());
+                            }
+                        })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }));
+        }
         if self.agent_sessions.task.is_some() {
+            self.agent_sessions.refresh_pending = true;
             return;
         }
-        let (Some(scope), Some(roots)) = (
-            self.agent_sessions_scope(),
-            self.agent_sessions.roots.clone(),
-        ) else {
+        let Some(roots) = self.agent_sessions.roots.clone() else {
             return;
         };
+        let scope = self.agent_sessions_scope();
+        let projects: Vec<_> = self
+            .state
+            .projects()
+            .iter()
+            .filter(|project| {
+                project.server_id.is_local() && project.status() == ProjectStatus::Available
+            })
+            .map(|project| (project.id, project.directory.clone()))
+            .collect();
         let mut catalog = std::mem::take(&mut self.agent_sessions.catalog);
         let requested = scope.clone();
         let scan = cx.background_executor().spawn(async move {
-            let listing = catalog.scan(&roots, &requested.directory);
-            (catalog, listing)
+            let directories: Vec<_> = projects
+                .iter()
+                .map(|(_, directory)| directory.clone())
+                .collect();
+            let mut listing = catalog.scan_projects(&roots, &directories);
+            let mut latest = std::collections::HashMap::new();
+            for (id, directory) in projects {
+                let directory = std::fs::canonicalize(&directory).unwrap_or(directory);
+                if let Some(session) = listing
+                    .sessions
+                    .iter()
+                    .find(|session| session.directory == directory)
+                {
+                    latest.insert(id, session.clone());
+                }
+            }
+            let directory = requested.as_ref().map(|scope| {
+                std::fs::canonicalize(&scope.directory).unwrap_or_else(|_| scope.directory.clone())
+            });
+            listing
+                .sessions
+                .retain(|session| Some(&session.directory) == directory.as_ref());
+            (catalog, listing, latest)
         });
         self.agent_sessions.task = Some(cx.spawn(async move |model, cx| {
-            let (catalog, listing) = scan.await;
+            let (catalog, listing, latest) = scan.await;
             let _ = model.update(cx, |model, cx| {
                 model.agent_sessions.task = None;
                 model.agent_sessions.catalog = catalog;
-                if model.agent_sessions_scope().as_ref() == Some(&scope) {
+                model.agent_sessions.latest = latest;
+                let pending =
+                    std::mem::take(&mut model.agent_sessions.refresh_pending) || listing.pending;
+                if model.agent_sessions_scope() == scope {
                     model.agent_sessions.listing = listing;
                     model.filter_agent_sessions(cx);
-                    if model.agent_sessions.listing.pending {
+                    if pending {
                         model.refresh_agent_sessions(cx);
                     }
-                } else {
+                } else if model.agent_sessions_scope().is_some() || pending {
                     model.refresh_agent_sessions(cx);
                 }
                 cx.notify();

@@ -313,7 +313,6 @@ impl AppModel {
     /// them; that panel reopens on a later visit instead.
     fn builtin_panel_open(&self) -> bool {
         [
-            crate::views::composer::PANEL,
             crate::model::agents_panel::PANEL,
             crate::model::agent_sessions::PANEL,
         ]
@@ -397,9 +396,7 @@ impl AppModel {
     pub(crate) fn place_panel(&mut self, placement: PanelPlacement, cx: &mut Context<Self>) {
         if let Some(displacement) = self.panels.place(placement) {
             let id = displacement.displaced.id;
-            if id.as_str() == crate::views::composer::PANEL {
-                self.dismiss_composer(false, cx);
-            } else if id.as_str() == crate::model::agents_panel::PANEL {
+            if id.as_str() == crate::model::agents_panel::PANEL {
                 self.agents_panel.drag = None;
                 self.agents_panel.resize.end();
                 self.appearance.agents_panel_visible = false;

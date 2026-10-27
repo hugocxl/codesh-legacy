@@ -46,19 +46,12 @@ pub mod vibrancy;
 #[allow(unsafe_code)]
 pub mod window_drag;
 
-#[allow(unsafe_code)]
-pub mod quick_terminal;
-
 #[allow(
     unsafe_code,
     reason = "Native notification delegate and Objective-C initialization"
 )]
 pub mod notifications;
 
-#[allow(unsafe_code, reason = "Apple speech and capture framework adapter")]
-pub mod voice;
-
-#[allow(unsafe_code, reason = "Native clipboard item preservation")]
 pub mod pasteboard;
 
 #[allow(
@@ -83,3 +76,11 @@ pub mod transcript;
     reason = "JavaScriptCore contexts confined to script threads"
 )]
 pub mod javascript;
+
+pub mod accessibility;
+
+#[allow(
+    unsafe_code,
+    reason = "Native on-device dictation capture and transcription"
+)]
+pub mod voice;

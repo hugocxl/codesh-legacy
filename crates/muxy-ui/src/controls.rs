@@ -4,7 +4,7 @@ use crate::text_input::TextInput;
 use crate::theme::{Metrics, Theme};
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    AnyElement, App, Bounds, ClickEvent, Corner, Entity, FontWeight, InteractiveElement,
+    AnyElement, App, Bounds, ClickEvent, Corner, Entity, Focusable, FontWeight, InteractiveElement,
     IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, SharedString, Styled,
     Window, anchored, canvas, deferred, div, point, px,
 };
@@ -44,16 +44,6 @@ pub fn toggle(
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> AnyElement {
     let Style { theme, metrics } = style;
-    let knob = div()
-        .size(metrics.scaled(12.0))
-        .flex_none()
-        .rounded_full()
-        .bg(if value {
-            theme.accent_foreground
-        } else {
-            theme.fg_muted
-        });
-
     div()
         .id(SharedString::from(format!("settings-toggle-{id}")))
         .debug_selector({
@@ -64,19 +54,139 @@ pub fn toggle(
         .flex_row()
         .items_center()
         .flex_none()
-        .w(metrics.scaled(28.0))
-        .h(metrics.scaled(16.0))
-        .px(metrics.scaled(2.0))
+        .w(metrics.scaled(38.0))
+        .h(metrics.scaled(22.0))
         .rounded_full()
         .cursor_pointer()
-        .bg(if value { theme.accent } else { theme.surface })
         .border_1()
-        .border_color(if value { theme.accent } else { theme.border })
-        .when(value, Styled::justify_end)
-        .child(knob)
+        .border_color(gpui::transparent_black())
+        .child(SwitchVisual {
+            value,
+            accent: theme.accent,
+            off: theme.fg_alpha(0.18),
+            scale: f32::from(metrics.scaled(1.0)),
+        })
         .focus(|focus| focus.border_color(theme.accent))
         .button_interaction(on_click)
         .into_any_element()
+}
+
+// State lives with the rendered element, so opening a page does not animate
+// every switch. Only a value transition schedules frames, for at most 150ms.
+struct SwitchVisual {
+    value: bool,
+    accent: gpui::Hsla,
+    off: gpui::Hsla,
+    scale: f32,
+}
+
+struct SwitchMotion {
+    target: bool,
+    from: f32,
+    position: f32,
+    started: std::time::Instant,
+}
+
+impl IntoElement for SwitchVisual {
+    type Element = Self;
+
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl gpui::Element for SwitchVisual {
+    type RequestLayoutState = ();
+    type PrepaintState = f32;
+
+    fn id(&self) -> Option<gpui::ElementId> {
+        Some("switch-visual".into())
+    }
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _: Option<&gpui::GlobalElementId>,
+        _: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (gpui::LayoutId, ()) {
+        let style = gpui::Style {
+            size: gpui::size(gpui::relative(1.0).into(), gpui::relative(1.0).into()),
+            ..Default::default()
+        };
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        id: Option<&gpui::GlobalElementId>,
+        _: Option<&gpui::InspectorElementId>,
+        _: Bounds<Pixels>,
+        (): &mut (),
+        window: &mut Window,
+        _: &mut App,
+    ) -> f32 {
+        let Some(id) = id else {
+            return if self.value { 1.0 } else { 0.0 };
+        };
+        window.with_element_state(id, |state: Option<SwitchMotion>, window| {
+            let now = std::time::Instant::now();
+            let target = if self.value { 1.0 } else { 0.0 };
+            let mut state = state.unwrap_or(SwitchMotion {
+                target: self.value,
+                from: target,
+                position: target,
+                started: now,
+            });
+            if state.target != self.value {
+                state.target = self.value;
+                state.from = state.position;
+                state.started = now;
+            }
+            let t = (now.duration_since(state.started).as_secs_f32() / 0.15).min(1.0);
+            let eased = t * t * (3.0 - 2.0 * t);
+            state.position = state.from + (target - state.from) * eased;
+            if t < 1.0 && (state.position - target).abs() > f32::EPSILON {
+                window.request_animation_frame();
+            }
+            (state.position, state)
+        })
+    }
+
+    fn paint(
+        &mut self,
+        _: Option<&gpui::GlobalElementId>,
+        _: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        (): &mut (),
+        position: &mut f32,
+        window: &mut Window,
+        _: &mut App,
+    ) {
+        let off: gpui::Rgba = self.off.into();
+        let on: gpui::Rgba = self.accent.into();
+        let mix = |a: f32, b: f32| a + (b - a) * *position;
+        let color = gpui::Rgba {
+            r: mix(off.r, on.r),
+            g: mix(off.g, on.g),
+            b: mix(off.b, on.b),
+            a: mix(off.a, on.a),
+        };
+        window.paint_quad(gpui::fill(bounds, color).corner_radii(bounds.size.height / 2.0));
+        let diameter = px(18.0 * self.scale);
+        let inset = (bounds.size.height - diameter) / 2.0;
+        let origin = point(
+            bounds.left() + inset + (bounds.size.width - diameter - inset * 2.0) * *position,
+            bounds.top() + inset,
+        );
+        let knob = Bounds::new(origin, gpui::size(diameter, diameter));
+        let shadow = Bounds::new(origin + point(px(0.0), px(self.scale)), knob.size);
+        window.paint_quad(gpui::fill(shadow, gpui::rgba(0x0000_0033)).corner_radii(diameter / 2.0));
+        window.paint_quad(gpui::fill(knob, gpui::rgb(0x00ff_ffff)).corner_radii(diameter / 2.0));
+    }
 }
 
 /// A box ticked when `checked`. `mixed` shows a dash instead, for a box that
@@ -100,8 +210,8 @@ pub fn checkbox(
         .flex_none()
         .items_center()
         .justify_center()
-        .size(metrics.scaled(16.0))
-        .rounded(metrics.radius_sm())
+        .size(metrics.scaled(14.0))
+        .rounded(metrics.scaled(3.0))
         .cursor_pointer()
         .bg(if on { theme.accent } else { theme.surface })
         .border_1()
@@ -114,7 +224,7 @@ pub fn checkbox(
             checkbox.child(crate::components::IconGlyph::new(
                 crate::icon::Icon::Check,
                 metrics.scaled(12.0),
-                theme.accent_foreground,
+                gpui::rgb(0x00ff_ffff).into(),
             ))
         })
         .when(mixed && !checked, |checkbox| {
@@ -123,7 +233,7 @@ pub fn checkbox(
                     .w(metrics.scaled(8.0))
                     .h(metrics.scaled(2.0))
                     .rounded_full()
-                    .bg(theme.accent_foreground),
+                    .bg(gpui::rgb(0x00ff_ffff)),
             )
         })
         .focus(|focus| focus.border_color(theme.accent))
@@ -148,13 +258,13 @@ pub fn button(
         .flex_none()
         .items_center()
         .justify_center()
-        .h(metrics.control_medium())
+        .h(metrics.scaled(24.0))
         .px(metrics.spacing5())
-        .rounded(metrics.radius_sm())
-        .bg(theme.surface)
+        .rounded(metrics.scaled(6.0))
+        .bg(theme.fg_alpha(0.16))
         .border_1()
         .border_color(theme.border)
-        .text_size(metrics.font_footnote())
+        .text_size(metrics.scaled(13.0))
         .font_weight(FontWeight::MEDIUM)
         .text_color(theme.fg)
         .when(!enabled, |element| element.opacity(0.4))
@@ -237,7 +347,7 @@ pub fn picker_trigger(
         .flex()
         .flex_row()
         .items_center()
-        .justify_between()
+        .justify_end()
         .gap(metrics.spacing3())
         .map(|field| {
             if let Some(width) = width {
@@ -246,30 +356,37 @@ pub fn picker_trigger(
                 field.w_full()
             }
         })
-        .h(metrics.control_medium())
-        .px(metrics.spacing4())
-        .rounded(metrics.radius_sm())
+        .h(metrics.scaled(24.0))
+        .px(metrics.scaled(2.0))
+        .rounded(metrics.scaled(6.0))
         .cursor_pointer()
-        .bg(theme.surface)
-        .border_1()
-        .border_color(if open { theme.accent } else { theme.border })
+        .when(open, |field| field.bg(theme.hover))
         .hover(|hover| hover.bg(theme.hover))
         .child(
             div()
-                .flex_grow()
                 .min_w(px(0.0))
                 .truncate()
-                .text_size(metrics.font_footnote())
+                .text_size(metrics.scaled(13.0))
                 .text_color(theme.fg)
                 .child(SharedString::from(label.to_owned())),
         )
-        .child(SymbolGlyph::new(
-            "chevron.up.chevron.down",
-            metrics.font_caption(),
-            theme.fg_muted,
-        ))
+        .child(
+            div()
+                .flex()
+                .flex_none()
+                .items_center()
+                .justify_center()
+                .size(metrics.scaled(20.0))
+                .rounded(metrics.scaled(5.0))
+                .bg(theme.surface)
+                .child(crate::components::IconGlyph::new(
+                    crate::icon::Icon::ChevronsUpDown,
+                    metrics.scaled(12.0),
+                    theme.fg,
+                )),
+        )
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .focus(|focus| focus.border_color(theme.accent))
+        .focus(|focus| focus.bg(theme.accent_soft))
         .button_interaction(on_toggle)
         .into_any_element()
 }
@@ -288,9 +405,10 @@ pub fn segmented(
         .flex_row()
         .flex_none()
         .items_center()
+        .h(metrics.scaled(24.0))
         .gap(px(1.0))
         .p(px(1.0))
-        .rounded(metrics.radius_sm())
+        .rounded(metrics.scaled(7.0))
         .bg(theme.surface)
         .border_1()
         .border_color(theme.border);
@@ -313,21 +431,19 @@ pub fn segmented(
                 .flex_none()
                 .items_center()
                 .justify_center()
-                .h(metrics.control_medium() - px(4.0))
+                .h(metrics.scaled(20.0))
                 .px(metrics.spacing4())
-                .rounded(metrics.radius_sm())
-                .text_size(metrics.font_footnote())
+                .rounded(metrics.scaled(6.0))
+                .text_size(metrics.scaled(13.0))
                 .font_weight(if is_selected {
                     FontWeight::MEDIUM
                 } else {
                     FontWeight::NORMAL
                 })
-                .text_color(if is_selected {
-                    theme.accent_foreground
-                } else {
-                    theme.fg
+                .text_color(theme.fg)
+                .when(is_selected, |element| {
+                    element.bg(theme.fg_alpha(0.18)).shadow_sm()
                 })
-                .when(is_selected, |element| element.bg(theme.accent))
                 .when(!choice.enabled, |element| element.opacity(0.4))
                 .when(choice.enabled && !is_selected, |element| {
                     element
@@ -338,7 +454,7 @@ pub fn segmented(
                     element
                         .focus(|focus| {
                             focus.bg(if is_selected {
-                                theme.accent
+                                theme.fg_alpha(0.18)
                             } else {
                                 theme.hover
                             })
@@ -379,7 +495,7 @@ pub fn slider(
     let track: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
     let recorder = track.clone();
     let width = metrics.scaled(SLIDER_WIDTH);
-    let knob = metrics.scaled(12.0);
+    let knob = metrics.scaled(18.0);
     let rail = metrics.scaled(4.0);
 
     div()
@@ -423,7 +539,8 @@ pub fn slider(
                 .left((width - knob) * fraction)
                 .size(knob)
                 .rounded_full()
-                .bg(theme.accent_foreground)
+                .bg(gpui::rgb(0x00ff_ffff))
+                .shadow_sm()
                 .border_1()
                 .border_color(theme.border),
         )
@@ -455,11 +572,12 @@ pub fn text_area(
     let Style { theme, metrics } = style;
     div()
         .id(SharedString::from(format!("settings-area-{id}")))
+        .relative()
         .flex()
         .flex_col()
         .min_h(px(0.0))
         .p(metrics.spacing4())
-        .rounded(metrics.radius_sm())
+        .rounded(metrics.scaled(6.0))
         .bg(theme.surface)
         .border_1()
         .border_color(theme.border)
@@ -471,7 +589,41 @@ pub fn text_area(
             None => element.flex_grow(),
         })
         .child(input.clone())
+        .child(input_focus_ring(style, input, 6.0))
         .into_any_element()
+}
+
+fn input_focus_ring(style: Style<'_>, input: &Entity<TextInput>, radius: f32) -> impl IntoElement {
+    let input = input.clone();
+    let accent = style.theme.accent;
+    let radius = style.metrics.scaled(radius);
+    let thickness = style.metrics.scaled(3.0);
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, cx| {
+            if input.focus_handle(cx).contains_focused(window, cx) {
+                let mut soft = accent;
+                soft.a = 0.35;
+                window.paint_quad(
+                    gpui::outline(
+                        bounds.inset(thickness / 2.0),
+                        soft,
+                        gpui::BorderStyle::Solid,
+                    )
+                    .corner_radii(radius)
+                    .border_widths(thickness),
+                );
+                window.paint_quad(
+                    gpui::outline(bounds.inset(px(0.5)), accent, gpui::BorderStyle::Solid)
+                        .corner_radii(radius),
+                );
+            }
+        },
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_full()
 }
 
 pub fn text_field(
@@ -487,14 +639,15 @@ pub fn text_field(
             let selector = format!("settings-field-{id}");
             move || selector.clone()
         })
+        .relative()
         .flex()
         .flex_row()
         .items_center()
-        .h(metrics.control_medium())
-        .min_h(metrics.control_medium())
-        .max_h(metrics.control_medium())
+        .h(metrics.scaled(24.0))
+        .min_h(metrics.scaled(24.0))
+        .max_h(metrics.scaled(24.0))
         .px(metrics.spacing4())
-        .rounded(metrics.radius_sm())
+        .rounded(metrics.scaled(6.0))
         .bg(theme.surface)
         .border_1()
         .border_color(theme.border)
@@ -504,6 +657,7 @@ pub fn text_field(
         })
         .on_mouse_down_out(|_, window, _| window.blur())
         .child(crate::text_input::growing_input(input))
+        .child(input_focus_ring(style, input, 6.0))
         .into_any_element()
 }
 
@@ -515,20 +669,22 @@ pub fn search_field(
     let Style { theme, metrics } = style;
     div()
         .id(id)
+        .relative()
         .flex()
         .flex_none()
         .items_center()
         .gap(metrics.spacing4())
-        .h(metrics.spacing10())
+        .h(metrics.scaled(28.0))
         .px(metrics.scaled(9.0))
-        .bg(theme.bg)
+        .bg(theme.surface)
         .border_1()
-        .border_color(theme.border_solid())
-        .rounded(metrics.scaled(5.0))
+        .border_color(gpui::transparent_black())
+        .rounded(metrics.scaled(8.0))
         .child(SymbolGlyph::new(
             "magnifyingglass",
             metrics.icon_md(),
             theme.fg_muted,
         ))
         .child(crate::text_input::growing_input(input))
+        .child(input_focus_ring(style, input, 8.0))
 }

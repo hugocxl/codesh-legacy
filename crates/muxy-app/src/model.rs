@@ -6,7 +6,6 @@ pub(crate) mod browsers;
 pub(crate) mod capabilities;
 mod catalog;
 pub(crate) mod commands;
-mod composer;
 mod diagnostics;
 pub(crate) mod extensions;
 pub(crate) mod git;
@@ -16,7 +15,6 @@ mod mobile;
 mod preferences;
 pub(crate) mod project_layouts;
 pub(crate) mod proxy;
-mod quick_terminal;
 mod reconnect;
 pub(crate) mod remote_files;
 mod remote_servers;
@@ -118,7 +116,6 @@ pub(crate) struct AppModel {
     pub(crate) webviews: webviews::Webviews,
     pub(crate) browsers: browsers::Browsers,
     pub(crate) panels: muxy_ui::panel::PanelHost,
-    pub(crate) composer: composer::ComposerRuntime,
     pub(crate) voice: voice::VoiceRuntime,
     pub(crate) git: git::GitState,
     pub(crate) ai: ai::Runtime,
@@ -126,7 +123,6 @@ pub(crate) struct AppModel {
     pub(crate) proxy: proxy::ProxyState,
     project_layouts: project_layouts::ProjectLayouts,
     pub(crate) existing_sessions: crate::views::session_picker::ExistingSessions,
-    pub(crate) quick: quick_terminal::QuickTerminalRuntime,
     pub(crate) window: gpui::AnyWindowHandle,
     pub(crate) state: AppState,
     pub(crate) grids: HashMap<PaneId, PaneView>,
@@ -189,6 +185,9 @@ pub(crate) struct AppModel {
     pub(crate) window_drag: Option<muxy_ui::window_drag::WindowDrag>,
     #[cfg(target_os = "macos")]
     pub(crate) sidebar_vibrancy: Option<muxy_ui::vibrancy::SidebarVibrancy>,
+    /// Width the traffic lights take at the window's left edge, as of the
+    /// last render: zero in full screen and off macOS, where none are shown.
+    pub(crate) window_buttons: f32,
     pub(crate) overlay_subscription: Option<Subscription>,
     pub(crate) picker_search: crate::picker::search::SearchService,
     pub(crate) navigation: crate::navigation::Navigation,
@@ -258,7 +257,6 @@ impl AppModel {
                 cx.notify();
             });
         }
-        self.refresh_quick_terminal(cx);
         let inputs = [
             self.agent_sessions.input.as_ref(),
             self.servers_tab.search_input(),
@@ -269,11 +267,6 @@ impl AppModel {
                     muxy_ui::text_input::InputStyle::compact(&self.theme, &self.metrics),
                     cx,
                 );
-            });
-        }
-        if let Some(view) = &self.composer.view {
-            view.update(cx, |view, cx| {
-                view.appearance(self.theme.clone(), self.metrics, cx);
             });
         }
         if let Some(view) = &self.voice.view {
@@ -471,7 +464,7 @@ impl AppModel {
             crate::ai::terminate_all();
             model.close_voice(cx);
             model.save(cx);
-            model.flush_composer(cx)
+            async {}
         });
         let themes = crate::theme::Catalog::load(&boot.state_path.with_file_name("themes"));
         let (theme, palette) = themes.resolve(&boot.settings.appearance, dark);
@@ -491,11 +484,6 @@ impl AppModel {
         Self::follow_notifications(opened, cx);
         muxy_ui::webview::set_data_directory(&boot.state_path.with_file_name("webviews"));
         let mut capabilities = capabilities::backends();
-        #[cfg(not(test))]
-        capabilities.set(
-            muxy_core::capability::Feature::QuickTerminal,
-            muxy_ui::quick_terminal::platform::capability(window),
-        );
         capabilities.set(
             muxy_core::capability::Feature::Notifications,
             notifications.capability(),
@@ -539,7 +527,6 @@ impl AppModel {
             webviews: webviews::Webviews::default(),
             browsers: browsers::Browsers::default(),
             panels: muxy_ui::panel::PanelHost::default(),
-            composer: composer::ComposerRuntime::new(boot.composer),
             voice: voice::VoiceRuntime::default(),
             git: git::GitState::default(),
             ai: ai::Runtime::default(),
@@ -551,7 +538,6 @@ impl AppModel {
             ),
             proxy: proxy::ProxyState::load(boot.state_path.with_file_name("proxy.toml")),
             existing_sessions: crate::views::session_picker::ExistingSessions::default(),
-            quick: quick_terminal::QuickTerminalRuntime::new(&boot.settings.quick_terminal, cx),
             window: window.window_handle(),
             state: boot.state,
             grids: HashMap::new(),
@@ -611,6 +597,7 @@ impl AppModel {
             window_drag: muxy_ui::window_drag::WindowDrag::new(&window.window_title()),
             #[cfg(target_os = "macos")]
             sidebar_vibrancy: None,
+            window_buttons: 0.0,
             overlay_subscription: None,
             picker_search: crate::picker::search::SearchService::default(),
             navigation: crate::navigation::Navigation::default(),
@@ -1286,7 +1273,6 @@ impl AppModel {
             .iter()
             .flat_map(|project| &project.tabs)
             .flat_map(|tab| &tab.panes)
-            .chain(self.state.quick_terminal())
             .any(|pane| {
                 !closing.contains(&pane.id)
                     && self.pane_session(pane.id) == Some(session)
@@ -1516,7 +1502,6 @@ impl AppModel {
             .iter()
             .flat_map(|project| &project.tabs)
             .flat_map(|tab| &tab.panes)
-            .chain(self.state.quick_terminal())
             .any(|pane| pane.id == id && matches!(pane.content, PaneContent::Terminal { .. }))
     }
 
@@ -1526,7 +1511,6 @@ impl AppModel {
             .iter()
             .flat_map(|project| &project.tabs)
             .flat_map(|tab| &tab.panes)
-            .chain(self.state.quick_terminal())
             .find(|pane| pane.id == id)
             .and_then(|pane| match pane.content {
                 PaneContent::Terminal { session } => session,
@@ -1676,13 +1660,12 @@ impl AppModel {
             self.state.reveal_current_project();
         }
         self.sync_agent_sessions(cx);
-        self.sync_composer(cx);
         self.sync_project_layouts(cx);
         self.sync_voice(cx);
         self.sync_git(cx);
         self.sync_references(cx);
         self.refresh_existing_sessions(cx);
-        let visible = self.attached_panes();
+        let visible = self.visible_panes();
         let hidden: Vec<_> = self
             .grids
             .keys()
@@ -1729,7 +1712,6 @@ impl AppModel {
             .iter()
             .flat_map(|project| &project.tabs)
             .flat_map(|tab| &tab.panes)
-            .chain(self.state.quick_terminal())
             .map(|pane| pane.id)
             .collect();
         self.completions.retain(|id| panes.contains(id));
@@ -1770,8 +1752,7 @@ impl AppModel {
         let state = self.pane_state(id);
         let view = cx.new(|cx| {
             let mut pane = TerminalPane::new(self.palette, terminal, cx);
-            pane.native_vibrancy =
-                self.terminal_background.available && !self.is_quick_terminal(id);
+            pane.native_vibrancy = self.terminal_background.available;
             pane.configured_font_size = self.terminal.font_size;
             pane.copy_on_select = self.settings.clipboard.copy_on_select;
             pane.open_context = open_context;
@@ -1794,11 +1775,7 @@ impl AppModel {
             }
             PaneEvent::Upload(upload) => model.upload_to_pane(id, upload.clone(), cx),
             PaneEvent::ContextMenu(position) => {
-                if model.is_quick_terminal(id) {
-                    model.quick_terminal_menu(*position, cx);
-                } else {
-                    model.terminal_menu(id, *position, cx);
-                }
+                model.terminal_menu(id, *position, cx);
             }
             PaneEvent::SelectionCopied => {
                 model.show_notice(tr!("Copied to clipboard").to_string(), cx);
@@ -1806,9 +1783,7 @@ impl AppModel {
             PaneEvent::Bell => cx.notify(),
             PaneEvent::Focused => {
                 model.blur_webviews(cx);
-                if !model.is_quick_terminal(id) {
-                    model.focus_pane(id, cx);
-                }
+                model.focus_pane(id, cx);
             }
             PaneEvent::History(request) => model.fetch_history(id, *request, cx),
             PaneEvent::Search(request) => model.search(id, request.clone(), cx),
@@ -1845,7 +1820,7 @@ impl AppModel {
                 _subscription: subscription,
             },
         );
-        if !self.is_quick_terminal(id) && self.pane_tab(id) == self.active_tab() {
+        if self.pane_tab(id) == self.active_tab() {
             self.focus_requested = true;
         }
     }
@@ -1890,9 +1865,6 @@ impl AppModel {
         sessions: &[SessionInfo],
         cx: &mut Context<Self>,
     ) {
-        if server.is_local() {
-            self.restore_quick_terminal(sessions, cx);
-        }
         let plan = restore::plan(&self.state, server, sessions);
         let active = self.active_pane();
         for (pane, _) in plan.close {
@@ -1928,16 +1900,13 @@ impl AppModel {
             self.start_attach(pane, size, cx);
         }
         self.sync_visible(cx);
-        if server.is_local() {
-            self.refresh_quick_terminal(cx);
-        }
     }
 
     fn ensure_visible(&mut self, cx: &mut Context<Self>) {
         if self.quitting != Quitting::Idle {
             return;
         }
-        for id in self.attached_panes() {
+        for id in self.visible_panes() {
             let server = self.state.pane_server(id).unwrap_or_else(ServerId::local);
             if self.pending.contains_key(&id) || !self.ready(server) || !self.confirmed(server) {
                 continue;
@@ -1989,11 +1958,10 @@ impl AppModel {
             return;
         }
         let Some(project) = self.state.projects().iter().find(|project| {
-            (self.is_quick_terminal(pane) && project.id == self.state.home().id)
-                || project
-                    .tabs
-                    .iter()
-                    .any(|tab| tab.panes.iter().any(|candidate| candidate.id == pane))
+            project
+                .tabs
+                .iter()
+                .any(|tab| tab.panes.iter().any(|candidate| candidate.id == pane))
         }) else {
             return;
         };
@@ -2321,16 +2289,7 @@ impl AppModel {
                 session,
                 result,
             } => {
-                if local
-                    && self
-                        .quick
-                        .closing
-                        .is_some_and(|(closing, _)| closing == tab)
-                {
-                    self.check_quick_close(result, cx);
-                } else {
-                    self.receive_close_checked(tab, session, result, cx);
-                }
+                self.receive_close_checked(tab, session, result, cx);
             }
             Update::EndedAll(result) if local => self.finish_end_all(result, cx),
             Update::Flushed if self.quitting == Quitting::Preserve => {
@@ -2456,10 +2415,6 @@ impl AppModel {
             }
             self.sync_references(cx);
         }
-        if server.is_local() && self.is_quick_terminal(pane) && missing_session(error) {
-            self.close_quick_terminal(cx);
-            return;
-        }
         if let Some(session) = session {
             self.initial_directories.remove(&pane);
             if self.state.pane_server(pane) != Some(server)
@@ -2472,7 +2427,7 @@ impl AppModel {
             }
             self.save(cx);
         }
-        if self.pane_tab(pane).is_none() && !self.is_quick_terminal(pane) {
+        if self.pane_tab(pane).is_none() {
             return;
         }
         if missing_session(error) {
@@ -2737,14 +2692,6 @@ impl AppModel {
         if !self.state.session_references(server).contains(&session) {
             return;
         }
-        if server.is_local()
-            && self
-                .state
-                .quick_terminal()
-                .is_some_and(|pane| self.pane_session(pane.id) == Some(session))
-        {
-            self.close_quick_terminal(cx);
-        }
         let active = self.active_pane();
         if let Err(error) = self.state.close_session_panes(server, session) {
             self.fail(error.to_string(), cx);
@@ -2838,7 +2785,6 @@ mod tests {
     mod ai;
     mod browsers;
     mod commands;
-    mod composer;
     mod detach;
     mod find;
     mod git;
@@ -2849,7 +2795,6 @@ mod tests {
     mod project_order;
     mod projects;
     mod proxy;
-    mod quick_terminal;
     mod remote_devices;
     mod remote_parity;
     mod servers;
@@ -2969,7 +2914,6 @@ mod tests {
         (
             Boot {
                 import_message: None,
-                composer: muxy_app_core::composer::ComposerStore::load_from(&directory),
                 state,
                 state_path: directory.join("state.json"),
                 settings,

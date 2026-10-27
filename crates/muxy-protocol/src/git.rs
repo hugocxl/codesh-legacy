@@ -251,6 +251,14 @@ pub struct GitSummary {
     pub untracked: u32,
     #[n(9)]
     pub conflicted: u32,
+    /// Last commit subject, absent for unborn branches and older servers.
+    #[serde(default)]
+    #[n(10)]
+    pub commit_subject: Option<String>,
+    /// Last commit's committer time, in Unix seconds.
+    #[serde(default)]
+    #[n(11)]
+    pub commit_timestamp: Option<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Encode, Decode)]

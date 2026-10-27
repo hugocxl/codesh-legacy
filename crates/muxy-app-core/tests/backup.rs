@@ -28,19 +28,13 @@ fn one_x_settings_keep_unrelated_preferences_and_skip_unsupported_values() {
     let (settings, report) =
         backup::import_settings(&serde_json::to_vec(&source).unwrap(), &original).unwrap();
     assert_eq!(settings.window.default_size, original.window.default_size);
-    assert_eq!(settings.quick_terminal.width, 900);
-    assert_eq!(
-        settings.quick_terminal.height,
-        original.quick_terminal.height
-    );
     assert_eq!(
         settings.appearance.layout,
         muxy_app_core::settings::AppLayout::AgentsFocused
     );
-    assert!(settings.composer.pinned);
     assert_eq!(settings.appearance.language, "language-packs:ko");
     assert_eq!(settings.ai.prompts["create_pr"], "My instructions");
-    assert_eq!(report.skipped.len(), 3);
+    assert_eq!(report.skipped.len(), 7);
     let source = backup::settings_source(&settings).unwrap();
     assert!(!source.contains("never-copy"));
     assert!(!source.contains("example.com"));

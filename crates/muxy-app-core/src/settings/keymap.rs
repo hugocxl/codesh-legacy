@@ -105,6 +105,14 @@ impl Keymap {
             .find(|action| self.chord(*action) == Some(chord))
     }
 
+    /// Whether the effective binding equals the built-in default, including unbound actions.
+    pub fn is_default(&self, id: &str) -> bool {
+        let default = shortcuts::find(id)
+            .and_then(|shortcut| shortcut.keys.first())
+            .map(|key| KeyChord::default_binding(key));
+        self.binding(id) == default.as_ref()
+    }
+
     pub fn binding(&self, id: &str) -> Option<&KeyChord> {
         self.0.get(id)
     }
@@ -267,7 +275,12 @@ impl<'de> Deserialize<'de> for Keymap {
 }
 
 /// Actions that no longer exist. Older settings files that bind them still load.
-const RETIRED: [&str; 4] = [
+const RETIRED: [&str; 9] = [
+    "toggle_composer",
+    "composer.submit",
+    "composer.insert",
+    "composer.close",
+    "composer.voice",
     "project_colors.previous_color",
     "project_colors.next_color",
     "project_colors.choose_color",

@@ -53,7 +53,7 @@ impl PickerKind {
         match self {
             Self::Font(slot) => slot.id(),
             Self::Terminal(id) => id,
-            Self::Language => "composer-language",
+            Self::Language => "voice-language",
             Self::Theme(false) => "light-theme",
             Self::Theme(true) => "dark-theme",
             Self::AiProvider(action) => super::ai::provider_id(action),

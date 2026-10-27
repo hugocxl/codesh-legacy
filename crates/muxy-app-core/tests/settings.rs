@@ -845,3 +845,58 @@ fn invalid_servers_are_rejected_without_changing_the_file() -> Result {
     assert!(settings.servers.is_empty());
     Ok(())
 }
+
+#[test]
+fn retired_desktop_sections_and_bindings_do_not_block_existing_profiles() -> Result {
+    let fixture = Fixture::new()?;
+    let legacy = r#"
+[composer]
+presentation = "panel"
+voice_model = "/old/model.bin"
+language = "fr-FR"
+voice_auto_send = true
+[quick_terminal]
+enabled = true
+width = 900
+[quick_terminal.shortcut]
+key = "t"
+modifiers = 1048576
+"#;
+    let path = fixture.write(
+        "settings.toml",
+        &format!(
+            r#"
+[appearance]
+dark_theme = "Dracula"
+[keymap]
+toggle_composer = "cmd-i"
+"composer.submit" = "cmd-enter"
+toggle_voice_recording = "cmd-shift-i"
+"voice.finish" = "enter"
+split_right = "cmd-alt-d"
+{legacy}
+"#
+        ),
+    )?;
+    let settings = Settings::load(&path)?;
+    assert_eq!(settings.appearance.dark_theme, "Dracula");
+    assert_eq!(
+        settings.keymap.binding("split_right").map(KeyChord::as_str),
+        Some("cmd-alt-d")
+    );
+    assert_eq!(settings.voice.model, "/old/model.bin");
+    assert_eq!(settings.voice.language, "fr-FR");
+    assert!(settings.voice.auto_send);
+    settings.save_voice(&path)?;
+    assert_eq!(Settings::load(&path)?.voice, settings.voice);
+    let source = toml::to_string(&settings)?;
+    assert!(!source.contains("composer"));
+    assert!(!source.contains("quick_terminal"));
+    assert_eq!(toml::from_str::<Settings>(&source)?, settings);
+    let terminal_path = fixture.write("terminal.toml", &format!("font_size = 17\n{legacy}"))?;
+    let terminal = TerminalSettings::load_native(&terminal_path)?;
+    assert_eq!(terminal.font_size, 17.0);
+    terminal.save_native(&terminal_path)?;
+    assert_eq!(TerminalSettings::load_native(&terminal_path)?, terminal);
+    Ok(())
+}

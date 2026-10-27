@@ -113,8 +113,8 @@ arguments must be absolute paths on that computer.
 
 ## Working with remote files
 
-- Files dropped or pasted into a remote terminal, or sent from the
-  [composer](composer.md), are uploaded and their remote path is pasted.
+- Files dropped or pasted into a remote terminal are uploaded and their remote
+  paths are pasted.
 - `Cmd`-clicking a remote file offers a read-only copy on this Mac, or its path.
 - Git runs on the server. Pull request features need `gh` installed and signed
   in there.

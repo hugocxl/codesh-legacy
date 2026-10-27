@@ -10,7 +10,8 @@ impl AppModel {
     #[cfg(all(target_os = "macos", not(test)))]
     pub(crate) fn sync_sidebar_vibrancy(&mut self, window: &Window) {
         if enabled(&self.appearance) {
-            let width = self.sidebar_width();
+            // Codesh blurs the whole window background, not just the sidebar.
+            let width = f32::from(window.viewport_size().width);
             if let Some(effect) = &mut self.sidebar_vibrancy {
                 effect.set_width(width);
                 effect.set_appearance(self.theme.bg);
@@ -33,15 +34,10 @@ impl AppModel {
 }
 
 fn enabled(appearance: &Appearance) -> bool {
-    appearance.sidebar_expanded
-        && appearance.sidebar_vibrancy
-        && appearance.sidebar_vibrancy_level > 0
+    appearance.sidebar_vibrancy && appearance.sidebar_vibrancy_level > 0
 }
 
 fn background(appearance: &Appearance, theme: &Theme, available: bool) -> Hsla {
-    if !appearance.sidebar_expanded {
-        return theme.bg;
-    }
     // Codesh keeps the sidebar flat on the window colour unless the native
     // effect is on; upstream raises it instead.
     if !available || !enabled(appearance) {

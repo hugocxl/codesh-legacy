@@ -8,8 +8,6 @@ immediately, and Settings works while the server is offline.
 | Section | What's in it |
 | --- | --- |
 | General | Closing behavior, the app that opens files, window size, worktree locations |
-| Quick Terminal | Global shortcut, size, transparency |
-| Composer | Dictation, clearing, image submission, font |
 | Appearance | Language, light and dark themes, sidebar, status bar, tips |
 | Keyboard | Every shortcut. See [Keyboard shortcuts](keyboard-shortcuts.md) |
 | Commands | Your own commands, each run in a new tab, with optional shortcuts |
@@ -77,7 +75,7 @@ units keeps the numeric adjustment within the supported range.
 on it, including key bindings, to its default after you confirm.
 
 Themes remain in **Settings → Appearance**. Shell and history limits remain
-in **Settings → Server**. Quick Terminal opacity combines with terminal opacity.
+in **Settings → Server**.
 
 On the first launch without `terminal.toml`, Muxy imports the supported values
 from its old `ghostty.conf`, including included files and custom terminal key
@@ -125,3 +123,5 @@ your own? See [Extensions](../extensions/overview.md).
 
 Language packs are extensions too. Pick a language in **Settings → Appearance →
 App language**, or choose **Browse language extensions…**.
+
+Standalone dictation preferences are in **General → Voice**, stored in `[voice]`.

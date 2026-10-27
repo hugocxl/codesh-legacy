@@ -505,8 +505,6 @@ impl AppModel {
         self.forget_server_sessions(server, cx);
         self.forget_server_layouts(server, cx);
         if server.is_local() {
-            self.quick.closing = None;
-            self.refresh_quick_terminal(cx);
             if self.server_preferences.busy || !self.server_preferences.pending.is_empty() {
                 let message = tr!(
                     "Disconnected before settings were confirmed. Reconnect and reload before retrying."

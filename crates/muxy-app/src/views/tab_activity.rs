@@ -110,7 +110,6 @@ pub(super) fn project_status(id: ProjectId, model: &AppModel) -> Status {
     let include_children = model.appearance.layout == AppLayout::ProjectFocused;
     let worktrees_shown = include_children
         && model.appearance.sidebar_expanded
-        && model.expanded_worktrees.contains(&id)
         && model
             .state
             .project(id)

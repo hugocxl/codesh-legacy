@@ -20,7 +20,7 @@ const DEFAULT_CONFIG: &str = "font-family = monospace\nfont-size = 13\nadjust-ce
 const DEFAULT_CONFIG: &str = "font-family = Menlo\nfont-size = 13\nadjust-cell-height = 0\n";
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct TerminalSettings {
     pub font_families: Vec<String>,
     pub font_size: f32,

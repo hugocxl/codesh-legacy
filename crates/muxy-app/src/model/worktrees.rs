@@ -513,6 +513,27 @@ impl AppModel {
         let candidates = std::mem::take(&mut self.git.worktrees.candidates);
         match result {
             Ok(worktrees) => {
+                // Populate card metadata on the existing sync, never from rendering.
+                let projects: Vec<_> = self
+                    .state
+                    .projects()
+                    .iter()
+                    .filter(|project| {
+                        (project.id == root || project.parent_id == Some(root))
+                            && project.status() == ProjectStatus::Available
+                    })
+                    .map(|project| project.id)
+                    .collect();
+                for project in projects {
+                    self.queue_git_refresh(
+                        project,
+                        vec![
+                            GitAction::Summary,
+                            GitAction::PullRequest(muxy_protocol::GitPullRequestAction::Info),
+                        ],
+                        cx,
+                    );
+                }
                 let registered: HashSet<_> = worktrees
                     .iter()
                     .filter_map(|worktree| worktree.registered)
@@ -579,6 +600,9 @@ impl AppModel {
             self.git.worktrees.queue.push_front(root);
         }
         self.next_worktree_sync(cx);
+        if self.git.worktrees.running.is_none() {
+            self.refresh_agent_sessions(cx);
+        }
         cx.notify();
     }
 }

@@ -126,7 +126,6 @@ impl AppModel {
     pub(crate) fn can_restart_terminal(&self, pane: PaneId, proxy: bool) -> bool {
         let server = self.state.pane_server(pane).unwrap_or_else(ServerId::local);
         self.can_detach_terminal(pane)
-            && !self.is_quick_terminal(pane)
             && self.ready(server)
             && (!proxy
                 || self.proxy.settings.is_some()

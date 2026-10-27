@@ -265,6 +265,7 @@ impl From<protocol::GitSummary> for GitSummary {
             unstaged,
             untracked,
             conflicted,
+            ..
         } = summary;
         Self {
             branch,

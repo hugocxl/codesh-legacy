@@ -22,7 +22,6 @@ impl AppState {
             servers: BTreeMap::new(),
             starting_directories: BTreeMap::new(),
             startup_commands: BTreeMap::new(),
-            quick_terminal: None,
             version: crate::state::VERSION,
             projects: vec![home],
             workspaces: Vec::new(),

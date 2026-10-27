@@ -447,9 +447,6 @@ impl AppModel {
             self.dismiss_overlay(cx);
             self.focus_requested = true;
             self.raise_window(cx);
-        } else if server.is_local() && !self.quick.visible && self.supports(Feature::QuickTerminal)
-        {
-            self.toggle_quick_terminal(cx);
         }
     }
 

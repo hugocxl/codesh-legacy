@@ -64,6 +64,14 @@ fn settings_fields_save_on_blur_window_close_and_quit(cx: &mut TestAppContext) {
     } else {
         "ctrl-a 1 2 0 0"
     });
+    // Category navigation must save a pending field before replacing its page.
+    click_preference(settings, "settings-forward");
+    assert!(
+        settings
+            .debug_bounds("settings-section-Appearance")
+            .is_some()
+    );
+    click_preference(settings, "settings-back");
     click_preference(settings, "settings-field-height");
     view.read_with(settings, |model, _| {
         assert_eq!(model.settings.window.default_size[0], 1200.0);
@@ -114,7 +122,7 @@ fn agents_panel_settings_toggle_applies_and_persists_without_changing_placement(
     let path = boot.state_path.with_file_name("settings.toml");
     let (model, settings) = settings_window(boot, cx);
     click_preference(settings, "settings-category-Appearance");
-    click_preference(settings, "settings-disclosure-Appearance");
+    click_preference(settings, "settings-category-Appearance");
     click_preference(settings, "settings-subcategory-Agents Panel");
     for (dock, detached) in [
         (muxy_app_core::settings::AgentsPanelDock::Left, false),
@@ -639,4 +647,77 @@ fn configuration_errors_in_settings_can_be_dismissed(cx: &mut TestAppContext) {
     view.read_with(settings, |view, _| {
         assert!(!view.errors.contains_key("configuration"));
     });
+}
+
+#[gpui::test]
+fn keyboard_recording_cancels_rejects_conflicts_and_resets_custom_bindings(
+    cx: &mut TestAppContext,
+) {
+    let (mut boot, _) = stub_boot(AppState::bootstrap().expect("state"));
+    boot.settings.keymap = boot
+        .settings
+        .keymap
+        .with_binding(
+            "split_right",
+            Some("cmd-alt-shift-y".parse().expect("chord")),
+        )
+        .expect("binding");
+    let path = boot.state_path.with_file_name("settings.toml");
+    let (model, settings) = settings_window(boot, cx);
+    click_preference(settings, "settings-category-Keyboard");
+    assert!(settings.debug_bounds("settings-reset-new_tab").is_none());
+    click_preference(settings, "settings-shortcut-new_tab");
+    settings.simulate_keystrokes("escape");
+    model.read_with(settings, |model, _| {
+        assert!(model.settings.keymap.is_default("new_tab"));
+    });
+    click_preference(settings, "settings-shortcut-new_tab");
+    settings.simulate_keystrokes("cmd-alt-shift-y");
+    settings.run_until_parked();
+    model.read_with(settings, |model, _| {
+        assert!(model.settings.keymap.is_default("new_tab"));
+    });
+    click_preference(settings, "settings-shortcut-new_tab");
+    settings.simulate_keystrokes("cmd-alt-shift-k");
+    settings.run_until_parked();
+    model.read_with(settings, |model, _| {
+        assert!(!model.settings.keymap.is_default("new_tab"));
+    });
+    click_preference(settings, "settings-reset-new_tab");
+    model.read_with(settings, |model, _| {
+        assert!(model.settings.keymap.is_default("new_tab"));
+    });
+    assert!(
+        muxy_app_core::settings::Settings::load(&path)
+            .expect("saved")
+            .keymap
+            .is_default("new_tab")
+    );
+}
+
+#[gpui::test]
+fn sidebar_vibrancy_slider_saves_on_release_without_changing_terminal_settings(
+    cx: &mut TestAppContext,
+) {
+    let (boot, _) = stub_boot(AppState::bootstrap().expect("state"));
+    let path = boot.state_path.with_file_name("settings.toml");
+    let (model, settings) = settings_window(boot, cx);
+    click_preference(settings, "settings-category-Appearance");
+    let original = model.read_with(settings, |model, _| model.terminal.clone());
+    click_preference(settings, "terminal-slider-sidebar-vibrancy-level");
+    let saved = muxy_app_core::settings::Settings::load(&path).expect("saved");
+    model.read_with(settings, |model, _| {
+        assert_eq!(
+            model.appearance.sidebar_vibrancy_level,
+            saved.appearance.sidebar_vibrancy_level
+        );
+        assert_eq!(model.terminal, original);
+    });
+    assert!(settings.debug_bounds("settings-row-status-bar").is_none());
+    assert!(
+        settings
+            .debug_bounds("settings-row-sidebar-collapsed-style")
+            .is_none()
+    );
+    assert!(settings.debug_bounds("settings-row-tips").is_none());
 }

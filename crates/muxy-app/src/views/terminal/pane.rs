@@ -2630,7 +2630,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn composer_redraws_preserve_mouse_drag_and_completed_selection(cx: &mut TestAppContext) {
+    fn redraws_preserve_mouse_drag_and_completed_selection(cx: &mut TestAppContext) {
         let (pane, cx) = cx.add_window_view(|_, cx| {
             TerminalPane::new(
                 Palette::new(true),

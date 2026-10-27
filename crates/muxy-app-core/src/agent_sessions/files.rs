@@ -76,7 +76,12 @@ pub struct Catalog {
 
 impl Catalog {
     pub fn scan(&mut self, roots: &Roots, project: &Path) -> Listing {
-        let project = normalized(project);
+        self.scan_projects(roots, &[project.to_path_buf()])
+    }
+
+    /// Scans the shared file catalog once for multiple worktrees.
+    pub fn scan_projects(&mut self, roots: &Roots, projects: &[PathBuf]) -> Listing {
+        let projects: HashSet<_> = projects.iter().map(|path| normalized(path)).collect();
         let mut listing = Listing::default();
         let mut seen = HashSet::new();
         for (provider, root, depth) in &roots.sources {
@@ -130,7 +135,7 @@ impl Catalog {
                     .get(&path)
                     .filter(|cached| cached.provider == *provider)
                     .and_then(|cached| cached.session.as_ref())
-                    && session.directory == project
+                    && projects.contains(&session.directory)
                 {
                     listing.sessions.push(session.clone());
                 }

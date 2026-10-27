@@ -9,18 +9,46 @@ use muxy_ui::l10n::{tr_key, translate};
 use muxy_ui::{controls, navigation, tr};
 
 use super::{Category, SettingsEvent, SettingsView};
-use crate::views::titlebar;
+use crate::views::{codesh::style, titlebar};
 
 impl Category {
+    fn tile(self) -> AnyElement {
+        let (icon, color) = match self {
+            Self::General => (Icon::Settings, 0x0077_777c),
+            Self::Appearance => (Icon::Palette, 0x0034_78f6),
+            Self::Terminal => (Icon::Terminal, 0x0020_3b26),
+            Self::Keyboard => (Icon::Keyboard, 0x0077_777c),
+            Self::Commands => (Icon::Code, 0x00e9_8224),
+            Self::Browser => (Icon::Globe, 0x0026_8dec),
+            Self::Server => (Icon::Network, 0x0029_9fa3),
+            Self::Mobile => (Icon::AppWindow, 0x0038_a455),
+            Self::Ai => (Icon::Sparkles, 0x00a3_4de0),
+            Self::Extensions => (Icon::Puzzle, 0x0077_777c),
+            Self::Backup => (Icon::History, 0x0077_777c),
+        };
+        div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_center()
+            .size(px(20.0))
+            .rounded(px(5.0))
+            .bg(gpui::rgb(color))
+            .child(IconGlyph::new(
+                icon,
+                px(14.0),
+                gpui::rgb(if self == Self::Terminal {
+                    0x0079_f58b
+                } else {
+                    0x00ff_ffff
+                })
+                .into(),
+            ))
+            .into_any_element()
+    }
+
     fn sections(self) -> &'static [&'static str] {
         match self {
-            Self::QuickTerminal => &[
-                tr_key!("General"),
-                tr_key!("Shortcut"),
-                tr_key!("Size"),
-                tr_key!("Appearance"),
-            ],
-            Self::Composer => &[tr_key!("Behavior"), tr_key!("Text"), tr_key!("Voice")],
             Self::Browser => &[tr_key!("General"), tr_key!("Browsing"), tr_key!("Profiles")],
             Self::Ai => &[tr_key!("Commit"), tr_key!("Create Pull Request")],
             Self::General => &[
@@ -28,6 +56,7 @@ impl Category {
                 tr_key!("Files"),
                 tr_key!("Window size"),
                 tr_key!("Worktrees"),
+                tr_key!("Voice"),
             ],
             Self::Appearance => &[
                 tr_key!("Language"),
@@ -63,7 +92,6 @@ impl SettingsView {
     ) {
         self.finish_terminal_slider(cx);
         self.recording = None;
-        self.cancel_quick_recording(cx);
         if section.is_none()
             && self.category == category
             && self.query.is_empty()
@@ -84,22 +112,6 @@ impl SettingsView {
             cx.emit(SettingsEvent::ReadMobile);
         }
         cx.notify();
-    }
-
-    fn disclosure(&self, category: Category, cx: &mut Context<Self>) -> AnyElement {
-        navigation::disclosure(
-            self.layout_style(),
-            SharedString::from(format!("settings-disclosure-{}", category.label())),
-            self.expanded.contains(&category),
-            cx.listener(move |view, _, _, cx| {
-                if !view.expanded.remove(&category) {
-                    view.expanded.insert(category);
-                }
-                cx.notify();
-            }),
-        )
-        .debug_selector(move || format!("settings-disclosure-{}", category.label()))
-        .into_any_element()
     }
 
     fn categories(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -126,7 +138,19 @@ impl SettingsView {
                 .when(category == Category::General, |row| {
                     row.track_focus(&self.navbar_focus)
                 })
-                .child(self.disclosure(category, cx))
+                .h(px(28.0))
+                .px(px(style::GUTTER))
+                .rounded(px(6.0))
+                .text_size(px(13.0))
+                .when(
+                    matches!(
+                        category,
+                        Category::Terminal | Category::Browser | Category::Backup
+                    ),
+                    |row| row.mt(px(style::GUTTER)),
+                )
+                .when(selected, |row| row.bg(self.theme.fg_alpha(0.10)))
+                .child(category.tile())
                 .child(translate(category.label())),
             );
             if expanded && !self.compact {
@@ -168,9 +192,9 @@ impl SettingsView {
             .flex_none()
             .map(|nav| {
                 if self.compact {
-                    nav.w_full().border_b_1()
+                    nav.w_full()
                 } else {
-                    nav.w(px(248.0)).h_full().border_r_1()
+                    nav.w(px(220.0)).h_full()
                 }
             })
             .flex()
@@ -193,8 +217,8 @@ impl SettingsView {
                     .flex_col()
                     .min_h(px(0.0))
                     .flex_1()
-                    .px(px(12.0))
-                    .gap(px(12.0))
+                    .px(px(style::GUTTER))
+                    .gap(px(style::GUTTER))
                     .child(
                         controls::search_field(
                             self.layout_style(),
@@ -203,6 +227,7 @@ impl SettingsView {
                         )
                         .debug_selector(|| "settings-search".into()),
                     )
+                    .child(self.server_status(cx))
                     .child(
                         div()
                             .id("settings-categories")
@@ -211,70 +236,158 @@ impl SettingsView {
                             .child(self.categories(cx)),
                     )
                     .when(!self.compact, |nav| nav.child(div().flex_1()))
-                    .when(!self.compact, |nav| {
-                        nav.child(
-                            div()
-                                .border_t_1()
-                                .border_color(self.theme.border)
-                                .py(px(14.0))
-                                .px(px(8.0))
-                                .text_size(px(11.0))
-                                .text_color(self.theme.fg_dim)
-                                .child(tr!(
-                                    "%@  Focus navbar",
-                                    self.snapshot
-                                        .settings
-                                        .keymap
-                                        .binding("settings.focus_navbar")
-                                        .map_or(String::new(), ToString::to_string)
-                                )),
-                        )
-                    })
                     .when(self.compact, |nav| nav.pb(px(12.0))),
+            )
+            .into_any_element()
+    }
+
+    fn server_status(&self, cx: &mut Context<Self>) -> AnyElement {
+        div()
+            .id("settings-server-status")
+            .flex()
+            .items_center()
+            .gap(px(style::GUTTER))
+            .px(px(style::GUTTER))
+            .py(px(style::GUTTER))
+            .rounded(px(6.0))
+            .cursor_pointer()
+            .hover(|row| row.bg(self.theme.hover))
+            .button_interaction(cx.listener(|view, _, window, cx| {
+                view.select_category(Category::Server, None, window, cx);
+            }))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .size(px(32.0))
+                    .rounded_full()
+                    .bg(self.theme.accent)
+                    .child(IconGlyph::new(
+                        Icon::Terminal,
+                        px(20.0),
+                        gpui::rgb(0x00ff_ffff).into(),
+                    )),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .text_size(px(13.0))
+                    .child(translate(Category::Server.label()))
+                    .child(
+                        div()
+                            .text_size(px(11.0))
+                            .text_color(self.theme.fg_muted)
+                            .child(if self.snapshot.connected {
+                                tr!("Running")
+                            } else {
+                                tr!("Stopped")
+                            }),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn category_navigation(&self, cx: &mut Context<Self>) -> AnyElement {
+        let index = Category::ALL
+            .iter()
+            .position(|category| *category == self.category)
+            .unwrap_or(0);
+        div()
+            .flex()
+            .items_center()
+            .rounded_full()
+            .bg(self.theme.surface)
+            .children(
+                [(false, Icon::ChevronLeft), (true, Icon::ChevronRight)]
+                    .into_iter()
+                    .map(|(forward, icon)| {
+                        let target = if forward {
+                            index
+                                .checked_add(1)
+                                .filter(|index| *index < Category::ALL.len())
+                        } else {
+                            index.checked_sub(1)
+                        };
+                        div()
+                            .id(if forward {
+                                "settings-forward"
+                            } else {
+                                "settings-back"
+                            })
+                            .debug_selector(move || {
+                                if forward {
+                                    "settings-forward".into()
+                                } else {
+                                    "settings-back".into()
+                                }
+                            })
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .w(px(28.0))
+                            .h(px(26.0))
+                            .rounded_full()
+                            .when(forward, |button| {
+                                button.border_l_1().border_color(self.theme.border)
+                            })
+                            .when(target.is_none(), |button| button.opacity(0.3))
+                            .when_some(target, |button, index| {
+                                button
+                                    .cursor_pointer()
+                                    .hover(|button| button.bg(self.theme.hover))
+                                    .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation();
+                                    })
+                                    .button_interaction(cx.listener(move |view, _, window, cx| {
+                                        view.select_category(
+                                            Category::ALL[index],
+                                            None,
+                                            window,
+                                            cx,
+                                        );
+                                    }))
+                            })
+                            .child(IconGlyph::new(icon, px(16.0), self.theme.fg))
+                    }),
             )
             .into_any_element()
     }
 
     fn header(&self, cx: &mut Context<Self>) -> AnyElement {
         self.titlebar("settings-content-titlebar")
-            .h(px(76.0))
+            .h(px(if cfg!(target_os = "linux") {
+                72.0
+            } else {
+                44.0
+            }))
             .when(cfg!(target_os = "linux"), |header| header.pt(px(28.0)))
             .flex_none()
             .flex()
             .items_center()
-            .justify_between()
-            .gap(px(12.0))
+            .gap(px(style::GUTTER))
+            .child(self.category_navigation(cx))
             .child(
                 div()
-                    .rounded(px(4.0))
-                    .px(px(7.0))
-                    .py(px(4.0))
-                    .text_size(px(14.0))
-                    .text_color(self.theme.accent)
-                    .bg(self.theme.accent_soft)
-                    .child(
-                        if matches!(self.category, Category::Server | Category::Mobile) {
-                            tr!("Current device")
-                        } else {
-                            tr!("User")
-                        },
-                    ),
+                    .text_size(px(17.0))
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .child(translate(self.category.label())),
             )
+            .child(div().flex_1())
             .when_some(self.configuration_file(), |header, file| {
                 header.child(
                     div()
                         .id("settings-open-configuration")
                         .debug_selector(|| "settings-open-configuration".into())
-                        .px(px(9.0))
+                        .px(px(style::GUTTER))
                         .py(px(4.0))
-                        .rounded(px(4.0))
-                        .border_1()
-                        .border_color(self.theme.border)
-                        .text_size(px(13.0))
+                        .rounded(px(6.0))
+                        .text_size(px(11.0))
                         .text_color(self.theme.fg_muted)
                         .cursor_pointer()
                         .hover(|button| button.bg(self.theme.hover).text_color(self.theme.fg))
-                        .focus(|button| button.border_color(self.theme.accent))
+                        .focus(|button| button.bg(self.theme.hover))
                         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                         .button_interaction(cx.listener(move |_, _, _, cx| {
                             cx.emit(SettingsEvent::OpenConfiguration(file));
@@ -348,7 +461,7 @@ impl SettingsView {
                 .min_w_0()
                 .min_h_0()
                 .h_full()
-                .px(px(if self.compact { 20.0 } else { 32.0 }))
+                .px(px(style::GUTTER * 2.5))
                 .when(cfg!(target_os = "linux"), |content| content.pt(px(32.0)))
                 .child(extensions.clone())
                 .into_any_element();
@@ -362,7 +475,7 @@ impl SettingsView {
             .h_full()
             .flex()
             .flex_col()
-            .px(px(if self.compact { 20.0 } else { 32.0 }))
+            .px(px(style::GUTTER * 2.5))
             .child(self.header(cx))
             .children(
                 ["application", "configuration"]
@@ -376,6 +489,9 @@ impl SettingsView {
             .child(
                 div()
                     .id("settings-sections")
+                    .w_full()
+                    .max_w(px(640.0))
+                    .mx_auto()
                     .debug_selector(|| "settings-sections".into())
                     .flex_1()
                     .min_w(px(0.0))
@@ -393,7 +509,7 @@ impl SettingsView {
                     .debug_selector(|| "settings-scrollbar".into())
                     .absolute()
                     .right(px(3.0))
-                    .top(px(76.0))
+                    .top(px(44.0))
                     .bottom(px(8.0))
                     .child(
                         self.scrollbar
@@ -420,7 +536,7 @@ impl SettingsView {
                 self.navigation(window, cx)
             } else {
                 gpui::AnyView::from(self.navigation_view.clone())
-                    .cached(div().w(px(248.0)).h_full().flex_none().style().clone())
+                    .cached(div().w(px(220.0)).h_full().flex_none().style().clone())
                     .into_any_element()
             })
             .child(

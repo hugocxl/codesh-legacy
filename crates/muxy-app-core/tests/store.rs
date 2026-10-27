@@ -231,7 +231,6 @@ fn older_files_keep_everything_and_move_server_state_to_the_local_entry() -> Tes
             keys,
             BTreeSet::from([
                 "projects",
-                "quick_terminal",
                 "servers",
                 "starting_directories",
                 "startup_commands",
@@ -280,7 +279,6 @@ fn older_files_keep_everything_and_move_server_state_to_the_local_entry() -> Tes
         }
         for key in [
             "projects",
-            "quick_terminal",
             "starting_directories",
             "startup_commands",
             "window",

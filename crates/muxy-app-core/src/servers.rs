@@ -34,7 +34,6 @@ impl AppState {
         self.project(project).map(|project| project.server_id)
     }
 
-    /// The Quick Terminal always runs on this computer.
     pub fn pane_server(&self, pane: PaneId) -> Option<ServerId> {
         self.server_panes()
             .find(|(_, candidate)| candidate.id == pane)
@@ -271,20 +270,13 @@ impl AppState {
     }
 
     fn server_panes(&self) -> impl Iterator<Item = (ServerId, &Pane)> {
-        self.projects
-            .iter()
-            .flat_map(|project| {
-                project
-                    .tabs
-                    .iter()
-                    .flat_map(|tab| &tab.panes)
-                    .map(|pane| (project.server_id, pane))
-            })
-            .chain(
-                self.quick_terminal
-                    .iter()
-                    .map(|pane| (ServerId::local(), pane)),
-            )
+        self.projects.iter().flat_map(|project| {
+            project
+                .tabs
+                .iter()
+                .flat_map(|tab| &tab.panes)
+                .map(|pane| (project.server_id, pane))
+        })
     }
 }
 

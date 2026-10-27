@@ -112,3 +112,19 @@ fn diffs_from_builds_before_the_binary_flag_read_as_text() -> Result<(), Box<dyn
     assert_eq!((diff.additions, diff.deletions, diff.binary), (1, 2, false));
     Ok(())
 }
+
+#[test]
+fn summaries_from_older_servers_decode_without_card_metadata()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut old = Vec::new();
+    let mut encoder = minicbor::Encoder::new(&mut old);
+    encoder.array(10)?.str("main")?.str("abc123")?.null()?;
+    for _ in 0..7 {
+        encoder.u32(0)?;
+    }
+    let summary: muxy_protocol::GitSummary = minicbor::decode(&old)?;
+    assert_eq!(summary.branch.as_deref(), Some("main"));
+    assert!(summary.commit_subject.is_none());
+    assert!(summary.commit_timestamp.is_none());
+    Ok(())
+}

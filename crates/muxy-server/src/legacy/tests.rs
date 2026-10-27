@@ -19,16 +19,17 @@ fn fixture() -> Value {
 }
 
 #[test]
-fn imports_identity_duplicate_directories_quick_terminal_and_pending_discards() {
+fn imports_identity_duplicate_directories_and_pending_discards_ignoring_retired_panes() {
     let snapshot = fixture();
     let imported = parse(&serde_json::to_vec(&snapshot).unwrap()).unwrap();
     assert_eq!(imported.projects.len(), 2);
+    assert!(!imported.sessions.contains_key(&SessionId::new(3).unwrap()));
     assert!(imported.projects[0].home);
     assert_eq!(
         imported.projects[0].directory,
         imported.projects[1].directory
     );
-    for (session, project) in [(1, 1), (2, 2), (3, 1), (4, 1)] {
+    for (session, project) in [(1, 1), (2, 2), (4, 1)] {
         assert_eq!(
             imported.sessions[&SessionId::new(session).unwrap()],
             ProjectId::from_u128(project)

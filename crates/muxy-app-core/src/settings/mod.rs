@@ -6,13 +6,11 @@ mod appearance;
 mod browser;
 mod chord;
 mod commands;
-mod composer;
 mod config;
 mod error;
 mod ghostty;
 mod keymap;
 mod proxy;
-mod quick_terminal;
 mod servers;
 mod worktrees;
 
@@ -28,7 +26,6 @@ pub use appearance::{
 pub use browser::BrowserSettings;
 pub use chord::KeyChord;
 pub use commands::CustomCommand;
-pub use composer::{ComposerPosition, ComposerPresentation, ComposerSettings};
 pub use config::{
     ClipboardSettings, CloseBehavior, CommitChoices, NewPaneDirectory, OpenerSettings,
     PaneSettings, ProjectSettings, Settings, WindowSettings,
@@ -40,5 +37,7 @@ pub use ghostty::{
 };
 pub use keymap::Keymap;
 pub use proxy::{DEFAULT_PROXY_BYPASS, ProxyKind, ProxySettings};
-pub use quick_terminal::QuickTerminalSettings;
 pub use servers::ServerEntry;
+
+mod voice;
+pub use voice::VoiceSettings;

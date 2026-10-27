@@ -7,8 +7,8 @@ appearance choices still apply, except the sidebar always stays opaque.
 
 ## Tokens and geometry
 
-`views/codesh/style.rs` owns 8px grid inset/gutter, 10px card radius, 1px border,
-36px header, 12px body padding and 16px sidebar padding. Headers use 13px semibold
+`views/codesh/style.rs` owns one 8px spacing (`GUTTER`: window inset, gaps between cards, sidebar and panel padding, card header and body insets), 10px card radius, 1px border,
+36px header. Headers use 13px semibold
 text, 16px glyphs and 8px control gaps. Cards blend 2.5% theme foreground over
 background (about `#161616`); borders blend 95% theme border over background
 (about `#282827`). Pills use theme surface/hover. No shadows or permanent split
@@ -39,7 +39,7 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   its card is hovered. Browser and extension page clicks also set the active pane.
 - The body shrinks below the header with real layout padding. Workspace terminal
   padding adds only `max(configured - 2, 0)` per edge: the upstream default 2px
-  is absorbed into the 12px card inset. Quick terminal padding is unchanged.
+  is absorbed into the 12px card inset.
   Palette construction and the opaque workspace terminal root share the card
   blend; explicit terminal background overrides remain user overrides. Inner
   terminal focus borders and zoom-only rounding are removed.
@@ -55,8 +55,14 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   group strips are also hidden. Legacy renderers remain for the separate tab
   policy work. Sidebar chrome reserves native titlebar space and retains window
   dragging; a collapsed sidebar reserves top space for the toggle.
-- Sidebar project headers retain selection, disclosure, menus and drag ordering.
-  Worktrees/leaf projects use 28px pills, activity glyphs and PRIMARY badges.
+- Sidebar project headers retain selection, menus and drag ordering; their
+  worktrees are always expanded. Worktrees and primary checkouts use compact
+  activity cards with 8px radii, 8px padding and 4px gaps. The first line shows
+  the worktree name, agent glyph/activity indicator and relative age; the second
+  prefers a running agent title, latest local session, open PR, then last commit;
+  the third shows the branch, PRIMARY badge and accent PR number. Git metadata
+  refreshes on worktree sync events, and local sessions share one batched cached
+  catalog scan. Relative ages invalidate only the sidebar cache once a minute.
   The top row shares the native traffic-light row: sidebar toggle on the left,
   then the Files and Source Control extensions' own topbar items on the right.
   Missing/hidden extension items are omitted; commands and popover anchors use
@@ -66,7 +72,7 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   controls and hide the text input. Host choice persists in Appearance (All,
   Local, Server); the name query lives only in AppModel and Escape clears it.
   Case-insensitive name filtering keeps parent headers with matching worktrees
-  and reveals matching rows without changing saved disclosure choices. The
+  and reveals matching rows. The
   host menu also opens the existing remote management popover.
 - Agents are hidden by default. The existing shortcut opens the left placement
   as a popup; right and detached placements retain their existing behavior.

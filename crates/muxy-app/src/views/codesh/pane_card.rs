@@ -64,6 +64,7 @@ pub(crate) fn render(
         .any(|tab| tab.zoomed == Some(id));
     let m = model.metrics;
     let theme = &model.theme;
+    let leading = leading_toggle(id, model, cx);
     let glyph = if model.state.browser(id).is_some() {
         model.browser_glyph(id, m.scaled(16.0), theme.fg_muted, cx)
     } else if let Some(surface) = model.webviews.panes.get(&id) {
@@ -156,8 +157,8 @@ pub(crate) fn render(
                 .flex()
                 .flex_none()
                 .items_center()
-                .h(m.scaled(style::HEADER))
-                .px(m.scaled(12.0))
+                .h(px(style::HEADER))
+                .px(style::spacing())
                 .gap(m.scaled(8.0))
                 .on_mouse_down(
                     MouseButton::Left,
@@ -167,6 +168,7 @@ pub(crate) fn render(
                         model.focus_active(window, cx);
                     }),
                 )
+                .children(leading)
                 .child(glyph)
                 .child(
                     div()
@@ -190,9 +192,43 @@ pub(crate) fn render(
                 .min_w(px(0.0))
                 .min_h(px(0.0))
                 .rounded(m.scaled(style::RADIUS))
-                .p(m.scaled(style::BODY_PADDING))
+                .p(style::spacing())
                 .overflow_hidden()
                 .child(body),
         )
+        .into_any_element()
+}
+
+/// With the sidebar hidden, its toggle leads the top-left pane's header, after
+/// room for the window buttons when they are shown.
+fn leading_toggle(id: PaneId, model: &AppModel, cx: &Context<AppModel>) -> Option<AnyElement> {
+    if !style::HIDE_COLLAPSED_SIDEBAR || model.appearance.sidebar_expanded {
+        return None;
+    }
+    let tab = model.state.current_project().tabs.first()?;
+    let top_left = tab.zoomed.map_or_else(
+        || {
+            tab.layout
+                .rects()
+                .into_iter()
+                .find(|(_, rect)| rect[0] < 1e-4 && rect[1] < 1e-4)
+                .map(|(pane, _)| pane)
+        },
+        Some,
+    );
+    (top_left == Some(id)).then(|| sidebar_toggle(model, cx))
+}
+
+/// The sidebar toggle as shown inside a card, past the window buttons.
+pub(crate) fn sidebar_toggle(model: &AppModel, cx: &Context<AppModel>) -> AnyElement {
+    // The card and its header are each inset by the gutter; the traffic
+    // lights end `window_buttons` from the window edge.
+    let reserve = model.window_buttons - 2.0 * style::GUTTER;
+    div()
+        .flex_none()
+        .flex()
+        .items_center()
+        .when(reserve > 0.0, |toggle| toggle.pl(px(reserve)))
+        .child(crate::views::titlebar::sidebar_toggle(model, cx))
         .into_any_element()
 }

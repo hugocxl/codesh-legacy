@@ -31,7 +31,7 @@ external resources. Commands that macOS offers in the menu bar are in the
 command palette. Copy and paste use Ctrl+Shift+C and Ctrl+Shift+V in terminals;
 text fields use Ctrl+C and Ctrl+V. Links in a terminal open with Ctrl+click.
 Existing configured shortcuts remain literal. New configurations use the system
-monospace font and inline paths for composer images.
+monospace font.
 
 One app runs per profile: a second launch, and `muxy <folder>`, hand their
 folders to the app that is running. The app, the `muxy` tool and the server are
@@ -75,12 +75,6 @@ backend: `xdg-desktop-portal-gnome`, `xdg-desktop-portal-kde` or
 SF Symbols exist only on macOS. Linux draws a symbol from a bundled icon when
 there is one, and an extension's symbol without one as the extension icon.
 
-Quick Terminal has an experimental X11 backend. Its global shortcut is released
-while recording a replacement, and hiding the window keeps its terminal session.
-Wayland and XWayland report it unavailable: the pinned window backend cannot
-place and hide a dropdown or use a portal activation token, and XWayland grabs
-do not cover native Wayland apps. The macOS panel is unchanged.
-
 Voice input uses local `parec` capture and `whisper-cli` transcription. Install
 PulseAudio's utilities (`pulseaudio-utils` on Ubuntu) and
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp), v1.9.5 or later. The
@@ -91,7 +85,7 @@ microphone permission dialog in this backend.
 
 Download a multilingual GGML model, such as `ggml-base.bin` (about 142 MiB),
 from [whisper.cpp's model collection](https://huggingface.co/ggerganov/whisper.cpp).
-Select its absolute path in Settings → Composer → Offline voice model, or put
+Select its absolute path in Settings → General → Voice → Offline voice model, or put
 it at `$XDG_DATA_HOME/muxy/voice/ggml-base.bin` (by default
 `~/.local/share/muxy/voice/ggml-base.bin`). English-only models are rejected so
 they cannot silently override the selected language.
@@ -136,8 +130,7 @@ libfontconfig1-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev
 libwayland-dev libxcb1-dev libvulkan-dev`. Runtime packages include
 `mesa-vulkan-drivers xdg-desktop-portal xdg-desktop-portal-gnome xdg-utils`, and
 `libwebkit2gtk-4.1-0` for extensions.
-The desktop checks also need `xvfb` and `xauth` for isolated X11 shortcut and
-window-lifecycle tests.
+The desktop checks also need `xvfb` and `xauth` for isolated window tests.
 Then run `bash scripts/build-desktop-linux.sh`. `MUXY_ZIG` can point at Zig, and
 `CARGO_TARGET_DIR` must point to a guest-local writable directory when the source
 checkout is shared read-only. Keep `muxy-app`, `muxy`, and `muxy-server` together.

@@ -7,6 +7,8 @@ use super::{ImportReport, Result, ServerSettings, settings_source};
 use crate::settings::{CustomCommand, KeyChord, Keymap, Settings};
 
 const MAPPINGS: &[(&str, &[&str])] = &[
+    ("muxy.recording.autoSend", &["voice", "auto_send"]),
+    ("muxy.recording.language", &["voice", "language"]),
     ("muxy.theme.dark", &["appearance", "dark_theme"]),
     ("muxy.theme.light", &["appearance", "light_theme"]),
     ("muxy.showStatusBar", &["appearance", "status_bar_visible"]),
@@ -46,42 +48,6 @@ const MAPPINGS: &[(&str, &[&str])] = &[
     ("muxy.activeSidebar", &["appearance", "extension_sidebar"]),
     ("muxy.localization", &["appearance", "language"]),
     ("muxy.appLayout", &["appearance", "layout"]),
-    (
-        "editor.richInputImageStrategy",
-        &["composer", "image_strategy"],
-    ),
-    ("muxy.richInput.floating", &["composer", "pinned"]),
-    ("muxy.quickTerminal.enabled", &["quick_terminal", "enabled"]),
-    ("muxy.quickTerminal.width", &["quick_terminal", "width"]),
-    ("muxy.quickTerminal.height", &["quick_terminal", "height"]),
-    (
-        "muxy.quickTerminal.transparency",
-        &["quick_terminal", "transparency"],
-    ),
-    ("muxy.quickTerminal.blur", &["quick_terminal", "blur"]),
-    ("shortcuts.quickTerminal", &["quick_terminal", "shortcut"]),
-    (
-        "muxy.richInput.presentationMode",
-        &["composer", "presentation"],
-    ),
-    ("muxy.richInput.position", &["composer", "position"]),
-    ("muxy.richInput.fontSize", &["composer", "font_size"]),
-    ("muxy.richInput.broadcast", &["composer", "broadcast"]),
-    (
-        "muxy.richInput.clearAfterSending",
-        &["composer", "clear_after_sending"],
-    ),
-    (
-        "muxy.richInput.clearOnClose",
-        &["composer", "clear_on_close"],
-    ),
-    ("editor.richInputFontFamily", &["composer", "font_family"]),
-    (
-        "editor.richInputLineHeightMultiplier",
-        &["composer", "line_height"],
-    ),
-    ("muxy.recording.autoSend", &["composer", "voice_auto_send"]),
-    ("muxy.recording.language", &["composer", "language"]),
     (
         "muxy.ai.repositoryActions.commit.provider",
         &["ai", "providers", "commit"],
@@ -175,10 +141,6 @@ fn action_id(old: &str) -> String {
         "openProject" | "newProject" => "add_project".into(),
         "findInTerminal" => "find".into(),
         "toggleMaximizePane" => "toggle_zoom_pane".into(),
-        "toggleRichInput" => "composer.toggle".into(),
-        "toggleComposerVoice" => "composer.voice".into(),
-        "submitRichInput" => "composer.submit".into(),
-        "submitRichInputWithoutReturn" => "composer.insert".into(),
         _ => old
             .chars()
             .flat_map(|ch| {
@@ -193,7 +155,7 @@ fn action_id(old: &str) -> String {
 }
 
 fn chord(value: &Value) -> Result<KeyChord> {
-    let combo: muxy_core::quick_terminal::keys::KeyCombo = serde_json::from_value(value.clone())?;
+    let combo: muxy_core::shortcut_keys::KeyCombo = serde_json::from_value(value.clone())?;
     Ok(combo
         .keystroke()
         .ok_or("Shortcut is not supported")?

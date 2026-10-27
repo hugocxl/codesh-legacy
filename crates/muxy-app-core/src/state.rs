@@ -22,8 +22,6 @@ pub struct AppState {
     pub(crate) starting_directories: BTreeMap<PaneId, muxy_protocol::ServerPath>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) startup_commands: BTreeMap<PaneId, String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) quick_terminal: Option<Pane>,
     pub(crate) version: u32,
     pub(crate) projects: Vec<Project>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -39,8 +37,6 @@ struct StoredState {
     starting_directories: BTreeMap<PaneId, muxy_protocol::ServerPath>,
     #[serde(default)]
     startup_commands: BTreeMap<PaneId, String>,
-    #[serde(default)]
-    quick_terminal: Option<Pane>,
     version: u32,
     projects: Vec<Project>,
     #[serde(default)]
@@ -87,7 +83,6 @@ impl TryFrom<StoredState> for AppState {
             servers,
             starting_directories: stored.starting_directories,
             startup_commands: stored.startup_commands,
-            quick_terminal: stored.quick_terminal,
             version: VERSION,
             projects: stored.projects,
             workspaces: stored.workspaces,
@@ -167,36 +162,6 @@ impl TryFrom<StoredState> for AppState {
 }
 
 impl AppState {
-    pub fn quick_terminal(&self) -> Option<&Pane> {
-        self.quick_terminal.as_ref()
-    }
-
-    pub fn ensure_quick_terminal(&mut self) -> PaneId {
-        self.quick_terminal
-            .get_or_insert_with(|| Pane {
-                id: PaneId::new(),
-                title: "Quick Terminal".into(),
-                content: PaneContent::Terminal { session: None },
-                proxy: false,
-            })
-            .id
-    }
-
-    pub fn close_quick_terminal(&mut self) {
-        if let Some(pane) = &self.quick_terminal {
-            self.cancel_pending_creation(pane.id);
-        }
-        if let Some(Pane {
-            content: PaneContent::Terminal {
-                session: Some(session),
-            },
-            ..
-        }) = self.quick_terminal.take()
-        {
-            self.discard_unreferenced(ServerId::local(), session);
-        }
-    }
-
     pub fn version(&self) -> u32 {
         self.version
     }
@@ -620,12 +585,8 @@ impl AppState {
         Ok(())
     }
 
-    /// Closes `server`'s terminal panes, and the Quick Terminal for this
-    /// computer's server.
+    /// Closes `server`'s terminal panes.
     pub fn clear_terminal_panes(&mut self, server: ServerId) -> Result<(), AppError> {
-        if server.is_local() {
-            self.close_quick_terminal();
-        }
         let terminals: Vec<_> = self
             .projects
             .iter()
@@ -1037,7 +998,6 @@ impl AppState {
             .iter_mut()
             .flat_map(|project| &mut project.tabs)
             .flat_map(|tab| &mut tab.panes)
-            .chain(self.quick_terminal.iter_mut())
             .find(|pane| pane.id == id)
             .ok_or(AppError::UnknownPane(id))
     }
@@ -1101,12 +1061,6 @@ impl AppState {
                 let order: Vec<_> = project.tabs.iter().map(|tab| tab.id).collect();
                 groups.validate(&order, self.window.selected_tab.get(&project.id).copied())?;
             }
-        }
-
-        if let Some(pane) = &self.quick_terminal
-            && (!panes.insert(pane.id) || !matches!(pane.content, PaneContent::Terminal { .. }))
-        {
-            return Err(AppError::InvalidState("invalid Quick Terminal pane".into()));
         }
         if let Some(active) = self.window.active_pane {
             let selected = self.window.selected_tab.get(&self.window.current_project);

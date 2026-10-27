@@ -1,3 +1,4 @@
+mod activity_card;
 mod resize;
 pub(super) mod tips;
 mod vibrancy;
@@ -283,8 +284,9 @@ impl AppModel {
                     |width| self.metrics.scaled(width),
                 );
             f32::from(self.clamp_expanded_sidebar_width(width))
-        } else if (self.appearance.layout == AppLayout::ProjectFocused
-            || self.extension_sidebar_active())
+        } else if !super::codesh::style::HIDE_COLLAPSED_SIDEBAR
+            && (self.appearance.layout == AppLayout::ProjectFocused
+                || self.extension_sidebar_active())
             && self.appearance.sidebar_collapsed_style == SidebarCollapsedStyle::Icons
         {
             f32::from(self.metrics.sidebar_collapsed_width())
@@ -508,11 +510,10 @@ fn project_list(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
             div()
                 .flex()
                 .flex_col()
-                .px(if wide {
-                    m.scaled(super::codesh::style::SIDEBAR_PADDING)
-                } else {
-                    m.spacing4()
-                })
+                // The pane grid's own inset separates the sidebar from the
+                // cards, so only the window edge gets a gutter.
+                .when(wide, |list| list.pl(super::codesh::style::spacing()))
+                .when(!wide, |list| list.px(m.spacing4()))
                 .gap(m.spacing3())
                 .pt(if wide { m.spacing5() } else { m.spacing2() })
                 .pb(m.spacing3())
@@ -603,7 +604,6 @@ fn project_row(
                         model.select_project(id, cx);
                         model.focus_active(window, cx);
                     } else if active && has_worktrees {
-                        model.expanded_worktrees.insert(id);
                         model.toggle_sidebar(window, cx);
                     } else {
                         model.select_project(model.preferred_worktree(id), cx);
@@ -682,9 +682,6 @@ fn project_row(
                         model,
                     )),
             )
-        })
-        .when(wide && has_worktrees, |row| {
-            row.child(worktrees::disclosure(project, model, cx))
         })
         .when(!wide && active, |row| {
             row.child(

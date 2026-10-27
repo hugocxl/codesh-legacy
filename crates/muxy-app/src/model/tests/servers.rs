@@ -119,7 +119,7 @@ pub(super) fn redraw(cx: &mut VisualTestContext) {
     cx.run_until_parked();
 }
 
-/// Shows a remote tab and the local Quick Terminal together, both attached
+/// Opens a remote terminal and a local terminal, both attached
 /// to session 1 on channel 1 of their own server.
 fn attach_local_and_remote(
     model: &mut AppModel,
@@ -134,9 +134,12 @@ fn attach_local_and_remote(
     model.select_project(api, cx);
     model.new_tab(cx);
     let remote_pane = model.active_pane().expect("remote pane");
-    let local_pane = model.state.ensure_quick_terminal();
-    model.quick.visible = true;
+    model.select_project(model.state.home().id, cx);
+    model.new_tab(cx);
+    let local_pane = model.active_pane().expect("local pane");
     model.sync_visible(cx);
+    // Keep the background view to exercise late channel events during a project switch.
+    model.create_terminal_view(remote_pane, cx);
     for (server, pane) in [(ServerId::local(), local_pane), (remote, remote_pane)] {
         model.start_attach(pane, Size { cols: 80, rows: 24 }, cx);
         let attached = Update::Attached {

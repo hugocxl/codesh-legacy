@@ -129,13 +129,10 @@ impl AppModel {
         }
         self.webviews.occlusions.borrow_mut().clear();
         self.webviews.grips.borrow_mut().clear();
-        let composer_dialog = (self.composer.view.is_some() || self.composer.closing.is_some())
-            && self.settings.composer.presentation
-                == muxy_app_core::settings::ComposerPresentation::Floating;
-        let blocked = composer_dialog || self.overlay.is_some() || self.close_prompt.is_some();
+        let blocked = self.overlay.is_some() || self.close_prompt.is_some();
         let resizing = self.resizing_surfaces(window, cx);
         self.spinners
-            .set_blocked(resizing || composer_dialog || self.overlay_unmarked());
+            .set_blocked(resizing || self.overlay_unmarked());
         let shortcuts = self.webview_shortcuts();
         for (id, surface) in &self.webviews.panes {
             surface
@@ -186,7 +183,7 @@ impl AppModel {
 
     /// Whether something is being resized or dragged, so pages let clicks
     /// through to it.
-    fn resizing_surfaces(&self, window: &Window, cx: &gpui::App) -> bool {
+    fn resizing_surfaces(&self, _window: &Window, _cx: &gpui::App) -> bool {
         self.sidebar_resize.is_some()
             || self.agents_panel.resize.is_active()
             || self.split_resize.active()
@@ -196,11 +193,6 @@ impl AppModel {
                 .panels
                 .values()
                 .any(|panel| panel.resize.is_active())
-            || self
-                .composer
-                .view
-                .as_ref()
-                .is_some_and(|view| view.read(cx).sizing(window).resize_state().is_active())
     }
 
     /// An overlay that doesn't mark where it is hides every spinner.

@@ -18,24 +18,20 @@ pub(crate) fn top(
     _window: &Window,
     cx: &mut Context<AppModel>,
 ) -> AnyElement {
-    let m = model.metrics;
+    if style::HIDE_COLLAPSED_SIDEBAR && !model.appearance.sidebar_expanded {
+        return gpui::Empty.into_any_element();
+    }
     titlebar::background("titlebar-navigation")
         .absolute()
         .top_0()
         .left_0()
-        .w(px(width.max(if cfg!(target_os = "macos") {
-            f32::from(m.traffic_light_width()) + 44.0
-        } else {
-            44.0
-        })))
-        .h(m.title_bar_height())
-        .px(m.scaled(if model.appearance.sidebar_expanded {
-            style::SIDEBAR_PADDING
-        } else {
-            8.0
-        }))
-        .when(cfg!(target_os = "macos"), |bar| {
-            bar.pl(m.traffic_light_width())
+        .w(px(width.max(model.window_buttons + 44.0)))
+        // One line with the window buttons and every pane card's header.
+        .top(style::spacing())
+        .h(px(style::HEADER))
+        .pl(style::spacing())
+        .when(model.window_buttons > 0.0, |bar| {
+            bar.pl(px(model.window_buttons))
         })
         .flex()
         .items_center()
@@ -58,12 +54,8 @@ pub(crate) fn bottom(model: &AppModel, _window: &Window, cx: &mut Context<AppMod
         .w_full()
         .min_w(px(0.0))
         .when(!model.appearance.sidebar_expanded, Styled::flex_col)
-        .px(m.scaled(if model.appearance.sidebar_expanded {
-            style::SIDEBAR_PADDING
-        } else {
-            4.0
-        }))
-        .py(m.scaled(8.0))
+        .pl(style::spacing())
+        .py(style::spacing())
         .gap(m.scaled(4.0))
         .child(
             titlebar::icon_button("sidebar-host", Icon::Overlap, "Hosts", model)

@@ -15,4 +15,4 @@ pub mod release;
 pub mod shortcuts;
 pub mod worker;
 
-pub mod quick_terminal;
+pub mod shortcut_keys;

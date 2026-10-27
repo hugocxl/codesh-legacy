@@ -114,35 +114,12 @@ impl AppModel {
     fn webview_panel_space(
         &self,
         window: &Window,
-        cx: &gpui::App,
+        _cx: &gpui::App,
     ) -> (gpui::Size<f32>, gpui::Size<f32>) {
-        let mut available = gpui::size(
+        let available = gpui::size(
             (f32::from(window.viewport_size().width) - self.sidebar_width()).max(0.0),
             (f32::from(window.viewport_size().height) - 160.0).max(0.0),
         );
-        if let Some(composer) = &self.composer.view
-            && self.settings.composer.presentation
-                == muxy_app_core::settings::ComposerPresentation::Panel
-            && self.settings.composer.pinned
-        {
-            let layout = composer.read(cx).sizing(window).layout();
-            available.width = (available.width
-                - layout.consumed_width()
-                - if layout.consumed_width() > 0.0 {
-                    1.0
-                } else {
-                    0.0
-                })
-            .max(0.0);
-            available.height = (available.height
-                - layout.consumed_height()
-                - if layout.consumed_height() > 0.0 {
-                    1.0
-                } else {
-                    0.0
-                })
-            .max(0.0);
-        }
         let mut floating_space = available;
         let pinned_space = available.map(|dimension| (dimension - 100.0).max(0.0));
         for (id, panel) in &self.webviews.panels {
@@ -245,7 +222,9 @@ impl AppModel {
     fn webview_panel_style(&self, pinned: bool) -> PanelStyle {
         let style = PanelStyle::new(self.theme.clone(), self.metrics);
         if pinned {
-            style.sidebar(self.metrics.scaled(style::SIDEBAR_PADDING))
+            style
+                .sidebar(style::spacing())
+                .background(self.sidebar_background())
         } else {
             style
         }

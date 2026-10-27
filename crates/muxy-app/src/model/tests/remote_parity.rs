@@ -3,7 +3,6 @@
 
 use super::servers::{connect_remote, entry, serve_remote, work};
 use super::*;
-use crate::views::composer::ComposerEvent;
 use muxy_app_core::opener::{FileLocation, Target};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -96,7 +95,6 @@ fn remote_terminal<'a>(
     let remote = ServerId::new();
     let (mut boot, _local_work, _) =
         remote_boot(AppState::bootstrap()?, vec![entry(remote, "box")]);
-    boot.settings.composer.presentation = muxy_app_core::settings::ComposerPresentation::Panel;
     let (updates, received) = async_channel::unbounded();
     let ssh = machine.ssh()?;
     boot.workers = crate::boot::Workers::with(move |server, _| {
@@ -189,61 +187,6 @@ fn uploads(cx: &mut TestAppContext) -> Result {
             .as_deref()
             .is_some_and(|error| error.contains("is a folder"))
     })?;
-    view.update(cx, |model, _| model.stop_workers());
-    Ok(())
-}
-
-#[gpui::test]
-fn the_composer_sends_images_to_a_remote_terminal_and_keeps_the_draft_when_it_cannot(
-    cx: &mut TestAppContext,
-) {
-    composer(cx).expect("composer to a remote terminal");
-}
-
-fn composer(cx: &mut TestAppContext) -> Result {
-    let machine = Machine::new()?;
-    let (view, cx, _, _) = remote_terminal(cx, &machine)?;
-    cx.update(|window, cx| view.update(cx, |model, cx| model.toggle_composer(window, cx)));
-    let composer = view.read_with(cx, |model, _| {
-        model.composer.view.clone().expect("composer")
-    });
-    composer.update(cx, |_, cx| cx.emit(ComposerEvent::Image(PNG.to_vec())));
-    wait(cx, &view, |model, cx| {
-        model
-            .composer
-            .view
-            .as_ref()
-            .is_some_and(|view| !view.read(cx).draft.image_attachments.is_empty())
-    })?;
-    composer.update(cx, |_, cx| cx.emit(ComposerEvent::Submit(false)));
-    wait(cx, &view, |_, _| !machine.uploads().is_empty())?;
-    let uploaded = machine.uploads();
-    let filename = uploaded
-        .first()
-        .map(|(name, _)| name)
-        .ok_or("missing uploaded image")?;
-    wait_wrapped_text(cx, &view, &format!("/{filename}'"))?;
-    assert_eq!(machine.uploads().len(), 1);
-    let here = tempfile::tempdir()?;
-    let huge = here.path().join("huge.bin");
-    std::fs::File::create(&huge)?.set_len(muxy_protocol::MAX_UPLOAD_BYTES + 1)?;
-    composer.update(cx, |_, cx| {
-        cx.emit(ComposerEvent::Files(vec![huge.clone()]));
-    });
-    composer.update(cx, |_, cx| cx.emit(ComposerEvent::Submit(false)));
-    wait(cx, &view, |model, cx| {
-        model.composer.view.as_ref().is_some_and(|view| {
-            let view = view.read(cx);
-            view.error
-                .as_deref()
-                .is_some_and(|error| error.contains("larger than 100 MiB"))
-                && view
-                    .draft
-                    .file_attachments
-                    .contains(&huge.to_string_lossy().into_owned())
-        })
-    })?;
-    assert_eq!(machine.uploads().len(), 1, "nothing more was sent");
     view.update(cx, |model, _| model.stop_workers());
     Ok(())
 }

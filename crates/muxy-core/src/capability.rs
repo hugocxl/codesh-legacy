@@ -11,22 +11,18 @@ pub enum Feature {
     ExtensionScripts,
     ExtensionWebviews,
     Voice,
-    QuickTerminal,
     Notifications,
-    ClipboardImages,
     CommandLineTool,
     Updates,
     AppHiding,
 }
 
 impl Feature {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 7] = [
         Self::ExtensionScripts,
         Self::ExtensionWebviews,
         Self::Voice,
-        Self::QuickTerminal,
         Self::Notifications,
-        Self::ClipboardImages,
         Self::CommandLineTool,
         Self::Updates,
         Self::AppHiding,
@@ -42,14 +38,8 @@ impl Feature {
                 tr!("Extension webviews are not available on this platform yet.")
             }
             Self::Voice => tr!("Voice input is not available on this platform yet."),
-            Self::QuickTerminal => {
-                tr!("The Quick Terminal is not available on this platform yet.")
-            }
             Self::Notifications => {
                 tr!("Desktop notifications are not available on this platform yet.")
-            }
-            Self::ClipboardImages => {
-                tr!("Clipboard image submission is not available on this platform yet.")
             }
             Self::CommandLineTool => {
                 tr!("Installing the command line tool is not available on this platform yet.")

@@ -164,9 +164,6 @@ impl AppModel {
             || self.sidebar_resize.is_some()
             || self.voice.view.is_some()
             || self.voice.closing.is_some()
-            || (self.composer.view.is_some()
-                && self.settings.composer.presentation
-                    == muxy_app_core::settings::ComposerPresentation::Floating)
     }
 
     pub(crate) fn validate_layout_drag(&mut self, cx: &mut Context<Self>) {

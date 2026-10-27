@@ -162,10 +162,8 @@ fn equal_session_ids_on_two_servers_never_mix() -> TestResult {
     state.open_terminal_tab(remote_home)?;
     let remote_pane = state.project(remote_home).ok_or("remote Home")?.tabs[0].panes[0].id;
     state.set_pane_session(remote_pane, Some(one))?;
-    let quick = state.ensure_quick_terminal();
     assert_eq!(state.pane_server(local_pane), Some(LOCAL));
     assert_eq!(state.pane_server(remote_pane), Some(remote));
-    assert_eq!(state.pane_server(quick), Some(LOCAL));
     assert_eq!(state.project_server(remote_home), Some(remote));
     assert_eq!(
         state.session_references_by_server(),
@@ -423,10 +421,8 @@ fn restoring_and_ending_all_stay_on_one_server() -> TestResult {
     assert_eq!(remote_plan.create, [fresh]);
     assert!(remote_plan.attach.is_empty());
 
-    state.ensure_quick_terminal();
     state.clear_terminal_panes(LOCAL)?;
     assert!(state.home().tabs.is_empty());
-    assert!(state.quick_terminal().is_none());
     assert_eq!(
         state.project(remote_home).ok_or("remote Home")?.tabs[0]
             .panes

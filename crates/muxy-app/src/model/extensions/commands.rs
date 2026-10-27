@@ -18,6 +18,7 @@ pub(crate) struct ExtensionShortcut {
     pub(crate) title: String,
     /// The shortcut in effect, if any.
     pub(crate) chord: Option<KeyChord>,
+    pub(crate) default_chord: Option<KeyChord>,
 }
 
 /// Runs an extension command, or fires `command.<id>` for a runtime shortcut.
@@ -103,6 +104,10 @@ impl AppModel {
                         id: format!("extension.{}.{}", extension.name, command.id),
                         extension: extension.name.clone(),
                         title: command.title.clone(),
+                        default_chord: command
+                            .default_shortcut
+                            .as_ref()
+                            .and_then(|key| key.parse().ok()),
                         chord: bindings
                             .iter()
                             .find(|(binding, _)| {

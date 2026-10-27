@@ -484,6 +484,7 @@ fn the_panel_keeps_keyboard_focus_over_an_empty_project(cx: &mut TestAppContext)
 }
 
 #[gpui::test]
+#[ignore = "Codesh hides a collapsed sidebar, so it has no agents button"]
 fn a_collapsed_sidebar_opens_the_panel_as_a_popup_that_escape_closes(cx: &mut TestAppContext) {
     let (view, cx, _fixture) = agents(cx);
     cx.update(|_, cx| {
@@ -768,78 +769,6 @@ fn header_controls_move_between_sides_and_reattach_to_the_last_side(cx: &mut Tes
             assert!(!model.appearance.agents_panel_detached);
         });
     }
-}
-
-#[gpui::test]
-fn right_agents_share_the_panel_host_without_losing_the_composer_draft(cx: &mut TestAppContext) {
-    use muxy_app_core::settings::ComposerPresentation;
-    use muxy_ui::panel::{PanelId, PanelMode, PanelPlacement, PanelPosition};
-
-    let (view, cx, fixture) = agents(cx);
-    cx.update(|_, cx| {
-        crate::views::workspace::bind_keys(&muxy_app_core::settings::Keymap::default(), cx);
-    });
-    view.update_in(cx, |model, window, cx| {
-        model.set_agents_panel_dock(AgentsPanelDock::Right, window, cx);
-        model.settings.composer.presentation = ComposerPresentation::Panel;
-        model.toggle_composer(window, cx);
-        assert!(!model.agents_panel_shown());
-        assert!(!model.settings.appearance.agents_panel_visible);
-    });
-    cx.run_until_parked();
-    cx.simulate_input("keep this draft");
-    cx.simulate_keystrokes(ShortcutId::ToggleAgentsPanel.definition().keys[0]);
-    view.update_in(cx, |model, window, cx| {
-        assert!(model.agents_panel_shown());
-        assert!(model.composer.view.is_none());
-        assert_eq!(model.panels.len(), 1);
-        model.toggle_composer(window, cx);
-        let composer = model
-            .composer
-            .view
-            .as_ref()
-            .expect("reopened composer")
-            .read(cx);
-        assert_eq!(composer.input.read(cx).text(), "keep this draft");
-        model.toggle_agents_panel(window, cx);
-        let extension =
-            PanelPlacement::new("test-extension", PanelPosition::Right, PanelMode::Pinned);
-        model.place_panel(extension, cx);
-        assert!(!model.agents_panel_shown());
-        assert!(!model.appearance.agents_panel_visible);
-        model.toggle_agents_panel(window, cx);
-        assert!(
-            model
-                .panels
-                .placement(&PanelId::new("test-extension"))
-                .is_none()
-        );
-        assert!(model.agents_panel.focus.contains_focused(window, cx));
-        model.select_project(fixture.worktree, cx);
-        assert!(
-            model.agents_panel_shown(),
-            "Agents is global across project switches"
-        );
-        let home = model.state.home().id;
-        let saved = crate::model::webviews::panel_sessions::SavedPanel {
-            owner: "test-extension".into(),
-            kind: "right".into(),
-            position: PanelPosition::Right,
-            data: serde_json::Value::Null,
-        };
-        model.webviews.panel_sessions.save(home, saved.clone());
-        model.select_project(home, cx);
-        assert!(model.agents_panel_shown());
-        assert!(model.webviews.panel_sessions.pending.is_none());
-        assert_eq!(model.webviews.panel_sessions.take(home), Some(saved));
-    });
-    cx.run_until_parked();
-    cx.simulate_keystrokes(ShortcutId::ToggleAgentsPanel.definition().keys[0]);
-    cx.simulate_keystrokes(ShortcutId::ToggleAgentsPanel.definition().keys[0]);
-    view.read_with(cx, |model, _| {
-        assert!(!model.agents_panel_shown());
-        assert!(model.panels.is_empty());
-    });
 }
 
 #[gpui::test]

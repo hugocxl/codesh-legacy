@@ -17,8 +17,6 @@ struct Snapshot {
     version: u32,
     projects: Vec<Project>,
     #[serde(default)]
-    quick_terminal: Option<Pane>,
-    #[serde(default)]
     pending_discards: Vec<SessionId>,
 }
 
@@ -125,10 +123,6 @@ fn parse(bytes: &[u8]) -> io::Result<LegacyImport> {
             kind: project.kind,
             parent_id: project.parent_id,
         });
-    }
-    if let Some(pane) = snapshot.quick_terminal {
-        let owner = ensure_home(&mut result, home)?;
-        import_pane(&pane, owner, &mut result.sessions, &mut panes)?;
     }
     if !snapshot.pending_discards.is_empty() {
         let owner = ensure_home(&mut result, home)?;

@@ -80,8 +80,6 @@ pub(crate) enum Command {
     /// The open remote file link's menu: copy the file here and open it.
     OpenRemoteCopy,
     CopyRemotePath,
-    /// A row of the menu the composer with this identity opened.
-    Composer(gpui::EntityId, super::composer::menu::Command),
     /// Opens a browser pane's page in the default browser, or the installed
     /// browser at an index of `opener::web_browsers`.
     OpenInBrowser(muxy_app_core::PaneId, Option<usize>),
@@ -667,14 +665,6 @@ impl AppModel {
             }
             Command::OpenRemoteCopy => self.open_remote_copy(cx),
             Command::CopyRemotePath => self.copy_remote_path(cx),
-            Command::Composer(id, command) => {
-                if let Some(composer) = &self.composer.view
-                    && composer.entity_id() == id
-                {
-                    composer.update(cx, |composer, cx| composer.menu_action(command, cx));
-                }
-                return;
-            }
             Command::OpenInBrowser(pane, index) => self.open_browser_page_in(pane, index, cx),
             Command::BrowserProfile(pane, index) => {
                 if let Some(profile) = self.settings_browser_profiles().into_iter().nth(index) {

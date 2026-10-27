@@ -4,18 +4,17 @@ mod backup;
 pub(crate) mod browser;
 mod catalog;
 mod commands;
-mod composer;
 pub(crate) mod extensions;
 mod keyboard;
 mod languages;
 mod layout;
 pub(crate) mod mobile;
 mod pickers;
-mod quick_terminal;
 mod results;
 mod server;
 mod terminal;
 mod terminal_lists;
+mod voice;
 pub(crate) mod window;
 
 pub(crate) use ai::prompt_action;
@@ -24,11 +23,12 @@ pub(crate) use pickers::{PickerAnchor, PickerKind, PickerRequest};
 
 use std::collections::{HashMap, HashSet};
 
+use super::codesh::style;
 use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window, canvas,
-    div, px,
+    InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled,
+    Subscription, Window, canvas, div, px,
 };
 use muxy_app_core::settings::{Settings, TerminalSettings};
 use muxy_core::l10n::{searchable, translate};
@@ -56,8 +56,6 @@ pub(crate) fn register_commands(
 pub(crate) enum Category {
     General,
     Ai,
-    Composer,
-    QuickTerminal,
     Appearance,
     Terminal,
     Keyboard,
@@ -71,14 +69,12 @@ pub(crate) enum Category {
 
 impl Category {
     /// Codesh hides Extensions: its built-in extensions are always on.
-    pub(crate) const ALL: [Self; 12] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::General,
-        Self::QuickTerminal,
-        Self::Composer,
         Self::Appearance,
+        Self::Terminal,
         Self::Keyboard,
         Self::Commands,
-        Self::Terminal,
         Self::Browser,
         Self::Server,
         Self::Mobile,
@@ -91,8 +87,6 @@ impl Category {
         match self {
             Self::General => tr_key!("General"),
             Self::Ai => tr_key!("AI"),
-            Self::Composer => tr_key!("Composer"),
-            Self::QuickTerminal => tr_key!("Quick Terminal"),
             Self::Appearance => tr_key!("Appearance"),
             Self::Terminal => tr_key!("Terminal"),
             Self::Keyboard => tr_key!("Keyboard"),
@@ -108,8 +102,7 @@ impl Category {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Change {
-    Composer(&'static str, bool),
-    QuickTerminal(muxy_app_core::settings::QuickTerminalSettings),
+    VoiceAutoSend(bool),
     Theme(bool, String),
     Sidebar(bool),
     SidebarVibrancy(bool),
@@ -143,7 +136,6 @@ pub(crate) enum Change {
 }
 
 pub(crate) enum SettingsEvent {
-    QuickRecording(bool),
     Backup(backup::Action),
     Change(Change),
     PreviewTerminal(&'static str, String),
@@ -164,7 +156,6 @@ pub(crate) enum SettingsEvent {
 pub(crate) struct Snapshot {
     pub(crate) settings: Settings,
     pub(crate) capabilities: muxy_core::capability::Capabilities,
-    pub(crate) quick_shortcut_status: String,
     pub(crate) terminal: TerminalSettings,
     pub(crate) server: Option<muxy_protocol::ServerSettingsDoc>,
     pub(crate) connected: bool,
@@ -196,11 +187,9 @@ pub(crate) struct SettingsView {
     pub(crate) extensions: Option<Entity<extensions::ExtensionsView>>,
     navigation_view: Entity<super::cached::CachedView<Self>>,
     content_view: Entity<super::cached::CachedView<Self>>,
-    quick_recording: Option<(muxy_ui::quick_terminal::ShortcutRecording, gpui::Task<()>)>,
     terminal_slider: Option<terminal::Drag>,
     codepoint_editor: Option<terminal_lists::CodepointEditor>,
     binding_editor: Option<terminal_lists::BindingEditor>,
-    quick_slider: Option<(&'static str, gpui::Bounds<gpui::Pixels>)>,
     pub(crate) focus: FocusHandle,
     snapshot: Snapshot,
     theme: Theme,
@@ -240,7 +229,7 @@ impl SettingsView {
     ) -> Self {
         let search = cx.new(|cx| {
             TextInput::new(InputStyle::field(&theme, &metrics), cx)
-                .with_placeholder_key(tr_key!("Search settings…"))
+                .with_placeholder_key(tr_key!("Search Settings"))
         });
         let search_subscription = cx.subscribe(&search, |pane: &mut Self, _, event, cx| {
             if matches!(event, InputEvent::Changed) {
@@ -254,15 +243,7 @@ impl SettingsView {
         let recorder = cx.intercept_keystrokes(move |event, window, cx| {
             let _ = weak.update(cx, |pane: &mut Self, cx| {
                 if pane.focus.is_focused(window) {
-                    if pane
-                        .quick_recording
-                        .as_ref()
-                        .is_some_and(|(recorder, _)| recorder.record(&event.keystroke))
-                    {
-                        cx.stop_propagation();
-                    } else {
-                        pane.record_key(&event.keystroke, cx);
-                    }
+                    pane.record_key(&event.keystroke, cx);
                 }
             });
         });
@@ -276,11 +257,9 @@ impl SettingsView {
                 cx,
             ),
             content_view: super::cached::CachedView::new(|view, _, cx| view.content(cx), cx),
-            quick_recording: None,
             terminal_slider: None,
             codepoint_editor: None,
             binding_editor: None,
-            quick_slider: None,
             focus,
             snapshot,
             theme,
@@ -305,13 +284,13 @@ impl SettingsView {
             focus_initialized: false,
             compact: false,
             picker_anchors: [
-                PickerKind::Language,
                 PickerKind::Theme(false),
                 PickerKind::Theme(true),
                 PickerKind::AiProvider(crate::repository_actions::Action::Commit),
                 PickerKind::AiProvider(crate::repository_actions::Action::CreatePullRequest),
                 PickerKind::ExtensionSidebar,
                 PickerKind::FileOpener,
+                PickerKind::Language,
                 PickerKind::AppLanguage,
             ]
             .into_iter()
@@ -333,14 +312,9 @@ impl SettingsView {
     fn create_fields(&mut self, cx: &mut Context<Self>) {
         let (theme, metrics) = (self.theme.clone(), self.metrics);
         for (id, multiline) in [
+            "voice-model",
             "command-name",
             "command-text",
-            "composer-font",
-            "composer-line-height",
-            "composer-voice-model",
-            "quick-width",
-            "quick-height",
-            "sidebar-vibrancy-level",
             "worktree-template",
             "worktree-folder",
             "width",
@@ -440,21 +414,7 @@ impl SettingsView {
             .as_ref()
             .map_or_else(String::new, |mobile| mobile.settings.port.to_string());
         for (id, value) in [
-            ("composer-font", settings.composer.font_family.clone()),
-            (
-                "composer-voice-model",
-                settings.composer.voice_model.clone(),
-            ),
-            (
-                "composer-line-height",
-                settings.composer.line_height.to_string(),
-            ),
-            ("quick-width", settings.quick_terminal.width.to_string()),
-            ("quick-height", settings.quick_terminal.height.to_string()),
-            (
-                "sidebar-vibrancy-level",
-                settings.appearance.sidebar_vibrancy_level.to_string(),
-            ),
+            ("voice-model", settings.voice.model.clone()),
             (
                 "worktree-template",
                 settings.worktrees.default_location.path_template.clone(),
@@ -505,7 +465,6 @@ impl SettingsView {
         self.subscriptions
             .push(cx.on_focus_out(&self.focus, window, |pane, _, _, cx| {
                 pane.recording = None;
-                pane.cancel_quick_recording(cx);
                 pane.results.dirty = true;
                 cx.notify();
             }));
@@ -596,6 +555,20 @@ impl SettingsView {
         cx.notify();
     }
 
+    /// Debug builds: opens the category labelled `label` (any case), so
+    /// `CODESH_OPEN_SETTINGS` can bring a section up for screenshots.
+    #[cfg(debug_assertions)]
+    pub(crate) fn show_labelled(&mut self, label: &str, cx: &mut Context<Self>) {
+        if let Some(category) = Category::ALL
+            .into_iter()
+            .find(|category| category.label().eq_ignore_ascii_case(label))
+        {
+            self.category = category;
+            self.section = None;
+            cx.notify();
+        }
+    }
+
     pub(crate) fn show_extensions(&mut self, cx: &mut Context<Self>) {
         self.category = Category::Extensions;
         self.query.clear();
@@ -607,6 +580,14 @@ impl SettingsView {
         let setting = catalog::SETTINGS
             .iter()
             .find(|setting| setting.category == category && setting.label == label);
+        if setting.is_some_and(|setting| {
+            matches!(
+                setting.id,
+                "status-bar" | "sidebar-collapsed-style" | "tips"
+            )
+        }) {
+            return false;
+        }
         if self.query.is_empty() {
             category == self.category
                 && self
@@ -678,6 +659,94 @@ impl SettingsView {
         self.text_row(id, &translate(label), description, control, stacked)
     }
 
+    fn visible_catalog_row(&self, setting: &catalog::Setting) -> bool {
+        let available = match setting.id {
+            "voice-model" => muxy_ui::voice::LOCAL_MODEL,
+            "more-languages" => Self::BROWSE_LANGUAGES,
+            "extension-sidebar" => !self.snapshot.sidebars.is_empty(),
+            "terminal-import-notes" => !self.snapshot.terminal.diagnostics.is_empty(),
+            _ => true,
+        };
+        available && self.matches(setting.category, setting.label)
+    }
+
+    /// Match the visible catalog section while keeping rows independently focusable.
+    fn row_group(&self, id: &str) -> (Option<&'static str>, bool) {
+        if let Some(index) = muxy_core::shortcuts::ALL
+            .iter()
+            .position(|shortcut| shortcut.id == id)
+        {
+            let matching = keyboard::matching(self);
+            return (None, matching.last() == Some(&index));
+        }
+        if let Some(shortcut) = self
+            .snapshot
+            .extension_shortcuts
+            .iter()
+            .find(|shortcut| shortcut.id == id)
+        {
+            let matching = keyboard::matching_extensions(self);
+            let last = matching.iter().rev().find(|index| {
+                self.snapshot.extension_shortcuts[**index].extension == shortcut.extension
+            });
+            return (
+                None,
+                last.is_some_and(|index| self.snapshot.extension_shortcuts[*index].id == id),
+            );
+        }
+        let setting = catalog::setting(id);
+        let section = setting
+            .filter(|setting| {
+                !catalog::SETTINGS
+                    .iter()
+                    .take_while(|previous| previous.id != id)
+                    .any(|previous| {
+                        previous.category == setting.category
+                            && previous.section == setting.section
+                            && self.visible_catalog_row(previous)
+                    })
+            })
+            .map(|setting| setting.section);
+        let last = setting.is_none_or(|setting| {
+            !catalog::SETTINGS
+                .iter()
+                .skip_while(|next| next.id != id)
+                .skip(1)
+                .any(|next| {
+                    next.category == setting.category
+                        && next.section == setting.section
+                        && self.visible_catalog_row(next)
+                })
+        });
+        (section, last)
+    }
+
+    fn row_start(&self, id: &str, catalog: bool, section: bool) -> (bool, bool) {
+        let shortcut_index = muxy_core::shortcuts::ALL
+            .iter()
+            .position(|shortcut| shortcut.id == id);
+        let extension_shortcut = self
+            .snapshot
+            .extension_shortcuts
+            .iter()
+            .find(|shortcut| shortcut.id == id);
+        let first = shortcut_index.map_or(section || !catalog, |index| {
+            keyboard::matching(self).first() == Some(&index)
+        });
+        let first = extension_shortcut.map_or(first, |shortcut| {
+            keyboard::matching_extensions(self)
+                .into_iter()
+                .find(|index| {
+                    self.snapshot.extension_shortcuts[*index].extension == shortcut.extension
+                })
+                .is_some_and(|index| self.snapshot.extension_shortcuts[index].id == id)
+        });
+        (
+            first,
+            !catalog && shortcut_index.is_none() && extension_shortcut.is_none(),
+        )
+    }
+
     /// A row whose label is shown as given, such as a custom command's name.
     fn text_row(
         &self,
@@ -690,18 +759,10 @@ impl SettingsView {
         let setting = catalog::setting(id);
         let catalog_description = setting.map(|setting| translate(setting.description));
         let description = description.or(catalog_description.as_deref());
-        let section = setting
-            .filter(|setting| {
-                !catalog::SETTINGS
-                    .iter()
-                    .take_while(|previous| previous.id != id)
-                    .any(|previous| {
-                        previous.category == setting.category
-                            && previous.section == setting.section
-                            && self.matches(previous.category, previous.label)
-                    })
-            })
-            .map(|setting| setting.section);
+        let (section, last) = self.row_group(id);
+        let help = description.map(str::to_owned);
+        let help_theme = self.theme.clone();
+        let (first, standalone) = self.row_start(id, setting.is_some(), section.is_some());
         let focus = self.results.row_focus[id].clone();
         let reveal = self.results.reveal_focus.clone();
         div()
@@ -712,33 +773,54 @@ impl SettingsView {
                 move || format!("settings-row-{id}")
             })
             .min_w(px(0.0))
-            .border_b_1()
-            .border_color(self.theme.border)
+            .when(standalone, |row| row.mb(px(style::GUTTER)))
             .when_some(section, |row, section| {
                 row.child(self.subsection_heading(section))
             })
-            .child(form::row(
-                self.layout_style(),
-                label,
-                description,
-                control,
-                stacked,
-            ))
+            .child(
+                div()
+                    .id(gpui::SharedString::from(format!("settings-card-row-{id}")))
+                    .relative()
+                    .bg(self.theme.fg_alpha(0.065))
+                    .border_x_1()
+                    .border_color(self.theme.fg_alpha(0.06))
+                    .when(first, |row| row.border_t_1().rounded_t(px(style::RADIUS)))
+                    .when(last, |row| row.border_b_1().rounded_b(px(style::RADIUS)))
+                    .child(form::row(
+                        self.layout_style(),
+                        label,
+                        None,
+                        control,
+                        stacked,
+                    ))
+                    .when(!last, |row| {
+                        row.child(
+                            div()
+                                .absolute()
+                                .bottom_0()
+                                .left(px(style::GUTTER * 1.5))
+                                .right(px(style::GUTTER * 1.5))
+                                .h(px(1.0))
+                                .bg(self.theme.fg_alpha(0.10)),
+                        )
+                    })
+                    .when_some(help, |row, help| {
+                        row.tooltip(move |_, cx| {
+                            cx.new(|_| {
+                                muxy_ui::components::Tooltip::new(
+                                    help.clone(),
+                                    help_theme.raised(),
+                                    help_theme.fg,
+                                    help_theme.border,
+                                    help_theme.bg,
+                                )
+                            })
+                            .into()
+                        })
+                    }),
+            )
             .when_some(self.errors.get(id), |row, error| {
                 row.child(self.note(error, true).pt_0())
-            })
-            .when(id == "quick-size", |row| {
-                row.children(
-                    ["quick-width", "quick-height"]
-                        .into_iter()
-                        .filter_map(|id| {
-                            self.errors.get(id).map(|error| {
-                                self.note(error, true)
-                                    .pt_0()
-                                    .debug_selector(move || format!("settings-error-{id}"))
-                            })
-                        }),
-                )
             })
             .child(
                 canvas(
@@ -762,11 +844,6 @@ impl SettingsView {
         form::note(self.style(), text, error)
     }
 
-    /// A stored value shown without a control, for a setting whose feature cannot run here.
-    fn stored(&self, id: &str, value: &str) -> AnyElement {
-        controls::button(self.style(), id, value, false, |_, _, _| {}).into_any_element()
-    }
-
     fn field(&self, id: &'static str) -> AnyElement {
         let selector = format!("settings-field-{id}");
         div()
@@ -777,11 +854,7 @@ impl SettingsView {
                 self.style(),
                 id,
                 &self.fields[id],
-                if matches!(id, "quick-width" | "quick-height") {
-                    Some(64.0)
-                } else {
-                    (!self.compact).then_some(210.0)
-                },
+                (!self.compact).then_some(210.0),
             ))
             .into_any_element()
     }
@@ -817,22 +890,17 @@ impl Render for SettingsView {
             .id("settings-view")
             .on_mouse_move(cx.listener(|view, event: &gpui::MouseMoveEvent, _, cx| {
                 view.move_terminal_slider(event.position, cx);
-                if let Some((id, bounds)) = view.quick_slider {
-                    view.move_quick_slider(id, bounds, event.position, cx);
-                }
             }))
             .on_mouse_up(
                 gpui::MouseButton::Left,
                 cx.listener(|view, _, _, cx| {
                     view.finish_terminal_slider(cx);
-                    view.quick_slider = None;
                 }),
             )
             .on_mouse_up_out(
                 gpui::MouseButton::Left,
                 cx.listener(|view, _, _, cx| {
                     view.finish_terminal_slider(cx);
-                    view.quick_slider = None;
                 }),
             )
             .debug_selector(|| "settings-view".into())
@@ -861,7 +929,7 @@ impl Render for SettingsView {
             .bg(self.theme.bg)
             .map(|view| super::titlebar::top_corners(view, window, true, true))
             .text_color(self.theme.fg)
-            .text_size(self.metrics.font_body())
+            .text_size(px(13.0))
             .child(
                 canvas(
                     move |bounds, window, cx| {

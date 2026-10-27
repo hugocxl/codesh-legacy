@@ -1,15 +1,37 @@
 use gpui::{Hsla, Rgba};
 use muxy_ui::theme::Theme;
 
+/// The one spacing of Codesh's chrome: the window inset, the gap between
+/// pane cards, the sidebar's and panels' side padding, and the insets of a
+/// card's header and body. Unscaled, so every edge lines up at any UI zoom.
 pub(crate) const GUTTER: f32 = 8.0;
 pub(crate) const RADIUS: f32 = 10.0;
 pub(crate) const HEADER: f32 = 36.0;
+/// Height of the macOS window buttons, to centre them on the header row.
+const TRAFFIC_LIGHT_HEIGHT: f32 = 14.0;
+/// Where the window buttons sit: inside the top-left pane's header row, on
+/// the same line as every card header and the sidebar's top row.
+pub(crate) const TRAFFIC_LIGHTS: (f32, f32) =
+    (2.0 * GUTTER, GUTTER + (HEADER - TRAFFIC_LIGHT_HEIGHT) / 2.0);
+/// The window buttons' position as a point.
+pub(crate) fn traffic_lights() -> gpui::Point<gpui::Pixels> {
+    gpui::point(gpui::px(TRAFFIC_LIGHTS.0), gpui::px(TRAFFIC_LIGHTS.1))
+}
+
+/// Room the moved window buttons take beyond upstream's measured width,
+/// which assumes they start 9px from the edge.
+pub(crate) const TRAFFIC_LIGHT_SHIFT: f32 = TRAFFIC_LIGHTS.0 - 9.0;
 // Upstream terminal padding is absorbed by the card body inset.
 pub(crate) const BASE_TERMINAL_PADDING: f32 = 2.0;
-pub(crate) const BODY_PADDING: f32 = 12.0;
-pub(crate) const SIDEBAR_PADDING: f32 = 16.0;
 /// Codesh never shows the status bar; the setting stays for upstream code paths.
 pub(crate) const STATUS_BAR: bool = false;
+/// A collapsed sidebar disappears; its toggle moves into the top-left pane.
+pub(crate) const HIDE_COLLAPSED_SIDEBAR: bool = true;
+
+/// [`GUTTER`] as a length.
+pub(crate) fn spacing() -> gpui::Pixels {
+    gpui::px(GUTTER)
+}
 
 fn blend(foreground: Hsla, background: Hsla, amount: f32) -> Hsla {
     let top: Rgba = foreground.into();

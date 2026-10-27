@@ -5,9 +5,9 @@ use crate::tr;
 use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, App, AppContext, CursorStyle, DispatchPhase, ElementId, FocusHandle, FontWeight,
-    InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    ParentElement, Point, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
-    canvas, div, px,
+    Hsla, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, ParentElement, Point, RenderOnce, SharedString, StatefulInteractiveElement,
+    Styled, Window, canvas, div, px,
 };
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -326,6 +326,7 @@ pub struct PanelStyle {
     pub theme: Theme,
     pub metrics: Metrics,
     sidebar_padding: Option<gpui::Pixels>,
+    background: Option<Hsla>,
 }
 
 impl PanelStyle {
@@ -334,6 +335,7 @@ impl PanelStyle {
             theme,
             metrics,
             sidebar_padding: None,
+            background: None,
         }
     }
 
@@ -341,6 +343,13 @@ impl PanelStyle {
     #[must_use]
     pub fn sidebar(mut self, padding: gpui::Pixels) -> Self {
         self.sidebar_padding = Some(padding);
+        self
+    }
+
+    /// Paints the frame with `background` instead of the theme background.
+    #[must_use]
+    pub fn background(mut self, background: Hsla) -> Self {
+        self.background = Some(background);
         self
     }
 }
@@ -711,6 +720,7 @@ pub struct PanelFrame {
     theme: Theme,
     metrics: Metrics,
     sidebar_padding: Option<gpui::Pixels>,
+    background: Option<Hsla>,
 }
 
 impl PanelFrame {
@@ -732,6 +742,7 @@ impl PanelFrame {
             theme: style.theme,
             metrics: style.metrics,
             sidebar_padding: style.sidebar_padding,
+            background: style.background,
         }
     }
 
@@ -877,9 +888,14 @@ impl RenderOnce for PanelFrame {
             .flex_none()
             .min_w(px(0.0))
             .min_h(px(0.0))
-            .bg(self.theme.bg)
+            .bg(self.background.unwrap_or(self.theme.bg))
             .border_color(self.theme.border)
-            .when_some(self.sidebar_padding, Styled::px)
+            // Beside the pane grid its inset already separates the panel, so
+            // a right panel pads only its window edge.
+            .when_some(self.sidebar_padding, |frame, padding| match position {
+                PanelPosition::Right => frame.pr(padding),
+                PanelPosition::Bottom => frame.px(padding),
+            })
             .child(self.chrome)
             .child(
                 div()

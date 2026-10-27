@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::settings::{Appearance, Error, Keymap, Result};
 
+// Ignore retired top-level sections in older profiles; active section schemas still validate.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Settings {
+    pub voice: super::VoiceSettings,
     pub ai: AiSettings,
-    pub composer: super::ComposerSettings,
     pub commands: Vec<super::CustomCommand>,
     pub panel_pins: BTreeMap<String, BTreeMap<String, bool>>,
-    pub quick_terminal: crate::settings::QuickTerminalSettings,
     pub appearance: Appearance,
     pub window: WindowSettings,
     pub keymap: Keymap,
@@ -222,15 +222,35 @@ impl Settings {
             &toml::to_string_pretty(&Self::default())
                 .map_err(|error| Error::new("settings defaults", error))?,
         )?;
-        let settings: Self = toml::from_str(&source)
+        let mut document: toml::Value = toml::from_str(&source)
+            .map_err(|error| Error::new(path.display().to_string(), error))?;
+        if document.get("voice").is_none() {
+            let voice = [
+                ("language", "language"),
+                ("voice_model", "model"),
+                ("voice_auto_send", "auto_send"),
+            ]
+            .into_iter()
+            .filter_map(|(old, new)| {
+                Some((new.to_owned(), document.get("composer")?.get(old)?.clone()))
+            })
+            .collect::<toml::map::Map<_, _>>();
+            if !voice.is_empty() {
+                document
+                    .as_table_mut()
+                    .ok_or_else(|| Error::new("settings", "Expected a table"))?
+                    .insert("voice".into(), voice.into());
+            }
+        }
+        let settings: Self = document
+            .try_into()
             .map_err(|error| Error::new(path.display().to_string(), error))?;
         settings.validate()?;
         Ok(settings)
     }
 
     pub fn validate(&self) -> Result<()> {
-        self.quick_terminal.validate()?;
-        self.composer.validate()?;
+        self.voice.validate()?;
         self.browser.validate()?;
         self.validate_commands()?;
         self.validate_servers()?;
@@ -264,10 +284,10 @@ impl Settings {
             .map_err(|error| Error::new("openers", error))
     }
 
-    pub fn save_composer(&self, path: &Path) -> Result<()> {
-        self.composer.validate()?;
-        crate::settings::appearance::save_section(path, "composer", &self.composer)
-            .map_err(|error| Error::new("composer", error))
+    pub fn save_voice(&self, path: &Path) -> Result<()> {
+        self.voice.validate()?;
+        crate::settings::appearance::save_section(path, "voice", &self.voice)
+            .map_err(|error| Error::new("voice", error))
     }
 
     pub fn save_browser(&self, path: &Path) -> Result<()> {

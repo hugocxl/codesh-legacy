@@ -28,7 +28,6 @@ mod views {
     pub(crate) mod cached;
     pub(crate) mod codesh;
     pub(crate) mod command_palette;
-    pub(crate) mod composer;
     pub(crate) mod confirm;
     pub(crate) mod disconnected;
     pub(crate) mod font_picker;
@@ -41,7 +40,6 @@ mod views {
     pub(crate) mod project_menu;
     pub(crate) mod project_picker;
     pub(crate) mod proxy;
-    pub(crate) mod quick_terminal;
     pub(crate) mod remote_servers;
     pub(crate) mod server_menu;
     pub(crate) mod server_status;
@@ -98,8 +96,8 @@ use views::workspace::{
     NewBrowserTab, NewHomeTab, NewTab, NewTabInProject, NewWorktree, NextProject, NextPrompt,
     NextTab, OpenSettings, PreviousProject, PreviousPrompt, PreviousTab, Quit, SelectCommandOutput,
     SelectProject, SelectTab, ShowAll, SplitDown, SplitRight, SwitchWorktree, ToggleAgentSessions,
-    ToggleAgentsPanel, ToggleCommandPalette, ToggleComposer, ToggleFullScreen, ToggleSidebar,
-    ToggleThemePicker, ToggleVoiceRecording, ToggleZoomPane, Zoom, bind_keys,
+    ToggleAgentsPanel, ToggleCommandPalette, ToggleFullScreen, ToggleSidebar, ToggleThemePicker,
+    ToggleVoiceRecording, ToggleZoomPane, Zoom, bind_keys,
 };
 
 fn main() -> ExitCode {
@@ -133,6 +131,10 @@ fn run_askpass() -> Option<ExitCode> {
     Some(askpass::run(&socket, &prompt))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "Startup wiring reads best in one place; Codesh adds a debug settings hook"
+)]
 fn run() -> ExitCode {
     #[cfg(target_os = "macos")]
     if std::env::args_os()
@@ -205,7 +207,7 @@ fn run() -> ExitCode {
             titlebar: Some(TitlebarOptions {
                 title: Some(app_name().into()),
                 appears_transparent: true,
-                traffic_light_position: Some(point(px(9.0), px(9.0))),
+                traffic_light_position: Some(views::codesh::style::traffic_lights()),
             }),
             ..window_options()
         };
@@ -214,7 +216,10 @@ fn run() -> ExitCode {
             window.set_window_title(app_name());
             let model = cx.new(|cx| AppModel::new(boot, window, cx));
             model.update(cx, |_, cx| AppModel::open_folders_from(opened_folders, cx));
-            model.update(cx, |model, cx| model.start_app_socket(window, cx));
+            model.update(cx, |model, cx| {
+                model.start_app_socket(window, cx);
+                model.open_requested_settings(cx);
+            });
             let configuration = model.downgrade();
             cx.on_action(move |_: &views::workspace::ReloadConfiguration, cx| {
                 let _ = configuration.update(cx, AppModel::reload_configuration);
@@ -331,7 +336,6 @@ fn menus() -> Vec<Menu> {
     let mut view_items = vec![
         MenuItem::action(tr!("Command Palette…"), ToggleCommandPalette),
         MenuItem::separator(),
-        MenuItem::action(tr!("Toggle Composer"), ToggleComposer),
     ];
     if backends.has_backend(Feature::Voice) {
         view_items.push(MenuItem::action(

@@ -138,12 +138,12 @@ fn native_one_x_archive_and_manual_json_use_the_same_conversion() {
     let archive = directory.path().join("legacy.muxy");
     legacy_archive(&archive, "");
     let import = prepare(directory.path(), &archive).unwrap();
-    assert!(import.summary.contains("Not available in Muxy 2 (1)"));
+    assert!(import.summary.contains("Not available in Muxy 2 (2)"));
     stage(directory.path(), &import).unwrap();
     apply_pending(directory.path()).unwrap();
     let settings = Settings::load(&directory.path().join("settings.toml")).unwrap();
     assert_eq!(settings.appearance.dark_theme, "Dracula");
-    assert_eq!(settings.quick_terminal.width, 900);
+    assert!(import.summary.contains("quickTerminal"));
     assert_eq!(
         fs::read_to_string(directory.path().join("ghostty.conf")).unwrap(),
         "font-size = 17\n"
@@ -151,20 +151,13 @@ fn native_one_x_archive_and_manual_json_use_the_same_conversion() {
     let json = directory.path().join("settings.json");
     fs::write(
         &json,
-        r#"{"muxy.quickTerminal.height":650,"mobile.approvedDevices":["secret"]}"#,
+        r#"{"muxy.theme.light":"Dracula","muxy.quickTerminal.height":650,"mobile.approvedDevices":["secret"]}"#,
     )
     .unwrap();
     let import = prepare(directory.path(), &json).unwrap();
     assert!(!String::from_utf8_lossy(&import.files["settings.toml"]).contains("secret"));
     stage(directory.path(), &import).unwrap();
     apply_pending(directory.path()).unwrap();
-    assert_eq!(
-        Settings::load(&directory.path().join("settings.toml"))
-            .unwrap()
-            .quick_terminal
-            .height,
-        650
-    );
 }
 
 #[test]
@@ -445,7 +438,7 @@ fn partial_terminal_import_preserves_unmentioned_preferences_and_replaces_lists(
     .unwrap();
     fs::write(
         legacy.path().join("settings.json"),
-        r#"{"muxy.quickTerminal.width":900}"#,
+        r#"{"muxy.theme.dark":"Dracula"}"#,
     )
     .unwrap();
     let import = prepare(directory.path(), legacy.path()).unwrap();
@@ -469,7 +462,7 @@ fn full_restore_resets_omitted_configuration_and_partial_import_keeps_it() {
     fs::create_dir(target.path().join("themes")).unwrap();
     fs::write(target.path().join("themes/custom"), "background = 111111").unwrap();
     let json = source.path().join("settings.json");
-    fs::write(&json, r#"{"muxy.quickTerminal.width":900}"#).unwrap();
+    fs::write(&json, r#"{"muxy.theme.dark":"Dracula"}"#).unwrap();
     stage(target.path(), &prepare(target.path(), &json).unwrap()).unwrap();
     apply_pending(target.path()).unwrap();
     assert!(target.path().join("server.toml").exists());

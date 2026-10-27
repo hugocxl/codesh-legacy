@@ -149,7 +149,7 @@ pub(crate) fn navigation(
     super::codesh::sidebar_chrome::top(model, sidebar_width, window, cx)
 }
 
-pub(crate) fn sidebar_toggle(model: &AppModel, cx: &mut Context<AppModel>) -> Div {
+pub(crate) fn sidebar_toggle(model: &AppModel, cx: &Context<AppModel>) -> Div {
     let m = model.metrics;
     let theme = &model.theme;
     div()

@@ -29,7 +29,6 @@ impl AppState {
         state.servers.clear();
         state.startup_commands.clear();
         state.starting_directories.clear();
-        state.quick_terminal = None;
         for pane in state
             .projects
             .iter_mut()

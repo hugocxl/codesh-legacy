@@ -4596,13 +4596,11 @@ dependencies = [
  "icu_locale_core",
  "icu_plurals",
  "icu_provider",
- "image",
  "muxy-core",
  "muxy-protocol",
  "qrcodegen",
  "regex",
  "roxmltree",
- "rustix 1.1.4",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -4739,7 +4737,6 @@ dependencies = [
  "raw-window-handle",
  "serde_json",
  "unicode-segmentation",
- "x11rb",
  "zbus",
 ]
 
