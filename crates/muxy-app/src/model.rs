@@ -8,6 +8,7 @@ mod catalog;
 pub(crate) mod commands;
 mod diagnostics;
 pub(crate) mod extensions;
+pub(crate) mod files_panel;
 pub(crate) mod git;
 mod language;
 mod links;
