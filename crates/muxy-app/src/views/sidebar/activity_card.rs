@@ -13,6 +13,8 @@ pub(super) enum Headline {
     Command(String),
     /// A browser pane, by its page title.
     Browser(String),
+    Editor(String),
+    Diff(String),
     /// An agent, with its state and what it is working on.
     Agent {
         state: AgentState,
@@ -80,29 +82,32 @@ impl Data {
             .map(|tab| tab.title(model.state.shown_pane(tab)).trim());
         let browsing =
             shown_pane.is_some_and(|pane| matches!(pane.content, PaneContent::Browser(_)));
-        let headline = if let Some((agent, tab, pane)) = agent {
-            // Agents title their terminal with the current task after a
-            // spinner glyph; until they do, the card names the agent. An older
-            // session's prompt would describe some other conversation.
-            let task = task_title(tab.title(Some(pane.id)), agent.provider.name());
-            Headline::Agent {
-                state: agent.state,
-                task,
-            }
-        } else {
-            match shown.filter(|title| !title.is_empty()) {
-                None => Headline::Empty,
-                Some(title) if browsing => Headline::Browser(title.to_owned()),
-                Some(title) => match idle_directory(title) {
-                    Some(directory) => Headline::Shell {
-                        shell: shell_name(),
-                        // The worktree's own folder goes without saying.
-                        directory: (directory != project.name).then_some(directory),
+        let headline =
+            if let Some(headline) = shown_pane.and_then(|pane| file_headline(&pane.content)) {
+                headline
+            } else if let Some((agent, tab, pane)) = agent {
+                // Agents title their terminal with the current task after a
+                // spinner glyph; until they do, the card names the agent. An older
+                // session's prompt would describe some other conversation.
+                let task = task_title(tab.title(Some(pane.id)), agent.provider.name());
+                Headline::Agent {
+                    state: agent.state,
+                    task,
+                }
+            } else {
+                match shown.filter(|title| !title.is_empty()) {
+                    None => Headline::Empty,
+                    Some(title) if browsing => Headline::Browser(title.to_owned()),
+                    Some(title) => match idle_directory(title) {
+                        Some(directory) => Headline::Shell {
+                            shell: shell_name(),
+                            // The worktree's own folder goes without saying.
+                            directory: (directory != project.name).then_some(directory),
+                        },
+                        None => Headline::Command(title.to_owned()),
                     },
-                    None => Headline::Command(title.to_owned()),
-                },
-            }
-        };
+                }
+            };
         let timestamp = snapshot
             .into_iter()
             .flat_map(|snapshot| &snapshot.events)
@@ -134,6 +139,14 @@ impl Data {
             },
             provider: agent.map(|(agent, _, _)| agent.provider),
         }
+    }
+}
+
+fn file_headline(content: &PaneContent) -> Option<Headline> {
+    match content {
+        PaneContent::Editor { path } => Some(Headline::Editor(path.rsplit('/').next()?.to_owned())),
+        PaneContent::Diff { path, .. } => Some(Headline::Diff(path.rsplit('/').next()?.to_owned())),
+        _ => None,
     }
 }
 

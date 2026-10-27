@@ -2,7 +2,7 @@ use super::{EditorView, buffer::Position};
 use gpui::{
     App, Bounds, ContentMask, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     GlobalElementId, IntoElement, LayoutId, MouseMoveEvent, PaintQuad, Pixels, Point, ShapedLine,
-    Style, TextRun, UnderlineStyle, Window, fill, font, point, px, size,
+    Style, TextRun, UnderlineStyle, Window, fill, point, px, size,
 };
 
 #[derive(Debug)]
@@ -173,13 +173,9 @@ impl Element for EditorElement {
         cx: &mut App,
     ) -> Prepaint {
         self.editor.update(cx, |editor, cx| {
-            let line_height = editor.metrics.scaled(20.0);
-            let font_size = editor.metrics.font_headline();
-            let face = font(if cfg!(target_os = "macos") {
-                "Menlo"
-            } else {
-                "monospace"
-            });
+            let (face, font_size, cell) =
+                crate::views::terminal::typography::resolve(&editor.terminal, window);
+            let line_height = cell.height;
             let base = TextRun {
                 len: 0,
                 font: face,
@@ -320,7 +316,7 @@ impl Element for EditorElement {
                     font_size,
                     &[TextRun {
                         len: number.len(),
-                        color: editor.theme.fg_dim,
+                        color: editor.theme.fg_muted,
                         ..base.clone()
                     }],
                     None,

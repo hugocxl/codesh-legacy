@@ -79,6 +79,16 @@ pub enum AgentSessionsPosition {
     Bottom,
 }
 
+/// The native panel pinned on the right of the workspace.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SidePanel {
+    #[default]
+    None,
+    Files,
+    SourceControl,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[allow(
@@ -125,6 +135,8 @@ pub struct Appearance {
     pub agent_sessions_width: Option<f32>,
     pub agent_sessions_height: Option<f32>,
     pub agent_sessions_providers: Vec<muxy_protocol::AgentProvider>,
+    pub side_panel: SidePanel,
+    pub side_panel_width: Option<f32>,
 }
 
 impl Default for Appearance {
@@ -168,6 +180,8 @@ impl Default for Appearance {
                 .into_iter()
                 .filter(|provider| crate::agent_sessions::supported(*provider))
                 .collect(),
+            side_panel: SidePanel::None,
+            side_panel_width: None,
         }
     }
 }

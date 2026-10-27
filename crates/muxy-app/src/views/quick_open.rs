@@ -1,8 +1,4 @@
 //! Native file picker. The host supplies project-relative paths and handles events.
-#![allow(
-    dead_code,
-    reason = "Native picker integration is supplied by the coordinator."
-)]
 
 use std::ops::Range;
 

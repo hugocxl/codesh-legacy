@@ -339,6 +339,9 @@ pub struct ClipboardSettings {
     pub copy_on_select: bool,
 }
 
+/// The file opener that shows project files in Codesh's own editor pane.
+pub const CODESH_EDITOR: &str = "codesh.editor";
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct OpenerSettings {
@@ -351,8 +354,8 @@ impl Default for OpenerSettings {
     fn default() -> Self {
         Self {
             url: "system.browser".into(),
-            // Codesh: terminal file links open in the built-in Files editor.
-            file: "files:editor".into(),
+            // Codesh: terminal file links open in the native editor pane.
+            file: CODESH_EDITOR.into(),
             project_target: None,
         }
     }

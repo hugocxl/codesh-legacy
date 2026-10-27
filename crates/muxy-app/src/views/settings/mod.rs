@@ -169,8 +169,6 @@ pub(crate) struct Snapshot {
     pub(crate) ai_installed: Vec<&'static str>,
     /// Enabled extensions that provide a sidebar, as `(extension, label)`.
     pub(crate) sidebars: Vec<(String, String)>,
-    /// Enabled extensions' file openers, as `(setting value, label)`.
-    pub(crate) file_openers: Vec<(String, String)>,
     /// Languages enabled extensions provide, as `(selection, label)`.
     pub(crate) languages: Vec<(String, String)>,
     pub(crate) extension_shortcuts: Vec<crate::model::extensions::ExtensionShortcut>,

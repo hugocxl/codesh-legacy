@@ -1,8 +1,7 @@
 use gpui::Context;
 use muxy_app_core::{
     Direction, PaneId, ProjectStatus,
-    extensions::FileOpener,
-    opener::{OpenContext, OpenRequest, Target},
+    opener::{FileLocation, OpenContext, OpenRequest, Target},
 };
 
 use muxy_ui::tr;
@@ -50,29 +49,8 @@ impl AppModel {
             return;
         }
         if let Target::File(file) = &target
-            && let Ok(relative) = file.path.strip_prefix(&context.project_directory)
-            && let Some(relative) = relative.to_str()
-            && let Some((owner, opener)) = self.chosen_file_opener(relative)
+            && self.open_file_link(&context, file, cx)
         {
-            let mut data = serde_json::json!({
-                "filePath": relative,
-                "source": "terminal",
-                "replaceable": false,
-            });
-            if let Some(line) = file.line {
-                data["line"] = line.into();
-            }
-            if let Some(column) = file.column {
-                data["column"] = column.into();
-            }
-            let descriptor = muxy_app_core::webview::WebviewDescriptor {
-                owner,
-                kind: opener.tab_type,
-                data,
-            };
-            if let Err(error) = self.open_webview_tab(descriptor, opener.singleton, cx) {
-                self.fail(tr!("Could not open file: %@", &error).to_string(), cx);
-            }
             return;
         }
         if let Target::File(file) = &target
@@ -105,38 +83,35 @@ impl AppModel {
         }
     }
 
-    /// The extension opener picked under Open files with, when it is enabled
-    /// and handles `relative`. As on main, extensions never open files unasked.
-    pub(super) fn chosen_file_opener(&self, relative: &str) -> Option<(String, FileOpener)> {
-        let (owner, id) = self.settings.openers.file.split_once(':')?;
-        let opener = self
-            .extensions
-            .registry
-            .enabled(owner)?
-            .manifest
-            .file_openers
-            .iter()
-            .find(|opener| opener.id == id && opener.matches(relative))?;
-        Some((owner.to_owned(), opener.clone()))
-    }
-
-    /// Enabled extensions' file openers as `(setting value, label)`.
-    pub(crate) fn extension_file_openers(&self) -> Vec<(String, String)> {
-        self.extensions
-            .registry
-            .active()
-            .flat_map(|extension| {
-                extension.manifest.file_openers.iter().map(|opener| {
-                    (
-                        format!("{}:{}", extension.name, opener.id),
-                        opener.title.as_ref().map_or_else(
-                            || extension.name.clone(),
-                            |title| format!("{} ({title})", extension.name),
-                        ),
-                    )
-                })
-            })
-            .collect()
+    /// Opens a file link inside the terminal's project in an editor pane,
+    /// at its line and column, when files open in Codesh's editor. Returns
+    /// whether it did.
+    pub(crate) fn open_file_link(
+        &mut self,
+        context: &OpenContext,
+        file: &FileLocation,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.settings.openers.file.starts_with("system.") {
+            return false;
+        }
+        let Some(relative) = file
+            .path
+            .strip_prefix(&context.project_directory)
+            .ok()
+            .and_then(|relative| relative.to_str())
+            .filter(|relative| !relative.is_empty())
+        else {
+            return false;
+        };
+        let relative = if std::path::MAIN_SEPARATOR == '/' {
+            relative.to_owned()
+        } else {
+            relative.replace(std::path::MAIN_SEPARATOR, "/")
+        };
+        let position = file.line.map(|line| (line, file.column.unwrap_or(1)));
+        self.open_project_file(context.project, &relative, position, cx);
+        true
     }
 
     pub(super) fn terminal_menu(

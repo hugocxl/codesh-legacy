@@ -116,3 +116,60 @@ fn git_panel_shortcut_and_hover_actions_emit_only_the_intended_request(cx: &mut 
         ]
     );
 }
+
+#[gpui::test]
+fn git_panel_status_keeps_untracked_files_after_many_changes(cx: &mut TestAppContext) {
+    let theme = Theme::from_scheme(&muxy_ui::theme::ColorScheme::default());
+    let panel = cx.new(|cx| GitPanel::new(ProjectId::new(), &theme, Metrics::new(1.0), cx));
+    panel.update(cx, |panel, cx| {
+        let mut status = fixture();
+        let changed = status.files[1].clone();
+        let untracked = status.files[3].clone();
+        status.files = vec![changed; 42];
+        status.files.push(untracked);
+        panel.set_status(status, cx);
+        assert_eq!(panel.groups.get(Group::Changes).len(), 42);
+        assert_eq!(panel.groups.get(Group::Untracked), &[42]);
+        assert!(
+            panel
+                .rows
+                .iter()
+                .any(|row| matches!(row, Row::Header(Group::Untracked)))
+        );
+        assert!(
+            panel
+                .rows
+                .iter()
+                .any(|row| matches!(row, Row::File(Group::Untracked, 42)))
+        );
+    });
+}
+
+#[gpui::test]
+fn git_panel_long_directories_leave_counts_and_actions_inside_row(cx: &mut TestAppContext) {
+    let theme = Theme::from_scheme(&muxy_ui::theme::ColorScheme::default());
+    let (panel, cx) =
+        cx.add_window_view(|_, cx| GitPanel::new(ProjectId::new(), &theme, Metrics::new(1.0), cx));
+    cx.simulate_resize(gpui::size(gpui::px(420.0), gpui::px(600.0)));
+    panel.update(cx, |panel, cx| {
+        let mut status = fixture();
+        let mut changed = status.files.remove(1);
+        changed.file.path = muxy_protocol::ServerPath(
+            b"crates/very/long/directory/that/does/not/fit/in/the/panel/native.rs".to_vec(),
+        );
+        changed.unstaged.additions = Some(1234);
+        changed.unstaged.deletions = Some(567);
+        status.files = vec![changed];
+        panel.set_status(status, cx);
+    });
+    cx.run_until_parked();
+    let row = cx.debug_bounds("git-file-1-0").expect("changed row");
+    let counts = cx.debug_bounds("git-counts-1-0").expect("counts");
+    assert!(counts.size.width > gpui::px(0.0));
+    assert!(counts.right() <= row.right());
+    cx.simulate_mouse_move(row.center(), None, gpui::Modifiers::none());
+    cx.run_until_parked();
+    let action = cx.debug_bounds("git-discard-0").expect("discard action");
+    assert!(action.right() <= row.right());
+    assert!(counts.right() <= action.left());
+}

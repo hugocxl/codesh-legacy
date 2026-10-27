@@ -222,6 +222,7 @@ impl Tree {
             .directories
             .keys()
             .chain(self.pending.iter())
+            .chain(self.expanded.iter())
             .filter(|dir| {
                 rescan
                     || paths
@@ -382,6 +383,18 @@ mod tests {
         assert!(tree.refresh(&[], true).is_empty());
         assert!(tree.set_entries("", vec![]));
     }
+    #[test]
+    fn files_panel_reconnect_reissues_root_and_unloaded_expanded_folders() {
+        let mut tree = Tree::default();
+        tree.set_entries("", vec![entry("src", true)]);
+        assert!(tree.expand("src"));
+        tree.retry();
+        assert_eq!(tree.refresh(&[], true), ["", "src"]);
+        tree.retry();
+        assert_eq!(tree.refresh(&[], true), ["", "src"]);
+        assert!(tree.refresh(&[], true).is_empty());
+    }
+
     #[test]
     fn files_panel_collapsed_ancestors_do_not_refresh_hidden_descendants() {
         let mut tree = Tree::default();

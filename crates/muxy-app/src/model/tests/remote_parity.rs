@@ -230,6 +230,9 @@ fn links(cx: &mut TestAppContext) -> Result {
     let opened = std::sync::Arc::new(std::sync::Mutex::new(Vec::<PathBuf>::new()));
     let seen = opened.clone();
     view.update(cx, |model, cx| {
+        // Codesh's editor opens project files by default; system openers
+        // still offer the copy menu.
+        model.settings.openers.file = "system.editor".into();
         model.remote_links.open = std::sync::Arc::new(move |path: &Path| {
             seen.lock().expect("opened").push(path.to_path_buf());
             Ok(())

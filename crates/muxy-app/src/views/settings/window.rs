@@ -331,8 +331,8 @@ impl SettingsWindow {
         });
     }
 
-    /// Chooses what opens files clicked in a terminal: a built-in opener or
-    /// an enabled extension's.
+    /// Chooses what opens files clicked in a terminal: Codesh's editor or a
+    /// system opener.
     fn open_file_opener_picker(
         &mut self,
         request: PickerRequest,
@@ -340,17 +340,10 @@ impl SettingsWindow {
         cx: &mut Context<Self>,
     ) {
         let view = self.view.read(cx);
-        let current = view.snapshot.settings.openers.file.clone();
-        let mut openers: Vec<(String, String)> = super::appearance::FILE_OPENERS
+        let openers: Vec<(String, String)> = super::appearance::FILE_OPENERS
             .iter()
             .map(|&(id, label)| (id.to_owned(), translate(label).to_string()))
-            .chain(view.snapshot.file_openers.iter().cloned())
             .collect();
-        let unavailable = !openers.iter().any(|(id, _)| *id == current);
-        if unavailable {
-            let label = super::appearance::unavailable_file_opener(&current);
-            openers.push((current.clone(), label));
-        }
         let (theme, metrics) = (view.theme.clone(), view.metrics);
         let picker = cx.new(|cx| {
             Picker::new(
@@ -362,10 +355,7 @@ impl SettingsWindow {
         });
         let items = openers
             .into_iter()
-            .map(|(id, label)| {
-                let disabled = unavailable && id == current;
-                PickerItem::Row(PickerRow::new(id, label)).disabled(disabled)
-            })
+            .map(|(id, label)| PickerItem::Row(PickerRow::new(id, label)))
             .collect();
         picker.update(cx, |picker, cx| picker.set_items(items, cx));
         self.overlay_subscription = Some(cx.subscribe_in(

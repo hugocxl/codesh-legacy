@@ -235,38 +235,35 @@ pub(super) fn rows(
     rows
 }
 
-/// Built-in openers for files clicked in a terminal, as `(setting value, label key)`.
-pub(super) const FILE_OPENERS: [(&str, &str); 3] = [
+/// Openers for files clicked in a terminal, as `(setting value, label key)`.
+pub(super) const FILE_OPENERS: [(&str, &str); 4] = [
+    (
+        muxy_app_core::settings::CODESH_EDITOR,
+        tr_key!("Codesh editor"),
+    ),
     ("system.editor", tr_key!("Project editor")),
     ("system.finder", crate::opener::FILE_MANAGER),
     ("system.application", tr_key!("Default application")),
 ];
 
-/// The chosen file opener's label. A chosen extension opener that is no
-/// longer enabled stays chosen, marked unavailable.
-fn file_opener(snapshot: &Snapshot) -> String {
-    let value = &snapshot.settings.openers.file;
-    FILE_OPENERS
-        .iter()
-        .map(|&(id, label)| (id, translate(label)))
-        .chain(
-            snapshot
-                .file_openers
-                .iter()
-                .map(|(id, label)| (id.as_str(), label.clone().into())),
-        )
-        .find(|(id, _)| id == value)
-        .map_or_else(
-            || unavailable_file_opener(value),
-            |(_, label)| label.to_string(),
-        )
+/// The chosen file opener. Any value but a system opener, such as an
+/// extension's from before native editors, means Codesh's editor.
+pub(super) fn chosen_file_opener(value: &str) -> &str {
+    if FILE_OPENERS.iter().any(|(id, _)| *id == value) {
+        value
+    } else {
+        muxy_app_core::settings::CODESH_EDITOR
+    }
 }
 
-pub(super) fn unavailable_file_opener(value: &str) -> String {
-    match value.split_once(':') {
-        Some((extension, opener)) => tr!("%@ (%@, unavailable)", extension, opener).to_string(),
-        None => tr!("%@ (unavailable)", value).to_string(),
-    }
+/// The chosen file opener's label.
+fn file_opener(snapshot: &Snapshot) -> String {
+    let value = chosen_file_opener(&snapshot.settings.openers.file);
+    FILE_OPENERS
+        .iter()
+        .find(|(id, _)| *id == value)
+        .map(|&(_, label)| translate(label).to_string())
+        .unwrap_or_default()
 }
 
 /// The app language. While the chosen language's extension is unavailable,

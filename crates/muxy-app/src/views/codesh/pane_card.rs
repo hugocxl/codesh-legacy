@@ -41,7 +41,7 @@ pub(crate) fn render(
         || ("Terminal".to_owned(), Icon::Terminal),
         |pane| {
             (
-                pane.title.clone(),
+                crate::views::native_panels::pane_title(id, pane.title.clone(), model),
                 match &pane.content {
                     PaneContent::Terminal { .. } => Icon::Terminal,
                     PaneContent::Browser(_) => Icon::Globe,

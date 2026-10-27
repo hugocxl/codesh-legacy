@@ -85,6 +85,8 @@ impl GitPanel {
         };
         div()
             .id(("git-group", group.index()))
+            .w_full()
+            .min_w_0()
             .flex()
             .items_center()
             .h(self.metrics.scaled(28.0))
@@ -171,7 +173,17 @@ impl GitPanel {
         let name = name.to_owned();
         let row_id = SharedString::from(format!("git-file-{}-{path}", group.index()));
         let open = path.clone();
-        let mut counts = div().flex().flex_none().gap(self.metrics.spacing2());
+        let mut counts = div()
+            .id(SharedString::from(format!(
+                "git-counts-{}-{index}",
+                group.index()
+            )))
+            .debug_selector(move || format!("git-counts-{}-{index}", group.index()))
+            .flex()
+            .flex_none()
+            .whitespace_nowrap()
+            .justify_end()
+            .gap(self.metrics.spacing2());
         if stat.binary {
             counts = counts.child(div().text_color(self.theme.fg_muted).child("Binary"));
         } else {
@@ -225,6 +237,7 @@ impl GitPanel {
             .id(row_id)
             .debug_selector(move || format!("git-file-{}-{index}", group.index()))
             .group("git-file-row")
+            .w_full()
             .flex()
             .items_center()
             .h(self.metrics.scaled(28.0))
@@ -257,9 +270,10 @@ impl GitPanel {
                     .flex_1()
                     .min_w_0()
                     .gap(self.metrics.spacing2())
-                    .child(div().truncate().child(name))
+                    .child(div().flex_none().whitespace_nowrap().child(name))
                     .child(
                         div()
+                            .flex_1()
                             .min_w_0()
                             .truncate()
                             .text_color(self.theme.fg_muted)

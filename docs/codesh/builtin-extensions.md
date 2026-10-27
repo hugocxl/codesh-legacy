@@ -1,5 +1,11 @@
 # Built-in extensions
 
+> **Retired.** Native Files and Source Control panels, editor and diff panes
+> replace these extensions. `BUILTINS` is empty, so nothing is seeded or forced
+> on, and folders an earlier version seeded (those carrying `.codesh-builtin`)
+> are skipped when extensions load. The bundle and the extension system remain
+> until they are removed; the rest of this page describes the earlier setup.
+
 Codesh ships the upstream [`files`](https://github.com/muxy-app/extensions/tree/main/extensions/files)
 and [`git`](https://github.com/muxy-app/extensions/tree/main/extensions/git) extensions as
 built-in features. They run on the normal extension system; only how they are installed,

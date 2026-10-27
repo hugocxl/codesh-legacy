@@ -4,7 +4,6 @@
 "%@\n\nChanges were staged before generating AI metadata." = "%@\n\nChanges were staged before generating AI metadata.";
 "%@\n\nVerify this fingerprint with your server administrator before trusting it." = "%@\n\nVerify this fingerprint with your server administrator before trusting it.";
 "%@ (%@, unavailable)" = "%@ (%@, unavailable)";
-"%@ (unavailable)" = "%@ (unavailable)";
 "%@ CLI is not installed" = "%@ CLI is not installed";
 "%@ CLI is not installed. Choose another provider or install its CLI." = "%@ CLI is not installed. Choose another provider or install its CLI.";
 "%@ Could not restore the extension's enabled state: %@" = "%@ Could not restore the extension's enabled state: %@";
@@ -246,6 +245,7 @@
 "Cannot read the development build at %@: %@. Run scripts/build-linux-dev.sh in this checkout, then retry installation." = "Cannot read the development build at %@: %@. Run scripts/build-linux-dev.sh in this checkout, then retry installation.";
 "Case" = "Case";
 "Change Theme…" = "Change Theme…";
+"Changed on disk" = "Changed on disk";
 "Changes apply immediately. Press Return or leave a field to save text." = "Changes apply immediately. Press Return or leave a field to save text.";
 "Character spacing" = "Character spacing";
 "Check after import:" = "Check after import:";
@@ -323,6 +323,7 @@
 "Closing PR #%lld" = "Closing PR #%lld";
 "Closing terminals" = "Closing terminals";
 "Codepoint fonts" = "Codepoint fonts";
+"Codesh editor" = "Codesh editor";
 "Collapse Project" = "Collapse Project";
 "Collapsed sidebar style" = "Collapsed sidebar style";
 "Color" = "Color";
@@ -346,6 +347,7 @@
 "Committed and pushed" = "Committed and pushed";
 "Committed locally" = "Committed locally";
 "Committing" = "Committing";
+"Commit…" = "Commit…";
 "Completed" = "Completed";
 "Configuration" = "Configuration";
 "Configuration contains too many files" = "Configuration contains too many files";
@@ -369,6 +371,7 @@
 "Connect to the server so Muxy can check whether terminal sessions can be preserved." = "Connect to the server so Muxy can check whether terminal sessions can be preserved.";
 "Connect to the server to create." = "Connect to the server to create.";
 "Connect to the server to manage mobile access." = "Connect to the server to manage mobile access.";
+"Connect to the server to see this diff." = "Connect to the server to see this diff.";
 "Connected" = "Connected";
 "Connecting…" = "Connecting…";
 "Connection" = "Connection";
@@ -382,6 +385,7 @@
 "Copy" = "Copy";
 "Copy Link" = "Copy Link";
 "Copy Path" = "Copy Path";
+"Copy Relative Path" = "Copy Relative Path";
 "Copy Update Command" = "Copy Update Command";
 "Copy on select" = "Copy on select";
 "Copy selected terminal text to the clipboard as soon as you finish selecting." = "Copy selected terminal text to the clipboard as soon as you finish selecting.";
@@ -427,6 +431,7 @@
 "Could not restore backup: %@. Your previous configuration was kept. Cancel or replace the pending import in Settings → Backup & Restore, or reopen Muxy to retry." = "Could not restore backup: %@. Your previous configuration was kept. Cancel or replace the pending import in Settings → Backup & Restore, or reopen Muxy to retry.";
 "Could not restore terminal output: %@" = "Could not restore terminal output: %@";
 "Could not restore the pending update: %@. Check for updates to retry." = "Could not restore the pending update: %@. Check for updates to retry.";
+"Could not save %@: %@" = "Could not save %@: %@";
 "Could not save AI settings: %@" = "Could not save AI settings: %@";
 "Could not save appearance: %@" = "Could not save appearance: %@";
 "Could not save close confirmation preference: %@" = "Could not save close confirmation preference: %@";
@@ -520,6 +525,7 @@
 "Disabled" = "Disabled";
 "Disabling…" = "Disabling…";
 "Discard" = "Discard";
+"Discard changes to %lld files? Untracked files will be permanently deleted; staged changes are preserved." = "Discard changes to %lld files? Untracked files will be permanently deleted; staged changes are preserved.";
 "Discard changes to “%@”? Untracked files will be permanently deleted; staged changes are preserved." = "Discard changes to “%@”? Untracked files will be permanently deleted; staged changes are preserved.";
 "Disconnect" = "Disconnect";
 "Disconnect %lld Servers" = "Disconnect %lld Servers";
@@ -528,6 +534,7 @@
 "Dismiss" = "Dismiss";
 "Distribute unused cell space equally around the terminal grid." = "Distribute unused cell space equally around the terminal grid.";
 "Dock Panel" = "Dock Panel";
+"Don't Save" = "Don't Save";
 "Don't ask again" = "Don't ask again";
 "Downloading and verifying the latest release. You can keep working." = "Downloading and verifying the latest release. You can keep working.";
 "Downloading app update…" = "Downloading app update…";
@@ -592,6 +599,7 @@
 "Fallback fonts" = "Fallback fonts";
 "File" = "File";
 "File manager" = "File manager";
+"File not found" = "File not found";
 "Files" = "Files";
 "Fill padding with the background color, or extend the color of the nearest cells." = "Fill padding with the background color, or extend the color of the nearest cells.";
 "Filter layouts…" = "Filter layouts…";
@@ -601,6 +609,8 @@
 "Find Next" = "Find Next";
 "Find Previous" = "Find Previous";
 "Find and install language packs in Extensions." = "Find and install language packs in Extensions.";
+"Find in Files…" = "Find in Files…";
+"Find in files" = "Find in files";
 "Find in terminal…" = "Find in terminal…";
 "Find next" = "Find next";
 "Find on page" = "Find on page";
@@ -623,6 +633,7 @@
 "Folder" = "Folder";
 "Folder is empty" = "Folder is empty";
 "Folder is required." = "Folder is required.";
+"Folder not found" = "Folder not found";
 "Font" = "Font";
 "Font family" = "Font family";
 "Font features" = "Font features";
@@ -640,6 +651,8 @@
 "General" = "General";
 "Global folder: %@" = "Global folder: %@";
 "Global template: %@" = "Global template: %@";
+"Go to File…" = "Go to File…";
+"Go to file" = "Go to file";
 "Green" = "Green";
 "Group" = "Group";
 "Group Actions" = "Group Actions";
@@ -731,11 +744,13 @@
 "Invalid update download size" = "Invalid update download size";
 "Invalid update version" = "Invalid update version";
 "It changed after you confirmed. Refresh and try again." = "It changed after you confirmed. Refresh and try again.";
+"It moves to the Trash on the computer that has the project." = "It moves to the Trash on the computer that has the project.";
 "Italic font" = "Italic font";
 "Items" = "Items";
 "Its projects and layouts leave this app; nothing on the server changes." = "Its projects and layouts leave this app; nothing on the server changes.";
 "Just now" = "Just now";
 "Keep Waiting" = "Keep Waiting";
+"Keep mine" = "Keep mine";
 "Key" = "Key";
 "Key bindings" = "Key bindings";
 "Keyboard" = "Keyboard";
@@ -869,6 +884,8 @@
 "New Branch…" = "New Branch…";
 "New Browser" = "New Browser";
 "New Browser Pane" = "New Browser Pane";
+"New File…" = "New File…";
+"New Folder…" = "New Folder…";
 "New Group" = "New Group";
 "New Group…" = "New Group…";
 "New Home Terminal" = "New Home Terminal";
@@ -939,6 +956,7 @@
 "No terminal" = "No terminal";
 "No update for this platform" = "No update for this platform";
 "Not Now" = "Not Now";
+"Not a Git repository" = "Not a Git repository";
 "Not assigned" = "Not assigned";
 "Not available in Muxy 2 (%lld): %@" = "Not available in Muxy 2 (%lld): %@";
 "Not connected" = "Not connected";
@@ -963,6 +981,7 @@
 "Open Project…" = "Open Project…";
 "Open Settings" = "Open Settings";
 "Open a Copy" = "Open a Copy";
+"Open a folder containing a Git repository to view changes." = "Open a folder containing a Git repository to view changes.";
 "Open a live terminal before starting dictation." = "Open a live terminal before starting dictation.";
 "Open a terminal to start working in this project." = "Open a terminal to start working in this project.";
 "Open configuration" = "Open configuration";
@@ -1187,6 +1206,8 @@
 "SSH connected. Install muxy-server to finish setting up this server." = "SSH connected. Install muxy-server to finish setting up this server.";
 "SSH host" = "SSH host";
 "Save" = "Save";
+"Save changes to %lld files?" = "Save changes to %lld files?";
+"Save changes to “%@”?" = "Save changes to “%@”?";
 "Save settings, themes, extension preferences, projects, workspaces, and terminal layouts to a .muxy file." = "Save settings, themes, extension preferences, projects, workspaces, and terminal layouts to a .muxy file.";
 "Scan with the Muxy app. The code works once and expires in 5 minutes." = "Scan with the Muxy app. The code works once and expires in 5 minutes.";
 "Scroll page down" = "Scroll page down";
@@ -1313,6 +1334,7 @@
 "Sidebar vibrancy" = "Sidebar vibrancy";
 "Sidebar vibrancy level" = "Sidebar vibrancy level";
 "Some history exceeds the scan limit." = "Some history exceeds the scan limit.";
+"Source Control" = "Source Control";
 "Space" = "Space";
 "Speech permission request did not complete. Try again." = "Speech permission request did not complete. Try again.";
 "Speech recognition access is disabled. Enable Muxy in System Settings → Privacy & Security → Speech Recognition." = "Speech recognition access is disabled. Enable Muxy in System Settings → Privacy & Security → Speech Recognition.";
@@ -1439,6 +1461,7 @@
 "The page new browser tabs open to. Leave it empty for the start page." = "The page new browser tabs open to. Leave it empty for the start page.";
 "The pairing code is too long to show." = "The pairing code is too long to show.";
 "The project directory isn't available on this Mac" = "The project directory isn't available on this Mac";
+"The project is no longer available." = "The project is no longer available.";
 "The project or home directory could not be found." = "The project or home directory could not be found.";
 "The project's tabs changed. Choose the layout again to confirm replacement." = "The project's tabs changed. Choose the layout again to confirm replacement.";
 "The proxy settings contain characters that can't be used" = "The proxy settings contain characters that can't be used";
@@ -1479,6 +1502,8 @@
 "This computer's server is from an older Muxy and starts terminals without the proxy. Restart the server to update it." = "This computer's server is from an older Muxy and starts terminals without the proxy. Restart the server to update it.";
 "This desktop has no file chooser service. Install xdg-desktop-portal and its backend for your desktop." = "This desktop has no file chooser service. Install xdg-desktop-portal and its backend for your desktop.";
 "This extension is up to date." = "This extension is up to date.";
+"This file is binary, so it can't be shown here." = "This file is binary, so it can't be shown here.";
+"This file is larger than 5 MB, so it can't be opened here." = "This file is larger than 5 MB, so it can't be opened here.";
 "This is not a released version" = "This is not a released version";
 "This language is unavailable for speech recognition" = "This language is unavailable for speech recognition";
 "This page can't be opened" = "This page can't be opened";
@@ -1494,15 +1519,19 @@
 "To pair a phone, turn on Settings → Mobile → Allow mobile devices and click Show Pairing Code, or run muxy mobile enable and then muxy mobile pair." = "To pair a phone, turn on Settings → Mobile → Allow mobile devices and click Show Pairing Code, or run muxy mobile enable and then muxy mobile pair.";
 "Toggle Agent Sessions" = "Toggle Agent Sessions";
 "Toggle Agents Panel" = "Toggle Agents Panel";
+"Toggle Files" = "Toggle Files";
 "Toggle Full Screen" = "Toggle Full Screen";
 "Toggle Pane Zoom" = "Toggle Pane Zoom";
 "Toggle Sidebar" = "Toggle Sidebar";
+"Toggle Source Control" = "Toggle Source Control";
 "Toggle Voice Recording" = "Toggle Voice Recording";
 "Toggle agent sessions" = "Toggle agent sessions";
 "Toggle agents panel" = "Toggle agents panel";
 "Toggle command palette" = "Toggle command palette";
+"Toggle files" = "Toggle files";
 "Toggle full screen" = "Toggle full screen";
 "Toggle sidebar" = "Toggle sidebar";
+"Toggle source control" = "Toggle source control";
 "Toggle theme picker" = "Toggle theme picker";
 "Toggle voice recording" = "Toggle voice recording";
 "Toggle zoom pane" = "Toggle zoom pane";
@@ -1529,6 +1558,7 @@
 "Unexpected layout directory response" = "Unexpected layout directory response";
 "Unexpected layout file response" = "Unexpected layout file response";
 "Unexpected remote branches reply" = "Unexpected remote branches reply";
+"Unexpected reply" = "Unexpected reply";
 "Unexpected update download location" = "Unexpected update download location";
 "Ungrouped" = "Ungrouped";
 "Uninstall" = "Uninstall";
@@ -1626,6 +1656,7 @@
 "Writing message" = "Writing message";
 "Yellow" = "Yellow";
 "You can show tips again in Settings → Appearance → Interface by turning on Show tips." = "You can show tips again in Settings → Appearance → Interface by turning on Show tips.";
+"Your changes are lost if you don't save them." = "Your changes are lost if you don't save them.";
 "You’re running the latest version of %@." = "You’re running the latest version of %@.";
 "Zoom" = "Zoom";
 "Zoom Window" = "Zoom Window";

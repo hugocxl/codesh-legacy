@@ -1,8 +1,4 @@
 //! Search UI and ripgrep JSON decoding; transport belongs to the host.
-#![allow(
-    dead_code,
-    reason = "Native picker integration is supplied by the coordinator."
-)]
 
 use std::{collections::HashSet, time::Duration};
 

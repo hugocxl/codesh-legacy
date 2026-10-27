@@ -6,7 +6,7 @@ use gpui::{
     ParentElement, Render, StatefulInteractiveElement, Styled, Window, actions, div, px, relative,
 };
 use muxy_app_core::Direction;
-use muxy_app_core::settings::Keymap;
+use muxy_app_core::settings::{Keymap, SidePanel};
 use muxy_ui::components::IconGlyph;
 use muxy_ui::icon::Icon;
 use muxy_ui::l10n::tr_key;
@@ -47,6 +47,11 @@ actions!(
         ToggleSidebar,
         ToggleAgentsPanel,
         ToggleAgentSessions,
+        ToggleFiles,
+        ToggleSourceControl,
+        GoToFile,
+        FindInFiles,
+        FocusCommitMessage,
         ToggleFullScreen,
         ToggleThemePicker,
         ToggleCommandPalette,
@@ -110,6 +115,10 @@ fn workspace_bindings(keymap: &impl muxy_core::shortcuts::ShortcutSettings) -> V
     registry.register(ShortcutId::ToggleSidebar, &ToggleSidebar);
     registry.register(ShortcutId::ToggleAgentsPanel, &ToggleAgentsPanel);
     registry.register(ShortcutId::ToggleAgentSessions, &ToggleAgentSessions);
+    registry.register(ShortcutId::ToggleFiles, &ToggleFiles);
+    registry.register(ShortcutId::ToggleSourceControl, &ToggleSourceControl);
+    registry.register(ShortcutId::GoToFile, &GoToFile);
+    registry.register(ShortcutId::FindInFiles, &FindInFiles);
     registry.register(ShortcutId::ToggleFullScreen, &ToggleFullScreen);
     registry.register(ShortcutId::ToggleThemePicker, &ToggleThemePicker);
     registry.register(ShortcutId::ToggleVoiceRecording, &ToggleVoiceRecording);
@@ -291,6 +300,22 @@ impl AppModel {
             surface.view.read(cx).native.focus();
             return;
         }
+        if let Some(view) = self
+            .active_pane()
+            .and_then(|id| self.editors.get(&id))
+            .and_then(crate::model::native::EditorPane::view)
+        {
+            view.focus_handle(cx).focus(window);
+            return;
+        }
+        if let Some(view) = self
+            .active_pane()
+            .and_then(|id| self.diffs.get(&id))
+            .and_then(|diff| diff.view.as_ref())
+        {
+            view.focus_handle(cx).focus(window);
+            return;
+        }
         if let Some(pane) = self.active_pane().and_then(|id| self.grids.get(&id)) {
             pane.focus(window, cx);
         } else {
@@ -462,6 +487,21 @@ fn action_handlers(cx: &mut Context<AppModel>) -> gpui::Div {
         }))
         .on_action(cx.listener(|model, _: &ToggleAgentSessions, window, cx| {
             model.toggle_agent_sessions(window, cx);
+        }))
+        .on_action(cx.listener(|model, _: &ToggleFiles, window, cx| {
+            model.toggle_side_panel(SidePanel::Files, window, cx);
+        }))
+        .on_action(cx.listener(|model, _: &ToggleSourceControl, window, cx| {
+            model.toggle_side_panel(SidePanel::SourceControl, window, cx);
+        }))
+        .on_action(cx.listener(|model, _: &FocusCommitMessage, window, cx| {
+            model.focus_commit_message(window, cx);
+        }))
+        .on_action(cx.listener(|model, _: &GoToFile, window, cx| {
+            model.toggle_quick_open(window, cx);
+        }))
+        .on_action(cx.listener(|model, _: &FindInFiles, window, cx| {
+            model.toggle_find_in_files(window, cx);
         }))
         .on_action(cx.listener(|_, _: &ToggleFullScreen, window, _| window.toggle_fullscreen()))
         .on_action(cx.listener(|model, _: &ToggleThemePicker, window, cx| {
@@ -687,9 +727,45 @@ fn register_panel_commands(
             ToggleAgentSessions,
         )
         .keywords("harness history resume providers"),
+        action(
+            model,
+            ShortcutId::ToggleFiles,
+            tr_key!("Toggle Files"),
+            ToggleFiles,
+        )
+        .keywords("explorer tree folder"),
+        action(
+            model,
+            ShortcutId::ToggleSourceControl,
+            tr_key!("Toggle Source Control"),
+            ToggleSourceControl,
+        )
+        .keywords("git changes stage"),
+        action(
+            model,
+            ShortcutId::GoToFile,
+            tr_key!("Go to File…"),
+            GoToFile,
+        )
+        .keywords("quick open file"),
+        action(
+            model,
+            ShortcutId::FindInFiles,
+            tr_key!("Find in Files…"),
+            FindInFiles,
+        )
+        .keywords("search grep"),
     ] {
         registry.register(command);
     }
+    registry.register(
+        muxy_ui::command_palette::Command::new(
+            "commit",
+            muxy_ui::l10n::translate(tr_key!("Commit…")),
+            super::command_palette::dispatch(FocusCommitMessage),
+        )
+        .keywords("Commit git message"),
+    );
 }
 
 fn register_worktree_commands(
@@ -878,11 +954,13 @@ impl AppModel {
 impl AppModel {
     fn prepare_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let _span = crate::profiler::span(crate::profiler::Metric::WorkspacePrepare);
+        let panel_focused = self.side_panel_focused(window, cx)
+            || self.agents_panel.focus.contains_focused(window, cx);
         if self.overlay.is_none()
             && (self.focus_requested
                 || (self.active_pane().is_none()
                     && self.webviews.panels.is_empty()
-                    && !self.agents_panel.focus.contains_focused(window, cx)
+                    && !panel_focused
                     && !self
                         .sidebar_filter_input
                         .focus_handle(cx)
@@ -947,6 +1025,7 @@ impl Render for AppModel {
         let content = self.webview_panel_content(content, window, cx);
         let content = super::agents_panel::right_panel_content(content, self, window, cx);
         let content = super::agent_sessions::panel_content(content, self, window, cx);
+        let content = super::native_panels::panel_content(content, self, window, cx);
         let workspace = action_handlers(cx)
             .on_action(cx.listener(|model, _: &ToggleVoiceRecording, window, cx| {
                 model.toggle_voice(window, cx);

@@ -912,3 +912,24 @@ fn remote_default_branch_is_reported_and_used_for_pr_creation_without_a_local_br
         Some("develop")
     );
 }
+
+#[test]
+fn native_local_status_includes_nested_untracked_files() {
+    let repo = Repo::new(false);
+    std::fs::write(repo.path.join("tracked"), "initial\n").unwrap();
+    commit(&repo, "initial");
+    std::fs::write(repo.path.join("tracked"), "changed\n").unwrap();
+    std::fs::create_dir_all(repo.path.join("src/model")).unwrap();
+    std::fs::write(repo.path.join("src/model/native.rs"), "new\nlast").unwrap();
+    let GitReply::Status(status) = repo.git(GitAction::Status { local: true }).unwrap() else {
+        panic!()
+    };
+    let untracked = status
+        .files
+        .iter()
+        .find(|file| file.file.path.0 == b"src/model/native.rs")
+        .expect("local status includes nested untracked files");
+    assert!(untracked.file.untracked());
+    assert_eq!(untracked.unstaged.additions, Some(2));
+    assert_eq!(status.summary.untracked, 1);
+}

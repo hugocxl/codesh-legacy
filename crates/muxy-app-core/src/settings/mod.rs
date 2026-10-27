@@ -21,14 +21,14 @@ pub use worktrees::{
 
 pub use appearance::{
     AgentSessionsPosition, AgentsPanelDock, AgentsPanelGrouping, AppLayout, Appearance,
-    ProjectOrder, SidebarCollapsedStyle, SidebarHost,
+    ProjectOrder, SidePanel, SidebarCollapsedStyle, SidebarHost,
 };
 pub use browser::BrowserSettings;
 pub use chord::KeyChord;
 pub use commands::CustomCommand;
 pub use config::{
-    ClipboardSettings, CloseBehavior, CommitChoices, NewPaneDirectory, OpenerSettings,
-    PaneSettings, ProjectSettings, Settings, WindowSettings,
+    CODESH_EDITOR, ClipboardSettings, CloseBehavior, CommitChoices, NewPaneDirectory,
+    OpenerSettings, PaneSettings, ProjectSettings, Settings, WindowSettings,
 };
 pub use error::{Error, Result};
 pub use ghostty::{

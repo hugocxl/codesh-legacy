@@ -554,47 +554,10 @@ fn pane_body(id: muxy_app_core::PaneId, model: &AppModel, cx: &Context<AppModel>
             )
         })
     {
-        return div()
-            .size_full()
-            .bg(model.theme.bg)
-            .id(SharedString::from(format!("native-pane-{id}")))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |model, _, window, cx| {
-                    model.focus_pane(id, cx);
-                    model.focus_active(window, cx);
-                }),
-            )
-            .child(native_pane_placeholder(content, model))
-            .into_any_element();
+        return super::native_panels::pane_body(id, content, model, cx);
     }
     let Some(pane) = model.grids.get(&id) else {
         return div().size_full().into_any_element();
     };
     pane.element()
-}
-
-/// Stands in for the editor and diff views until they are wired.
-fn native_pane_placeholder(content: &muxy_app_core::PaneContent, model: &AppModel) -> AnyElement {
-    let label = match content {
-        muxy_app_core::PaneContent::Editor { path } => path.clone(),
-        muxy_app_core::PaneContent::Diff { path, staged } => {
-            if *staged {
-                format!("{path} (staged)")
-            } else {
-                path.clone()
-            }
-        }
-        _ => String::new(),
-    };
-    div()
-        .flex()
-        .size_full()
-        .items_center()
-        .justify_center()
-        .debug_selector(|| "native-pane-placeholder".into())
-        .text_color(model.theme.fg_muted)
-        .text_size(model.metrics.font_body())
-        .child(label)
-        .into_any_element()
 }

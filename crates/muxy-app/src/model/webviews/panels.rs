@@ -405,6 +405,13 @@ impl AppModel {
                 self.appearance.agent_sessions_visible = false;
                 self.sync_agent_sessions(cx);
                 self.save_appearance(cx);
+            } else if [
+                crate::model::native::FILES_PANEL,
+                crate::model::native::GIT_PANEL,
+            ]
+            .contains(&id.as_str())
+            {
+                self.side_panel_displaced(cx);
             } else if let Some(panel) = self.webviews.panels.get(&id) {
                 panel.resize.end();
                 self.panel_event("panel.closed", &panel.owner, &panel.kind, cx);

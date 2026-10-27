@@ -178,6 +178,54 @@ pub(crate) async fn prompt_revoke(
     server_prompt(window, &title, &tr!("Revoke"), &message, cx).await
 }
 
+pub(crate) async fn prompt_delete_file(
+    window: AnyWindowHandle,
+    name: &str,
+    cx: &mut AsyncApp,
+) -> Result<bool, String> {
+    let title = tr!("Delete “%@”?", name);
+    let message = tr!("It moves to the Trash on the computer that has the project.");
+    server_prompt(window, &title, &tr!("Delete"), &message, cx).await
+}
+
+/// What to do with unsaved editors that are closing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Unsaved {
+    Save,
+    Discard,
+    Cancel,
+}
+
+pub(crate) async fn prompt_unsaved(
+    window: AnyWindowHandle,
+    names: &[String],
+    cx: &mut AsyncApp,
+) -> Unsaved {
+    let title = match names {
+        [name] => tr!("Save changes to “%@”?", name),
+        _ => tr!("Save changes to %lld files?", names.len()),
+    };
+    let message = tr!("Your changes are lost if you don't save them.");
+    let buttons = [tr!("Save"), tr!("Don't Save"), tr!("Cancel")];
+    let buttons: Vec<&str> = buttons.iter().map(AsRef::as_ref).collect();
+    let Ok(answer) = window.update(cx, |_, window, cx| {
+        window.prompt(
+            gpui::PromptLevel::Warning,
+            &title,
+            Some(&message),
+            &buttons,
+            cx,
+        )
+    }) else {
+        return Unsaved::Cancel;
+    };
+    match answer.await {
+        Ok(0) => Unsaved::Save,
+        Ok(1) => Unsaved::Discard,
+        _ => Unsaved::Cancel,
+    }
+}
+
 pub(crate) async fn prompt_reset_terminal(
     window: AnyWindowHandle,
     cx: &mut AsyncApp,

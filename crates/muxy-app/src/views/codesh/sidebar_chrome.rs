@@ -38,7 +38,7 @@ pub(crate) fn top(
         .child(titlebar::sidebar_toggle(model, cx))
         .when(model.appearance.sidebar_expanded, |bar| {
             bar.child(div().flex_1())
-                .child(model.sidebar_extension_toolbar(cx))
+                .child(crate::views::native_panels::sidebar_buttons(model, cx))
         })
         .into_any_element()
 }

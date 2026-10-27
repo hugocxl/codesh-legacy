@@ -12,7 +12,6 @@ use muxy_app_core::extensions::{Action, Extension, Icon, Side};
 use muxy_ui::components::{ButtonInteraction, SymbolGlyph, TemplateGlyph, Tooltip};
 
 use super::AppModel;
-use crate::views::titlebar;
 
 const FALLBACK: &str = "puzzlepiece.extension";
 const MAX_ICON_BYTES: u64 = 256 * 1024;
@@ -248,72 +247,6 @@ impl AppModel {
             }
             None => self.run_extension_command(&item.owner, &item.command, window, cx),
         }
-    }
-
-    pub(crate) fn sidebar_extension_toolbar(&self, cx: &mut Context<Self>) -> AnyElement {
-        let items = self.topbar_items();
-        let selected = [("files", "toggle-files"), ("git", "toggle-scm")]
-            .into_iter()
-            .filter_map(|(owner, command)| {
-                items
-                    .iter()
-                    .find(|item| item.owner == owner && item.command == command)
-                    .cloned()
-            })
-            .collect();
-        self.toolbar_items(selected, cx)
-    }
-
-    fn toolbar_items(&self, items: Vec<Item>, cx: &mut Context<Self>) -> AnyElement {
-        let mut bar = div().flex().flex_none().items_center();
-        for item in items {
-            let key = format!("top:{}:{}", item.owner, item.id);
-            let anchor = self.extensions.items.anchor(&key);
-            let icon = self.extension_icon(
-                &item.root,
-                &item.icon,
-                self.metrics.icon_md(),
-                self.theme.fg_muted,
-            );
-            let bright = self.extension_icon(
-                &item.root,
-                &item.icon,
-                self.metrics.icon_md(),
-                self.theme.fg,
-            );
-            let element_id =
-                gpui::SharedString::from(format!("extension-toolbar-{}-{}", item.owner, item.id));
-            bar = bar.child(
-                titlebar::action_button(element_id, item.tooltip.clone(), self)
-                    .group("extension-toolbar-button")
-                    .debug_selector(|| "extension-toolbar-item".into())
-                    .button_interaction(cx.listener(move |model, _, window, cx| {
-                        cx.stop_propagation();
-                        model.click_extension_item(&item, &key, false, window, cx);
-                    }))
-                    .child(
-                        canvas(
-                            move |bounds, _, _| anchor.set(Some(bounds)),
-                            |_, (), _, _| {},
-                        )
-                        .absolute()
-                        .size_full(),
-                    )
-                    .child(
-                        div()
-                            .group_hover("extension-toolbar-button", Styled::invisible)
-                            .child(icon),
-                    )
-                    .child(
-                        div()
-                            .absolute()
-                            .invisible()
-                            .group_hover("extension-toolbar-button", Styled::visible)
-                            .child(bright),
-                    ),
-            );
-        }
-        bar.into_any_element()
     }
 
     /// Status-bar items for one side, each with the separator main draws.

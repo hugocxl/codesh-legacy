@@ -56,6 +56,45 @@ impl AppModel {
                     .update(cx, |view, cx| view.show_labelled(&label, cx));
             }
         }
+        // Debug builds: open a file or diff of the current project once it
+        // has loaded, so editor and diff panes can be screenshotted.
+        #[cfg(debug_assertions)]
+        {
+            if let Some(directory) =
+                std::env::var_os("CODESH_OPEN_PROJECT").map(std::path::PathBuf::from)
+                && directory.is_absolute()
+                && directory.is_dir()
+            {
+                let existing = self
+                    .state
+                    .projects()
+                    .iter()
+                    .find(|project| project.server_id.is_local() && project.directory == directory)
+                    .map(|project| project.id);
+                if let Some(project) = existing.or_else(|| self.add_project(directory, cx)) {
+                    self.select_project(project, cx);
+                }
+            }
+            let file = std::env::var("CODESH_OPEN_FILE").ok();
+            let diff = std::env::var("CODESH_OPEN_DIFF").ok();
+            if file.is_some() || diff.is_some() {
+                cx.spawn(async move |model, cx| {
+                    cx.background_executor()
+                        .timer(std::time::Duration::from_secs(4))
+                        .await;
+                    let _ = model.update(cx, |model, cx| {
+                        let project = model.state.current_project().id;
+                        if let Some(diff) = &diff {
+                            model.open_diff(project, diff, false, cx);
+                        }
+                        if let Some(file) = &file {
+                            model.open_project_file(project, file, None, cx);
+                        }
+                    });
+                })
+                .detach();
+            }
+        }
         #[cfg(not(debug_assertions))]
         let _ = cx;
     }
@@ -205,7 +244,6 @@ impl AppModel {
                 .map(|provider| provider.id)
                 .collect(),
             sidebars: self.extension_sidebars(),
-            file_openers: self.extension_file_openers(),
             languages: self.app_languages(),
             extension_shortcuts: self.extension_shortcuts(),
             browser_profiles: self.settings_browser_profiles(),

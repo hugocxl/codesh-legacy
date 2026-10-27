@@ -39,6 +39,7 @@ mod views {
     pub(crate) mod git_panel;
     pub(crate) mod menu;
     pub(crate) mod native_modal;
+    pub(crate) mod native_panels;
     pub(crate) mod new_tab;
     pub(crate) mod overlays;
     pub(crate) mod project_editor;
@@ -76,6 +77,7 @@ mod views {
         pub(crate) mod scroll;
         pub(crate) mod scrollbar;
         pub(crate) mod selection;
+        pub(crate) mod typography;
     }
     pub(crate) mod voice;
     pub(crate) mod webview;
@@ -105,6 +107,7 @@ use views::workspace::{
     ToggleAgentsPanel, ToggleCommandPalette, ToggleFullScreen, ToggleSidebar, ToggleThemePicker,
     ToggleVoiceRecording, ToggleZoomPane, Zoom, bind_keys,
 };
+use views::workspace::{FindInFiles, GoToFile, ToggleFiles, ToggleSourceControl};
 
 fn main() -> ExitCode {
     if std::env::args_os()
@@ -354,6 +357,10 @@ fn menus() -> Vec<Menu> {
         MenuItem::action(tr!("Toggle Sidebar"), ToggleSidebar),
         MenuItem::action(tr!("Toggle Agents Panel"), ToggleAgentsPanel),
         MenuItem::action(tr!("Toggle Agent Sessions"), ToggleAgentSessions),
+        MenuItem::action(tr!("Toggle Files"), ToggleFiles),
+        MenuItem::action(tr!("Toggle Source Control"), ToggleSourceControl),
+        MenuItem::action(tr!("Go to File…"), GoToFile),
+        MenuItem::action(tr!("Find in Files…"), FindInFiles),
         MenuItem::action(tr!("Toggle Full Screen"), ToggleFullScreen),
         MenuItem::separator(),
         MenuItem::action(tr!("Theme Picker"), ToggleThemePicker),

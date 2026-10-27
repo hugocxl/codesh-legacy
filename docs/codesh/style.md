@@ -64,9 +64,9 @@ The whole grid receives one 8px inset, inside auxiliary panel composition.
   refreshes on worktree sync events, and local sessions share one batched cached
   catalog scan. Relative ages invalidate only the sidebar cache once a minute.
   The top row shares the native traffic-light row: sidebar toggle on the left,
-  then the Files and Source Control extensions' own topbar items on the right.
-  Missing/hidden extension items are omitted; commands and popover anchors use
-  the shared extension toolbar renderer.
+  then the native Files and Source Control toggles on the right, tinted while
+  their panel is open. Each opens its panel pinned on the right with the
+  sidebar's chrome, for the current project; only one is open at a time.
 - The footer has 16px side padding and 8px vertical padding: host selector,
   28px Filter pill, Add Project, New Browser. Collapsed sidebars stack the icon
   controls and hide the text input. Host choice persists in Appearance (All,

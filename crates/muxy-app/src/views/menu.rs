@@ -87,6 +87,20 @@ pub(crate) enum Command {
     BrowserProfile(muxy_app_core::PaneId, usize),
     BrowserInspect(muxy_app_core::PaneId),
     ManageBrowserProfiles,
+    /// A row of the menu of a Files panel's entry, kept in `Native::menu_path`.
+    FilesEntry(muxy_app_core::ProjectId, FilesMenu),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FilesMenu {
+    Open,
+    NewFile,
+    NewFolder,
+    Rename,
+    Delete,
+    CopyPath,
+    CopyRelativePath,
+    Reveal,
 }
 
 #[derive(Clone, Debug)]
@@ -672,6 +686,10 @@ impl AppModel {
                 }
             }
             Command::ManageBrowserProfiles => self.show_browser_settings(cx),
+            Command::FilesEntry(project, action) => {
+                self.perform_files_menu(project, action, window, cx);
+                return;
+            }
             Command::BrowserInspect(pane) => {
                 if let Some(view) = self.browser_view(pane)
                     && let Err(error) = view.read(cx).native.browser().open_devtools()

@@ -125,6 +125,10 @@ pub enum ShortcutId {
     ToggleSidebar,
     ToggleAgentsPanel,
     ToggleAgentSessions,
+    ToggleFiles,
+    ToggleSourceControl,
+    GoToFile,
+    FindInFiles,
     ToggleFullScreen,
     ToggleThemePicker,
     NavigateBack,
@@ -506,11 +510,12 @@ pub const ALL: &[Shortcut] = &[
         contexts: &[Some("WorkspaceTabs")],
         key_contexts: &[&[Some("WorkspaceTabs")]],
     },
+    // Scoped to the find field, so the same key toggles Source Control elsewhere.
     Shortcut {
         id: "find_previous",
         keys: platform_keys!(&["cmd-shift-g"], &["ctrl-alt-g"]),
-        contexts: &[Some("WorkspaceTabs")],
-        key_contexts: &[&[Some("WorkspaceTabs")]],
+        contexts: &[Some("TerminalSearchInput")],
+        key_contexts: &[&[Some("TerminalSearchInput")]],
     },
     Shortcut {
         id: "scroll_to_bottom",
@@ -575,6 +580,30 @@ pub const ALL: &[Shortcut] = &[
         keys: &[],
         contexts: &[Some("WorkspaceTabs")],
         key_contexts: &[],
+    },
+    Shortcut {
+        id: "toggle_files",
+        keys: platform_keys!(&["cmd-e"], &["ctrl-shift-e"]),
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
+    },
+    Shortcut {
+        id: "toggle_source_control",
+        keys: platform_keys!(&["cmd-shift-g"], &["ctrl-shift-alt-g"]),
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
+    },
+    Shortcut {
+        id: "go_to_file",
+        keys: platform_keys!(&["cmd-p"], &["ctrl-alt-p"]),
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
+    },
+    Shortcut {
+        id: "find_in_files",
+        keys: platform_keys!(&["cmd-shift-f"], &["ctrl-shift-alt-f"]),
+        contexts: &[Some("WorkspaceTabs")],
+        key_contexts: &[&[Some("WorkspaceTabs")]],
     },
     Shortcut {
         id: "toggle_full_screen",

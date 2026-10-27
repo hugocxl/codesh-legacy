@@ -76,6 +76,7 @@ impl Registry {
                     let result = entry.map_err(|e| e.to_string()).and_then(|entry| {
                         if entry.file_name().as_encoded_bytes().starts_with(b".")
                             || !entry.path().is_dir()
+                            || builtin::is_retired_copy(&entry.path())
                         {
                             return Ok(());
                         }

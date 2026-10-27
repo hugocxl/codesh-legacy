@@ -1,11 +1,12 @@
-//! Codesh ships these extensions inside the app. Boot copies them into the
-//! profile, where they are always enabled and never prompt for permissions.
+//! Codesh used to ship its Files and Source Control as extensions inside the
+//! app. Native panels replace them: nothing is bundled any more, and copies
+//! an earlier version seeded into the profile are not loaded.
 
 use std::fs;
 use std::io;
 use std::path::{Component, Path};
 
-pub const BUILTINS: [&str; 2] = ["files", "git"];
+pub const BUILTINS: [&str; 0] = [];
 
 /// Names the bundle a built-in folder was copied from.
 const STAMP: &str = ".codesh-builtin";
@@ -14,6 +15,12 @@ const LOG: &str = "logs/output.log";
 
 pub fn is_builtin(name: &str) -> bool {
     BUILTINS.contains(&name)
+}
+
+/// Whether `folder` is a copy an earlier Codesh seeded, which native panels
+/// now replace.
+pub fn is_retired_copy(folder: &Path) -> bool {
+    folder.join(STAMP).is_file()
 }
 
 /// Installs each built-in from `bundle` (paths `<name>/<file>`) into

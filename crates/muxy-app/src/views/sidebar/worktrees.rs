@@ -296,6 +296,14 @@ fn headline(
             .child(chip(Icon::Terminal, theme.fg))
             .child(text(command, theme.fg, FontWeight::SEMIBOLD))
             .into_any_element(),
+        Headline::Editor(file) => line
+            .child(chip(Icon::File, theme.fg))
+            .child(text(file, theme.fg, FontWeight::SEMIBOLD))
+            .into_any_element(),
+        Headline::Diff(file) => line
+            .child(chip(Icon::GitBranch, theme.fg))
+            .child(text(file, theme.fg, FontWeight::SEMIBOLD))
+            .into_any_element(),
         Headline::Browser(page) => line
             .child(chip(Icon::Globe, theme.fg))
             .child(text(page, theme.fg, FontWeight::SEMIBOLD))

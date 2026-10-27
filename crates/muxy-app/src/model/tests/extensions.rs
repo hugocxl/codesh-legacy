@@ -10,7 +10,7 @@ fn extension_permissions_shortcuts_and_toolbar_follow_enable_disable_and_unload(
         r#"{
         "name":"reader","version":"1.0.0","muxy":{
             "permissions":["files:read"],
-            "commands":[{"id":"read","title":"Read file","defaultShortcut":"cmd+e"}],
+            "commands":[{"id":"read","title":"Read file","defaultShortcut":"cmd+shift+y"}],
             "topbarItems":[{"id":"read","icon":{"symbol":"folder"},"command":"read"}]
         }
     }"#,

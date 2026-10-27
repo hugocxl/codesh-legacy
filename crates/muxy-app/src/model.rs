@@ -13,6 +13,7 @@ pub(crate) mod git;
 mod language;
 mod links;
 mod mobile;
+pub(crate) mod native;
 mod preferences;
 pub(crate) mod project_layouts;
 pub(crate) mod proxy;
@@ -176,6 +177,11 @@ pub(crate) struct AppModel {
     #[cfg(target_os = "linux")]
     pub(crate) sidebar_available_width: gpui::Pixels,
     pub(crate) agent_sessions: agent_sessions::AgentSessions,
+    pub(crate) native: native::Native,
+    /// Editor panes' files, by pane, for panes shown at least once.
+    pub(crate) editors: HashMap<PaneId, native::EditorPane>,
+    /// Diff panes' diffs, by pane, for panes shown at least once.
+    pub(crate) diffs: HashMap<PaneId, native::DiffPane>,
     pub(crate) agents_panel: agents_panel::AgentsPanel,
     pub(crate) tab_drag: crate::views::tab_strip::TabDragState,
     pub(crate) layout_drag: crate::views::splits::drag::LayoutDragState,
@@ -277,6 +283,7 @@ impl AppModel {
                 view.appearance(self.theme.clone(), self.metrics, cx);
             });
         }
+        self.native_theme(cx);
         self.sync_preferences(cx);
         if let Some(Overlay::Commands { palette, dark }) = &self.overlay {
             let active = self.themes.active_name(&self.appearance, *dark);
@@ -367,6 +374,7 @@ impl AppModel {
                 self.settings.appearance = self.appearance.clone();
                 self.sync_agents_panel(cx);
                 self.sync_agent_sessions(cx);
+                self.sync_side_panel(cx);
                 self.filter_agent_sessions(cx);
                 if theme_changed {
                     self.refresh_theme(cx);
@@ -594,6 +602,9 @@ impl AppModel {
             #[cfg(target_os = "linux")]
             sidebar_available_width: gpui::px(f32::MAX),
             agent_sessions: agent_sessions::AgentSessions::new(cx),
+            native: native::Native::new(cx),
+            editors: HashMap::new(),
+            diffs: HashMap::new(),
             agents_panel: agents_panel::AgentsPanel::new(cx),
             tab_drag: crate::views::tab_strip::TabDragState::default(),
             layout_drag: crate::views::splits::drag::LayoutDragState::default(),
@@ -1211,7 +1222,7 @@ impl AppModel {
             },
             restart,
         });
-        self.check_webview_closes(cx);
+        self.check_editor_closes(cx);
     }
 
     fn check_next_close(&mut self, cx: &mut Context<Self>) {
@@ -1744,6 +1755,7 @@ impl AppModel {
             }
             self.create_terminal_view(id, cx);
         }
+        self.sync_native(cx);
         self.ensure_visible(cx);
     }
 
@@ -2795,6 +2807,7 @@ mod tests {
     mod git;
     mod layout_drag;
     mod links;
+    mod native;
     mod preferences;
     mod project_layouts;
     mod project_order;

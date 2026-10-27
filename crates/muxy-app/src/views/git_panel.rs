@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "Native panel API is wired by the integration coordinator"
-)]
-
 mod rows;
 mod state;
 #[cfg(test)]
@@ -15,7 +10,7 @@ use gpui::{
     Transformation, Window, div, radians, svg, uniform_list,
 };
 use muxy_protocol::{GitFileStatus, GitStatus, ProjectId};
-use muxy_ui::components::IconGlyph;
+use muxy_ui::components::{IconButton, IconGlyph};
 use muxy_ui::controls::{self, Style};
 use muxy_ui::icon::Icon;
 use muxy_ui::text_input::{InputEvent, InputStyle, TextInput};
@@ -26,6 +21,7 @@ use state::{Group, Groups, Row, commit_enabled};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum GitPanelEvent {
+    Close,
     Refresh,
     Stage(Vec<String>),
     Unstage(Vec<String>),
@@ -35,6 +31,7 @@ pub(crate) enum GitPanelEvent {
 }
 
 pub(crate) struct GitPanel {
+    pub(crate) name: String,
     theme: Theme,
     metrics: Metrics,
     status: Option<GitStatus>,
@@ -76,6 +73,7 @@ impl GitPanel {
         Self {
             theme: theme.clone(),
             metrics,
+            name: "Source Control".into(),
             status: None,
             groups: Groups::default(),
             rows: Vec::new(),
@@ -91,6 +89,7 @@ impl GitPanel {
     pub(crate) fn set_status(&mut self, status: GitStatus, cx: &mut Context<Self>) {
         self.groups = Groups::from_status(&status);
         self.status = Some(status);
+        self.error = None;
         self.rebuild_rows();
         cx.notify();
     }
@@ -101,7 +100,7 @@ impl GitPanel {
     }
 
     pub(crate) fn set_error(&mut self, message: Option<String>, cx: &mut Context<Self>) {
-        self.error = message;
+        self.error = message.map(|error| crate::model::native::friendly_error(&error, true));
         cx.notify();
     }
 
@@ -117,6 +116,32 @@ impl GitPanel {
             input.set_style(InputStyle::field(theme, &self.metrics), cx);
         });
         cx.notify();
+    }
+
+    fn header_action(
+        &self,
+        id: &'static str,
+        icon: Icon,
+        label: &'static str,
+        event: GitPanelEvent,
+        cx: &Context<Self>,
+    ) -> impl IntoElement {
+        IconButton::new(
+            id,
+            icon,
+            gpui::px(16.0),
+            gpui::px(20.0),
+            self.theme.fg_muted,
+            self.theme.fg,
+        )
+        .tooltip(
+            label,
+            self.theme.raised(),
+            self.theme.fg,
+            self.theme.border,
+            self.theme.bg,
+        )
+        .on_click(cx.listener(move |_, _, _, cx| cx.emit(event.clone())))
     }
 
     fn rebuild_rows(&mut self) {
@@ -172,15 +197,6 @@ impl Render for GitPanel {
         let theme = &self.theme;
         let m = self.metrics;
         let style = Style { theme, metrics: &m };
-        let summary = self.status.as_ref().map(|status| &status.summary);
-        let branch = summary.and_then(|s| s.branch.clone()).unwrap_or_else(|| {
-            if summary.is_some_and(|s| s.head.is_some()) {
-                "Detached HEAD"
-            } else {
-                "Source Control"
-            }
-            .into()
-        });
         // The hidden text measures wrapped lines without a layout/notify cycle.
         let mut measure = self.message.read(cx).text().to_owned();
         measure.push('\u{200b}');
@@ -188,16 +204,14 @@ impl Render for GitPanel {
             .flex()
             .items_center()
             .gap(spacing())
+            .h(gpui::px(super::codesh::style::HEADER))
+            .flex_none()
+            .text_color(theme.fg_muted)
+            .text_size(m.font_footnote())
+            .font_weight(gpui::FontWeight::SEMIBOLD)
             .min_w_0()
             .child(IconGlyph::new(Icon::GitBranch, m.icon_md(), theme.fg_muted))
-            .child(div().flex_1().min_w_0().truncate().child(branch));
-        if let Some(summary) = summary {
-            branch_line = branch_line.child(
-                div()
-                    .text_color(theme.fg_muted)
-                    .child(format!("↑{} ↓{}", summary.ahead, summary.behind)),
-            );
-        }
+            .child(div().flex_1().min_w_0().truncate().child(self.name.clone()));
         if self.busy {
             branch_line = branch_line.child(
                 svg()
@@ -215,14 +229,21 @@ impl Render for GitPanel {
                     ),
             );
         } else {
-            branch_line = branch_line.child(self.action(
+            branch_line = branch_line.child(self.header_action(
                 "git-refresh",
-                "↻",
+                Icon::Refresh,
                 "Refresh",
                 GitPanelEvent::Refresh,
                 cx,
             ));
         }
+        branch_line = branch_line.child(self.header_action(
+            "git-close",
+            Icon::X,
+            "Close",
+            GitPanelEvent::Close,
+            cx,
+        ));
         let mut root = div()
             .id("git-panel")
             .flex()
@@ -230,7 +251,8 @@ impl Render for GitPanel {
             .size_full()
             .min_w_0()
             .min_h_0()
-            .p(spacing())
+            .px(spacing())
+            .pt(spacing())
             .gap(spacing())
             .bg(theme.bg)
             .text_color(theme.fg)
@@ -310,11 +332,19 @@ impl Render for GitPanel {
             root = root.child(
                 div()
                     .p(spacing())
-                    .text_color(theme.danger)
-                    .child(error.clone()),
+                    .text_color(theme.fg_muted)
+                    .child(error.clone())
+                    .when(
+                        error == muxy_ui::tr!("Not a Git repository").as_ref(),
+                        |view| {
+                            view.child(div().child(muxy_ui::tr!(
+                                "Open a folder containing a Git repository to view changes."
+                            )))
+                        },
+                    ),
             );
         }
-        if self.rows.is_empty() {
+        if self.rows.is_empty() && self.error.is_none() {
             root = root.child(div().p(spacing()).text_color(theme.fg_muted).child(
                 if self.status.is_some() {
                     "No changes"

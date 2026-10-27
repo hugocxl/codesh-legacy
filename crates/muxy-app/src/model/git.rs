@@ -23,8 +23,8 @@ pub(crate) struct Repository {
     pub(crate) loaded: bool,
     reading: Option<GitAction>,
     refresh: VecDeque<GitAction>,
-    read_loaded: [bool; 8],
-    read_errors: [Option<String>; 8],
+    read_loaded: [bool; 10],
+    read_errors: [Option<String>; 10],
     /// The merged pull request number and base while the local base branch is updated.
     post_merge: Option<(u64, String)>,
     removal: Option<muxy_protocol::WorktreeRemoval>,
@@ -66,6 +66,8 @@ fn read_slot(action: &GitAction) -> Option<usize> {
         GitAction::Watch => Some(4),
         GitAction::WorktreeHooks { teardown } => Some(if *teardown { 7 } else { 6 }),
         GitAction::PullRequest(GitPullRequestAction::Info) => Some(PULL_REQUEST_SLOT),
+        GitAction::Status { .. } => Some(8),
+        GitAction::Diff(_) => Some(9),
         _ => None,
     }
 }
@@ -383,6 +385,7 @@ impl AppModel {
         result: Result<GitReply, muxy_client::ClientError>,
         cx: &mut Context<Self>,
     ) {
+        self.native_git_reply(request, &result, cx);
         let creation = self.take_creation(request);
         let repository = self.git.projects.entry(request.project).or_default();
         repository.pending = false;

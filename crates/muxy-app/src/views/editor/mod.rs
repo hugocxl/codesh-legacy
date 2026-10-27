@@ -11,7 +11,7 @@ use gpui::{
     UTF16Selection, Window, div, point, px,
 };
 use highlight::Highlights;
-use muxy_ui::theme::{Metrics, Theme};
+use muxy_ui::theme::Theme;
 use std::ops::Range;
 
 struct KeyBindingsInstalled;
@@ -66,13 +66,11 @@ pub(crate) enum EditorEvent {
     SaveRequested,
 }
 
-// Constructed and connected to transport by the pane coordinator.
-#[allow(dead_code)]
 pub(crate) struct EditorView {
     buffer: Buffer,
     highlights: Highlights,
     theme: Theme,
-    metrics: Metrics,
+    terminal: muxy_app_core::settings::TerminalSettings,
     focus: FocusHandle,
     marked: Option<Range<Position>>,
     layout: Option<Layout>,
@@ -101,7 +99,6 @@ impl Focusable for EditorView {
 }
 
 #[allow(
-    dead_code,
     clippy::needless_pass_by_value,
     reason = "The pane coordinator passes owned file content through the shared editor API."
 )]
@@ -110,7 +107,7 @@ impl EditorView {
         text: String,
         path: &str,
         theme: &Theme,
-        metrics: Metrics,
+        terminal: &muxy_app_core::settings::TerminalSettings,
         cx: &mut Context<Self>,
     ) -> Self {
         bind_keys(cx);
@@ -118,7 +115,7 @@ impl EditorView {
             buffer: Buffer::new(&text),
             highlights: Highlights::new(path, theme),
             theme: theme.clone(),
-            metrics,
+            terminal: terminal.clone(),
             focus: cx.focus_handle(),
             marked: None,
             layout: None,
@@ -150,9 +147,39 @@ impl EditorView {
         self.buffer.mark_saved();
         cx.notify();
     }
+    pub(crate) fn set_terminal(
+        &mut self,
+        terminal: &muxy_app_core::settings::TerminalSettings,
+        cx: &mut Context<Self>,
+    ) {
+        if self.terminal != *terminal {
+            self.terminal = terminal.clone();
+            self.layout = None;
+            self.follow_caret = true;
+            cx.notify();
+        }
+    }
+
     pub(crate) fn set_theme(&mut self, theme: &Theme, cx: &mut Context<Self>) {
         self.theme.clone_from(theme);
         self.highlights.set_theme(theme);
+        cx.notify();
+    }
+    /// Puts the caret at one-based `line` and character `column`, scrolled
+    /// into view.
+    pub(crate) fn go_to_line(&mut self, line: u32, column: u32, cx: &mut Context<Self>) {
+        self.finish_composition();
+        let row = usize::try_from(line.saturating_sub(1)).unwrap_or(usize::MAX);
+        let row = row.min(self.buffer.lines.len().saturating_sub(1));
+        let skip = usize::try_from(column.saturating_sub(1)).unwrap_or(usize::MAX);
+        let text = &self.buffer.lines[row];
+        let column = text
+            .char_indices()
+            .nth(skip)
+            .map_or(text.len(), |(index, _)| index);
+        self.buffer.select(Position { row, column }, false);
+        self.goal_column = None;
+        self.follow_caret = true;
         cx.notify();
     }
     fn changed(&mut self, row: usize, cx: &mut Context<Self>) {
@@ -414,6 +441,7 @@ impl EditorView {
 impl Render for EditorView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let container = div()
+            .bg(super::codesh::style::card(&self.theme))
             .size_full()
             .min_h(px(0.0))
             .overflow_hidden()

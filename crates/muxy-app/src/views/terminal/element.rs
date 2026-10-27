@@ -14,12 +14,14 @@ pub(super) mod shade;
 
 use std::{rc::Rc, sync::Arc};
 
+#[cfg(test)]
+use gpui::font;
+
 pub(crate) use cache::Rows;
 
 use gpui::{
-    App, Bounds, Entity, FontFeatures, FontStyle, FontWeight, Hsla, IntoElement, LineLayout,
-    Pixels, Point, Styled, TextRun, Window, WrappedLine, WrappedLineLayout, canvas, fill, font,
-    point, px, rgb, size,
+    App, Bounds, Entity, FontStyle, FontWeight, Hsla, IntoElement, LineLayout, Pixels, Point,
+    Styled, TextRun, Window, WrappedLine, WrappedLineLayout, canvas, fill, point, px, rgb, size,
 };
 use muxy_protocol::{MAX_COLS, MAX_ROWS, Run, Size, Style};
 
@@ -80,7 +82,7 @@ pub(crate) fn terminal(view: Entity<TerminalPane>, palette: &Palette) -> impl In
         move |bounds, window, cx| {
             let _span = crate::profiler::span(crate::profiler::Metric::TerminalPrepaint);
             let (base_font, font_size, cell) =
-                typography(&view.read(cx).terminal, &palette, window);
+                super::typography::resolve(&view.read(cx).terminal, window);
             let pane = view.read(cx);
             let frame =
                 padding::Frame::configured(bounds, cell, &pane.terminal.options, pane.card_padding);
@@ -240,46 +242,6 @@ fn viewport_size(bounds: gpui::Size<Pixels>, cell: gpui::Size<Pixels>) -> Size {
             .floor()
             .clamp(1.0, f32::from(MAX_ROWS)) as u16,
     }
-}
-
-fn typography(
-    terminal: &muxy_app_core::settings::TerminalSettings,
-    palette: &Palette,
-    window: &Window,
-) -> (gpui::Font, Pixels, gpui::Size<Pixels>) {
-    let font_size = px(terminal.font_size);
-    let mut base_font = font(
-        terminal
-            .font_families
-            .first()
-            .map_or_else(|| "Menlo".into(), |family| muxy_ui::font::family(family)),
-    );
-    base_font.fallbacks = Some(gpui::FontFallbacks::from_fonts(
-        terminal
-            .font_families
-            .iter()
-            .skip(1)
-            .map(|family| muxy_ui::font::family(family).into())
-            .collect(),
-    ));
-    base_font.features = FontFeatures(Arc::new(terminal.font.features.clone()));
-    let sample = window.text_system().shape_line(
-        "M".into(),
-        font_size,
-        &[text_run(1, Style::default(), palette, &base_font)],
-        None,
-    );
-    let cell = size(
-        px(terminal
-            .font
-            .cell_width
-            .apply(f32::from(sample.width), window.scale_factor())),
-        px(terminal.cell_height.apply(
-            f32::from(sample.ascent + sample.descent),
-            window.scale_factor(),
-        )),
-    );
-    (base_font, font_size, cell)
 }
 
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]

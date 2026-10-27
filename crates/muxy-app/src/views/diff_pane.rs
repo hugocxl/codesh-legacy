@@ -1,6 +1,3 @@
-// The coordinator wires this entity into the native pane renderer.
-#![allow(dead_code)]
-
 use std::ops::Range;
 
 use gpui::prelude::*;
@@ -87,18 +84,70 @@ fn columns(text: &str) -> usize {
     })
 }
 
+type Typography = (gpui::Font, gpui::Pixels, gpui::Size<gpui::Pixels>);
+
+struct PaintedSegment {
+    column: usize,
+    text: String,
+    dim: bool,
+}
+
+/// Explicit cell positions keep flex sizing and clipping out of the text path.
+fn painted_segments(
+    row: &GitDiffRow,
+    old: bool,
+    unified: bool,
+    number_columns: usize,
+) -> Vec<PaintedSegment> {
+    let mut segments = Vec::with_capacity(4);
+    let mut column = 0;
+    for number in [
+        (unified || old).then_some(row.old_line_number),
+        (unified || !old).then_some(row.new_line_number),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let text = number.map_or_else(String::new, |n| n.to_string());
+        segments.push(PaintedSegment {
+            column: column + number_columns.saturating_sub(text.len() + 1),
+            text,
+            dim: true,
+        });
+        column += number_columns;
+    }
+    let marker = match row.kind {
+        GitDiffKind::Addition => "+",
+        GitDiffKind::Deletion => "-",
+        _ => " ",
+    };
+    segments.push(PaintedSegment {
+        column,
+        text: marker.into(),
+        dim: false,
+    });
+    segments.push(PaintedSegment {
+        column: column + 2,
+        text: content(row, old).replace('\t', "    "),
+        dim: false,
+    });
+    segments
+}
+
 #[derive(Debug)]
 pub(crate) struct DiffView {
     diff: GitDiff,
     path: SharedString,
     theme: Theme,
     metrics: Metrics,
+    terminal: muxy_app_core::settings::TerminalSettings,
     focus: FocusHandle,
     scroll: UniformListScrollHandle,
     split: bool,
     staged: bool,
     layout: Vec<SplitRow>,
     max_columns: usize,
+    number_columns: usize,
 }
 
 impl DiffView {
@@ -107,6 +156,7 @@ impl DiffView {
         path: &str,
         theme: &Theme,
         metrics: Metrics,
+        terminal: &muxy_app_core::settings::TerminalSettings,
         cx: &mut Context<Self>,
     ) -> Self {
         let mut view = Self {
@@ -114,12 +164,14 @@ impl DiffView {
             path: path.to_owned().into(),
             theme: theme.clone(),
             metrics,
+            terminal: terminal.clone(),
             focus: cx.focus_handle(),
             scroll: UniformListScrollHandle::new(),
             split: false,
             staged: false,
             layout: Vec::new(),
             max_columns: 0,
+            number_columns: 2,
         };
         view.rebuild();
         view
@@ -128,6 +180,15 @@ impl DiffView {
     pub(crate) fn set_diff(&mut self, diff: GitDiff, cx: &mut Context<Self>) {
         self.diff = diff;
         self.rebuild();
+        cx.notify();
+    }
+
+    pub(crate) fn set_terminal(
+        &mut self,
+        terminal: &muxy_app_core::settings::TerminalSettings,
+        cx: &mut Context<Self>,
+    ) {
+        self.terminal = terminal.clone();
         cx.notify();
     }
 
@@ -143,6 +204,17 @@ impl DiffView {
 
     fn rebuild(&mut self) {
         self.layout = split_rows(&self.diff.rows);
+        self.number_columns = self
+            .diff
+            .rows
+            .iter()
+            .flat_map(|row| [row.old_line_number, row.new_line_number])
+            .flatten()
+            .max()
+            .unwrap_or(1)
+            .to_string()
+            .len()
+            + 1;
         self.max_columns = self
             .diff
             .rows
@@ -212,79 +284,86 @@ impl DiffView {
         let mut color = match kind {
             GitDiffKind::Addition => self.theme.diff_add,
             GitDiffKind::Deletion => self.theme.diff_remove,
-            GitDiffKind::Hunk => self.theme.diff_hunk,
+
             _ => return gpui::transparent_black(),
         };
         color.a *= 0.12;
         color
     }
 
-    fn number(&self, number: Option<u64>) -> Div {
-        div()
-            .flex_none()
-            .w(self.metrics.scaled(64.0))
-            .pr(self.metrics.spacing2())
-            .text_right()
-            .text_color(self.theme.fg_dim)
-            .child(number.map_or_else(String::new, |value| value.to_string()))
-    }
-
-    fn cell(&self, row: Option<&GitDiffRow>, old: bool, unified: bool) -> Div {
-        let mut cell = div()
-            .flex()
-            .items_center()
-            .h_full()
-            .min_w_0()
-            .flex_1()
-            .overflow_hidden();
+    fn cell(
+        &self,
+        row: Option<&GitDiffRow>,
+        old: bool,
+        unified: bool,
+        typography: &Typography,
+    ) -> Div {
+        let cell = div().flex_1().min_w_0().h_full().overflow_hidden();
         let Some(row) = row else { return cell };
-        cell = cell.bg(self.tint(row.kind));
-        if unified || old {
-            cell = cell.child(self.number(row.old_line_number));
-        }
-        if unified || !old {
-            cell = cell.child(self.number(row.new_line_number));
-        }
-        let marker = match row.kind {
-            GitDiffKind::Addition => "+",
-            GitDiffKind::Deletion => "-",
-            _ => " ",
-        };
+        let segments = painted_segments(row, old, unified, self.number_columns);
+        let face = typography.0.clone();
+        let font_size = typography.1;
+        let size = typography.2;
         let color = if row.kind == GitDiffKind::Hunk {
             self.theme.diff_hunk
         } else {
             self.theme.fg
         };
-        cell.child(
-            div()
-                .flex_none()
-                .w(self.metrics.scaled(20.0))
-                .text_color(color)
-                .child(marker),
-        )
-        .child(
-            div()
-                .flex_none()
-                .whitespace_nowrap()
-                .text_color(color)
-                .child(content(row, old).replace('\t', "    ")),
+        let dim = self.theme.fg_dim;
+        cell.bg(self.tint(row.kind)).child(
+            gpui::canvas(
+                |bounds, _, _| bounds,
+                move |bounds, _, window, cx| {
+                    for segment in segments {
+                        let text: SharedString = segment.text.into();
+                        let line = window.text_system().shape_line(
+                            text.clone(),
+                            font_size,
+                            &[gpui::TextRun {
+                                len: text.len(),
+                                font: face.clone(),
+                                color: if segment.dim { dim } else { color },
+                                background_color: None,
+                                underline: None,
+                                strikethrough: None,
+                            }],
+                            None,
+                        );
+                        #[allow(clippy::cast_precision_loss)]
+                        let origin = bounds.origin
+                            + gpui::point(size.width * segment.column as f32, px(0.0));
+                        let _ = line.paint(origin, size.height, window, cx);
+                    }
+                },
+            )
+            .size_full(),
         )
     }
 
-    fn row(&self, index: usize, width: gpui::Pixels) -> Div {
-        let row = div()
-            .flex()
-            .w(width)
-            .min_w_full()
-            .h(self.metrics.scaled(20.0))
-            .line_height(self.metrics.scaled(20.0));
+    fn row(&self, index: usize, width: gpui::Pixels, typography: &Typography) -> Div {
+        let row = div().flex().w(width).min_w_full().h(typography.2.height);
         if self.split {
             let pair = self.layout[index];
-            row.child(self.cell(pair.left.map(|i| &self.diff.rows[i]), true, false))
-                .child(self.cell(pair.right.map(|i| &self.diff.rows[i]), false, false))
+            row.child(self.cell(
+                pair.left.map(|i| &self.diff.rows[i]),
+                true,
+                false,
+                typography,
+            ))
+            .child(self.cell(
+                pair.right.map(|i| &self.diff.rows[i]),
+                false,
+                false,
+                typography,
+            ))
         } else {
             let source = &self.diff.rows[index];
-            row.child(self.cell(Some(source), source.kind == GitDiffKind::Deletion, true))
+            row.child(self.cell(
+                Some(source),
+                source.kind == GitDiffKind::Deletion,
+                true,
+                typography,
+            ))
         }
     }
 }
@@ -296,16 +375,14 @@ impl Focusable for DiffView {
 }
 
 impl Render for DiffView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let count = self.row_count();
-        // Width is cached from text columns, never by shaping the entire diff.
+        let typography = super::terminal::typography::resolve(&self.terminal, window);
+        // Reserve measured font cells for both the gutters and the source text.
         #[allow(clippy::cast_precision_loss)]
-        let columns = self.max_columns as f32;
-        let width = self.metrics.scaled(if self.split {
-            2.0 * (columns * 8.0 + 84.0)
-        } else {
-            columns * 8.0 + 148.0
-        });
+        let columns =
+            (self.max_columns + self.number_columns * if self.split { 1 } else { 2 } + 2) as f32;
+        let width = typography.2.width * columns * if self.split { 2.0 } else { 1.0 };
         let mut body = div()
             .id("native-diff")
             .track_focus(&self.focus)
@@ -319,7 +396,7 @@ impl Render for DiffView {
             .min_w_0()
             .min_h_0()
             .overflow_hidden()
-            .bg(self.theme.bg)
+            .bg(style::card(&self.theme))
             .text_color(self.theme.fg)
             .child(self.header(cx));
         if self.diff.binary {
@@ -343,7 +420,7 @@ impl Render for DiffView {
                     count,
                     cx.processor(move |view, range, _, _| {
                         visible_range(range, view.row_count())
-                            .map(|i| view.row(i, width))
+                            .map(|i| view.row(i, width, &typography))
                             .collect()
                     }),
                 )
@@ -351,8 +428,6 @@ impl Render for DiffView {
                 .with_horizontal_sizing_behavior(ListHorizontalSizingBehavior::Unconstrained)
                 .flex_1()
                 .min_h_0()
-                .font_family(muxy_ui::font::monospace())
-                .text_size(self.metrics.font_body())
                 .whitespace_nowrap(),
             );
         }
@@ -385,6 +460,47 @@ mod tests {
                 text: String::new(),
             })
             .collect()
+    }
+
+    #[test]
+    fn diff_pane_context_and_addition_paint_source_segments_in_both_modes() {
+        for (kind, text, old_text, new_text) in [
+            (
+                GitDiffKind::Context,
+                " context",
+                Some("context"),
+                Some("context"),
+            ),
+            (GitDiffKind::Addition, "+added", None, Some("added")),
+        ] {
+            let row = GitDiffRow {
+                kind,
+                text: text.into(),
+                old_text: old_text.map(Into::into),
+                new_text: new_text.map(Into::into),
+                old_line_number: old_text.map(|_| 59),
+                new_line_number: Some(60),
+            };
+            for unified in [true, false] {
+                let segments = painted_segments(&row, false, unified, 3);
+                let source = segments.last().unwrap();
+                assert_eq!(source.text, new_text.unwrap());
+                assert!(!source.text.is_empty());
+                assert_eq!(source.column, if unified { 8 } else { 5 });
+            }
+            let fallback = GitDiffRow {
+                old_text: None,
+                new_text: None,
+                ..row
+            };
+            assert_eq!(
+                painted_segments(&fallback, false, true, 3)
+                    .last()
+                    .unwrap()
+                    .text,
+                new_text.unwrap()
+            );
+        }
     }
 
     #[test]

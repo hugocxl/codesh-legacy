@@ -306,88 +306,25 @@ fn manifests_load_whatever_main_accepts() {
 }
 
 #[test]
-fn builtins_are_enabled_without_a_saved_choice_and_cannot_be_turned_off() {
-    let profile = tempfile::tempdir().unwrap();
-    package(&profile.path().join("extensions/files"), "files");
-    package(&profile.path().join("extensions/other"), "other");
-    fs::write(profile.path().join("extension-enabled.json"), "[]").unwrap();
-    let mut registry = Registry::load(profile.path());
-    assert!(registry.enabled("files").is_some());
-    assert!(registry.enabled("other").is_none());
-    let active: Vec<_> = registry.active().map(|e| e.name.as_str()).collect();
-    assert_eq!(active, ["files"]);
-    assert!(registry.set_enabled("files", false).is_err());
-    assert!(registry.remove("files").is_err());
-    assert!(
-        profile
-            .path()
-            .join("extensions/files/package.json")
-            .is_file()
-    );
-}
-
-#[test]
-fn seeding_installs_builtins_once_per_stamp_and_keeps_their_log() {
+fn retired_builtins_are_neither_forced_on_nor_loaded() {
     let profile = tempfile::tempdir().unwrap();
     let extensions = profile.path().join("extensions");
-    let bundle = |version: &str| {
-        builtin::BUILTINS
-            .iter()
-            .flat_map(|name| {
-                [
-                    (
-                        format!("{name}/package.json"),
-                        json!({"name": name, "version": version, "muxy": {}}).to_string(),
-                    ),
-                    (format!("{name}/panel/index.html"), version.to_owned()),
-                ]
-            })
-            .collect::<Vec<_>>()
-    };
-    let seed = |files: &[(String, String)], stamp: &str| {
-        let files: Vec<_> = files
-            .iter()
-            .map(|(path, text)| (path.as_str(), text.as_bytes()))
-            .collect();
-        builtin::seed(profile.path(), &files, stamp)
-    };
-    // An interrupted earlier attempt left a partial stage behind.
-    fs::create_dir_all(extensions.join(".codesh-stage-files/stale")).unwrap();
-    seed(&bundle("1.0.0"), "one").unwrap();
-    let registry = Registry::load(profile.path());
+    package(&extensions.join("files"), "files");
+    package(&extensions.join("git"), "git");
+    fs::write(extensions.join("git/.codesh-builtin"), "stamp").unwrap();
+    fs::write(profile.path().join("extension-enabled.json"), "[]").unwrap();
+    builtin::seed(profile.path(), &[], "stamp").unwrap();
+    let mut registry = Registry::load(profile.path());
     assert!(registry.errors.is_empty(), "{:?}", registry.errors);
-    assert_eq!(registry.enabled("git").unwrap().version, "1.0.0");
+    assert!(registry.enabled("files").is_none(), "nothing is forced on");
+    assert!(registry.extensions.contains_key("files"));
+    assert!(
+        !registry.extensions.contains_key("git"),
+        "a seeded copy stays on disk but is not loaded"
+    );
+    assert_eq!(registry.active().count(), 0);
+    registry.set_enabled("files", true).unwrap();
+    assert!(registry.enabled("files").is_some());
+    registry.set_enabled("files", false).unwrap();
     assert!(!extensions.join(".codesh-stage-files").exists());
-
-    let index = extensions.join("files/panel/index.html");
-    fs::write(&index, "edited").unwrap();
-    fs::create_dir_all(extensions.join("files/logs")).unwrap();
-    fs::write(extensions.join("files/logs/output.log"), "line\n").unwrap();
-    seed(&bundle("1.0.0"), "one").unwrap();
-    assert_eq!(fs::read_to_string(&index).unwrap(), "edited");
-
-    fs::write(extensions.join("files/extra.js"), "").unwrap();
-    seed(&bundle("2.0.0"), "two").unwrap();
-    assert_eq!(fs::read_to_string(&index).unwrap(), "2.0.0");
-    assert!(!extensions.join("files/extra.js").exists());
-    assert_eq!(
-        fs::read_to_string(extensions.join("files/logs/output.log")).unwrap(),
-        "line\n"
-    );
-    assert_eq!(
-        fs::read_to_string(extensions.join("files/.codesh-builtin")).unwrap(),
-        "two"
-    );
-    let registry = Registry::load(profile.path());
-    assert!(registry.errors.is_empty(), "{:?}", registry.errors);
-    assert_eq!(registry.enabled("files").unwrap().version, "2.0.0");
-    let leftovers: Vec<_> = fs::read_dir(&extensions)
-        .unwrap()
-        .map(|entry| entry.unwrap().file_name())
-        .filter(|name| name.as_encoded_bytes().starts_with(b"."))
-        .collect();
-    assert!(leftovers.is_empty(), "{leftovers:?}");
-
-    assert!(seed(&[("files/../escape".into(), String::new())], "three").is_err());
-    assert!(!profile.path().join("escape").exists());
 }

@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "Native panel transport and placement are wired by the coordinator"
-)]
-
 use gpui::prelude::FluentBuilder;
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
@@ -20,6 +15,7 @@ use crate::model::files_panel::{Node, Tree, parent};
 use crate::views::codesh::style;
 
 pub(crate) enum FilesPanelEvent {
+    Close,
     List {
         path: String,
     },
@@ -53,7 +49,6 @@ enum Edit {
 }
 
 pub(crate) struct FilesPanel {
-    project: ProjectId,
     name: String,
     theme: Theme,
     metrics: Metrics,
@@ -72,7 +67,7 @@ impl EventEmitter<FilesPanelEvent> for FilesPanel {}
 
 impl FilesPanel {
     pub(crate) fn new(
-        project: ProjectId,
+        _project: ProjectId,
         theme: &Theme,
         metrics: Metrics,
         cx: &mut Context<Self>,
@@ -103,7 +98,6 @@ impl FilesPanel {
             });
         });
         Self {
-            project,
             name: "Files".into(),
             theme: theme.clone(),
             metrics,
@@ -119,10 +113,6 @@ impl FilesPanel {
         }
     }
 
-    pub(crate) fn project(&self) -> ProjectId {
-        self.project
-    }
-
     pub(crate) fn set_project_name(&mut self, name: String, cx: &mut Context<Self>) {
         self.name = name;
         cx.notify();
@@ -134,6 +124,7 @@ impl FilesPanel {
         entries: Vec<FileEntry>,
         cx: &mut Context<Self>,
     ) {
+        self.error = None;
         if self.tree.set_entries(dir, entries) {
             cx.emit(FilesPanelEvent::List {
                 path: dir.to_owned(),
@@ -149,11 +140,25 @@ impl FilesPanel {
         self.changed(cx);
     }
 
+    pub(crate) fn reconnect(&mut self, cx: &mut Context<Self>) {
+        self.tree.retry();
+        self.error = None;
+        self.refresh(&[], true, cx);
+    }
+
+    pub(crate) fn ensure_root(&mut self, cx: &mut Context<Self>) {
+        if self.rows.is_empty() {
+            self.refresh(&[], true, cx);
+        }
+    }
+
     pub(crate) fn set_error(&mut self, message: Option<String>, cx: &mut Context<Self>) {
         if message.is_some() {
             self.tree.retry();
         }
-        self.error = message;
+        self.error = message
+            .filter(|error| !crate::model::native::connecting(error))
+            .map(|error| crate::model::native::friendly_error(&error, true));
         cx.notify();
     }
 
@@ -296,6 +301,10 @@ impl FilesPanel {
             Edit::Folder(_) => cx.emit(FilesPanelEvent::CreateFolder { path }),
         }
         cx.notify();
+    }
+
+    pub(crate) fn is_directory(&self, path: &str) -> bool {
+        self.tree.node(path).is_some_and(|node| node.directory)
     }
 
     pub(crate) fn selected_directory(&self) -> String {
@@ -466,9 +475,15 @@ impl Render for FilesPanel {
         let mut header = div()
             .flex()
             .items_center()
-            .h(px(36.0))
+            .h(px(style::HEADER))
+            .flex_none()
             .gap(style::spacing())
             .text_color(self.theme.fg_muted)
+            .child(IconGlyph::new(
+                Icon::Folder,
+                self.metrics.font_footnote(),
+                self.theme.fg_muted,
+            ))
             .child(
                 div()
                     .flex_1()
@@ -482,6 +497,7 @@ impl Render for FilesPanel {
             ("new-folder", Icon::Folder, "New Folder"),
             ("collapse", Icon::ChevronUp, "Collapse All"),
             ("refresh", Icon::Refresh, "Refresh"),
+            ("close", Icon::X, "Close"),
         ] {
             header = header.child(
                 IconButton::new(
@@ -500,6 +516,7 @@ impl Render for FilesPanel {
                     self.theme.bg,
                 )
                 .on_click(cx.listener(move |panel, _, window, cx| match id {
+                    "close" => cx.emit(FilesPanelEvent::Close),
                     "new-file" => {
                         panel.begin_edit(Edit::File(panel.selected_directory()), window, cx);
                     }
@@ -531,6 +548,7 @@ impl Render for FilesPanel {
             .size_full()
             .min_h_0()
             .px(style::spacing())
+            .pt(style::spacing())
             .bg(self.theme.bg)
             .text_color(self.theme.fg)
             .text_size(self.metrics.font_footnote())
@@ -562,6 +580,13 @@ impl Render for FilesPanel {
                     )
                 },
             )
+            .when(!self.tree.loaded("") && self.error.is_none(), |view| {
+                view.child(
+                    div()
+                        .text_color(self.theme.fg_muted)
+                        .child(muxy_ui::tr!("Loading…")),
+                )
+            })
             .when_some(self.error.clone(), |view, error| {
                 view.child(div().text_color(self.theme.danger).child(error))
             })

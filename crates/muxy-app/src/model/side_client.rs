@@ -109,6 +109,7 @@ impl AppModel {
                     model.side_clients.installs.insert(server, install);
                     model.sync_extension_events(cx);
                     model.rewatch_files(server, cx);
+                    model.native_side_ready(server, cx);
                     model.resume_remote(server, cx);
                     model.check_remote_projects(server, cx);
                     Some(install)
@@ -171,6 +172,7 @@ impl AppModel {
         changes: FileChanges,
         cx: &mut Context<Self>,
     ) {
+        self.native_files_changed(project, &changes, cx);
         self.extension_files_changed(project, changes, cx);
     }
 
@@ -180,13 +182,13 @@ impl AppModel {
     pub(crate) fn git_changed(&mut self, project: ProjectId, cx: &mut Context<Self>) {
         self.extension_git_changed(project, cx);
         self.git_invalidated(project, cx);
+        self.native_git_changed(project, cx);
     }
 
     /// Asks `project`'s server to report its file changes to
     /// [`Self::files_changed`], over the side connection. The watch is
     /// renewed whenever that connection is replaced. A server watches at most
     /// 32 projects per connection, so further ones are refused.
-    #[allow(dead_code, reason = "native Files panel wiring lands separately")]
     pub(crate) fn watch_files(&mut self, project: ProjectId, cx: &mut Context<Self>) {
         if self.side_clients.watched.contains(&project) {
             return;
@@ -214,7 +216,6 @@ impl AppModel {
     }
 
     /// Stops [`Self::watch_files`]' watch on `project`.
-    #[allow(dead_code, reason = "native Files panel wiring lands separately")]
     pub(crate) fn unwatch_files(&mut self, project: ProjectId, cx: &mut Context<Self>) {
         if !self.side_clients.watched.remove(&project) || self.extension_watches(project) {
             return;
