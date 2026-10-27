@@ -132,7 +132,7 @@ CLI_ARCHIVE="$STAGING/artifacts/muxy-${VERSION}-macos-${ARCH}.zip"
 (cd "$STAGING/cli" && zip -X "$CLI_ARCHIVE" muxy muxy-server LICENSE)
 
 ln -s /Applications "$STAGING/dmg/Applications"
-DMG="$STAGING/artifacts/Muxy-${VERSION}-${ARCH}.dmg"
+DMG="$STAGING/artifacts/Codesh-${VERSION}-${ARCH}.dmg"
 # CI runners intermittently fail with "hdiutil: create failed - Resource busy".
 for ATTEMPT in 1 2 3 4 5; do
     rm -f "$DMG"
@@ -148,7 +148,7 @@ done
 codesign "${SIGN_ARGS[@]}" "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
 ditto -c -k --sequesterRsrc --keepParent "$STAGING/symbols" \
-    "$STAGING/artifacts/Muxy-${VERSION}-${ARCH}-symbols.zip"
+    "$STAGING/artifacts/Codesh-${VERSION}-${ARCH}-symbols.zip"
 mv "$APP" "$STAGING/artifacts/"
 mv "$STAGING/artifacts" "$OUTPUT_DIR"
 echo "==> Built $OUTPUT_DIR"

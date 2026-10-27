@@ -27,7 +27,7 @@ pub(crate) use macos::{CAPABILITY, Installation, PreparedUpdate};
 
 pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-pub(crate) const RELEASES: &str = "https://github.com/muxy-app/muxy/releases/download";
+pub(crate) const RELEASES: &str = "https://github.com/hugocxl/codesh/releases/download";
 #[cfg(any(target_os = "macos", target_os = "linux", test))]
 const MAX_DOWNLOAD: u64 = 2 * 1024 * 1024 * 1024;
 
@@ -35,8 +35,8 @@ const MAX_DOWNLOAD: u64 = 2 * 1024 * 1024 * 1024;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn feed(channel: Channel) -> &'static str {
     match channel {
-        Channel::Beta => "https://github.com/muxy-app/muxy/releases/download/beta-2.x/update.json",
-        Channel::Stable => "https://github.com/muxy-app/muxy/releases/latest/download/update.json",
+        Channel::Beta => "https://github.com/hugocxl/codesh/releases/download/beta-2.x/update.json",
+        Channel::Stable => "https://github.com/hugocxl/codesh/releases/latest/download/update.json",
     }
 }
 
@@ -84,7 +84,7 @@ impl Release {
             .as_str()
             .ok_or_else(|| tr!("No update for this platform").to_string())?;
         let filename = match platform {
-            "macos-aarch64" | "macos-x86_64" => format!("Muxy-{version}-{arch}.dmg"),
+            "macos-aarch64" | "macos-x86_64" => format!("Codesh-{version}-{arch}.dmg"),
             "linux-aarch64" | "linux-x86_64" => {
                 format!("muxy-desktop-{version}-linux-{arch}.tar.gz")
             }
@@ -194,7 +194,7 @@ mod tests {
 
     fn feed(version: &str) -> serde_json::Value {
         serde_json::json!({"schema": 1, "version": version, "platforms": {
-            "macos-aarch64": {"url": format!("{RELEASES}/v{version}/Muxy-{version}-arm64.dmg"), "size": 123}
+            "macos-aarch64": {"url": format!("{RELEASES}/v{version}/Codesh-{version}-arm64.dmg"), "size": 123}
         }})
     }
 
@@ -248,7 +248,8 @@ mod tests {
         for url in [
             "http://github.com/file.dmg",
             "https://example.com/file.dmg",
-            "https://github.com/muxy-app/muxy/releases/download/v2.0.0-beta.9/Muxy-2.0.0-beta.9-arm64.dmg",
+            "https://github.com/muxy-app/muxy/releases/download/v2.0.0-beta.10/Muxy-2.0.0-beta.10-arm64.dmg",
+            "https://github.com/hugocxl/codesh/releases/download/v2.0.0-beta.9/Codesh-2.0.0-beta.9-arm64.dmg",
         ] {
             let mut data = feed("2.0.0-beta.10");
             data["platforms"]["macos-aarch64"]["url"] = url.into();

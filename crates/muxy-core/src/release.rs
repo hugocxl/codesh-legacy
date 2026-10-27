@@ -20,15 +20,15 @@ impl Channel {
 
     pub const fn app_name(self) -> &'static str {
         match self {
-            Self::Beta => "Muxy Beta",
-            Self::Stable => "Muxy",
+            Self::Beta => "Codesh Beta",
+            Self::Stable => "Codesh",
         }
     }
 
     pub const fn bundle_identifier(self) -> &'static str {
         match self {
-            Self::Beta => "com.muxy-beta.app",
-            Self::Stable => "com.muxy.app",
+            Self::Beta => "com.hugocorta.codesh-beta",
+            Self::Stable => "com.hugocorta.codesh",
         }
     }
 }

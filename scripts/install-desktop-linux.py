@@ -20,7 +20,7 @@ import time
 import urllib.request
 import urllib.parse
 
-RELEASES = "https://github.com/muxy-app/muxy/releases/download"
+RELEASES = "https://github.com/hugocxl/codesh/releases/download"
 MAX_ARCHIVE = 2 * 1024**3
 FILES = {"muxy-app", "muxy", "muxy-server", "icon.png", "install.py", "LICENSE", "manifest.json"}
 BINARIES = {"muxy-app", "muxy", "muxy-server"}
@@ -292,12 +292,12 @@ def restart(root, version, previous, parent):
 
 def desktop_entry(root, version, appimage=False):
     beta = channel(version) == "beta"
-    identifier = "com.muxy-beta.app" if beta else "com.muxy.app"
+    identifier = "com.hugocorta.codesh-beta" if beta else "com.hugocorta.codesh"
     path = data_home() / "applications" / f"{identifier}.desktop"
     executable = str(root / ("usr/bin/muxy-app" if appimage else "current/muxy-app"))
     executable = executable.replace("\\", "\\\\\\\\").replace('"', '\\\\"').replace("`", "\\\\`").replace("$", "\\\\$").replace("%", "%%")
     icon = str(root / (f"{identifier}.png" if appimage else "current/icon.png")).replace("\\", "\\\\")
-    contents = (f"[Desktop Entry]\nType=Application\nName={'Muxy Beta' if beta else 'Muxy'}\n"
+    contents = (f"[Desktop Entry]\nType=Application\nName={'Codesh Beta' if beta else 'Codesh'}\n"
                 f'Exec="{executable}" %F\nIcon={icon}\nTerminal=false\nCategories=Development;TerminalEmulator;\n'
                 f"StartupWMClass={identifier}\n")
     if appimage:
@@ -391,7 +391,7 @@ def fetch(url, output, limit):
 def latest(release_channel):
     import io
     url = (f"{RELEASES}/beta-2.x/update.json" if release_channel == "beta"
-           else "https://github.com/muxy-app/muxy/releases/latest/download/update.json")
+           else "https://github.com/hugocxl/codesh/releases/latest/download/update.json")
     metadata = io.BytesIO()
     fetch(url, metadata, 65536)
     feed = json.loads(metadata.getvalue())
@@ -445,7 +445,7 @@ def main():
             args.version = latest(args.channel or "stable")
         if args.channel and channel(args.version) != args.channel:
             raise ValueError("The version does not belong to the selected channel")
-        print(f"Installing Muxy {args.version} for Linux {architecture()}…", flush=True)
+        print(f"Installing Codesh {args.version} for Linux {architecture()}…", flush=True)
     if args.command in {"install", "stage", "verify", "discard", "activate", "restart", "integrate-appimage"}:
         channel(args.version or "")
     root = args.root or (default_root(args.version) if args.command == "install" else Path(__file__).resolve().parent.parent.parent)
@@ -471,7 +471,7 @@ def main():
         if args.command in {"install", "stage"}:
             installation(root, args.version)
             if args.command == "install" and (root / "current").is_symlink():
-                raise ValueError("Muxy is already installed. Use Check for Updates in the app; uninstall before reinstalling.")
+                raise ValueError("Codesh is already installed. Use Check for Updates in the app; uninstall before reinstalling.")
             with tempfile.TemporaryDirectory() as temporary:
                 archive, expected = ((args.archive, args.sha256) if args.archive
                                      else download(args.version, Path(temporary)))
@@ -479,7 +479,7 @@ def main():
             if args.command == "install":
                 integrate(root, args.version)
                 switch(root, args.version)
-                print(f"Installed {root / 'current'}. Open Muxy from your desktop's Applications menu.")
+                print(f"Installed {root / 'current'}. Open Codesh from your desktop's Applications menu.")
         elif args.command == "verify":
             installation(root, args.version)
             print(json.dumps(verify(root / "versions" / args.version, args.version)))
@@ -498,7 +498,7 @@ def main():
                     shutil.rmtree(directory)
         else:
             uninstall(root)
-            print("Removed the desktop installation. Your Muxy settings, projects and session data were kept.")
+            print("Removed the desktop installation. Your Codesh settings, projects and session data were kept.")
 
 
 if __name__ == "__main__":

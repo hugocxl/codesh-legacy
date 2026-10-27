@@ -257,7 +257,7 @@ pub(crate) fn navigation(
                             .text_size(m.font_body())
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .text_color(theme.fg_muted)
-                            .child("Muxy"),
+                            .child("Codesh"),
                     )
                 })
                 .child(arrow(model, false, cx))

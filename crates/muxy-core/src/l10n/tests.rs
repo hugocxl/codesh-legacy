@@ -88,3 +88,29 @@ fn the_active_language_applies_to_tr_and_falls_back_to_english() {
     assert_eq!(crate::tr!("Settings"), "Settings");
     assert_eq!(crate::tr_key!("Settings"), "Settings");
 }
+
+#[test]
+fn desktop_branding_preserves_legacy_mobile_and_command_names() {
+    super::set_language(None);
+    assert_eq!(super::translate("Muxy Settings"), "Codesh Settings");
+    assert_eq!(
+        super::format("Muxy %@", &["update".into()]),
+        "Codesh update"
+    );
+    for key in [
+        "Import Muxy 1.x",
+        "Muxy 2",
+        "Scan with the Muxy app",
+        "muxy",
+    ] {
+        assert_eq!(super::translate(key), key);
+        assert_eq!(super::format(key, &[]), key);
+    }
+    super::set_language(Some(Arc::new(language(&[], &[]))));
+    assert_eq!(super::translate("Muxy Settings"), "Codesh Settings");
+    assert_eq!(
+        super::format("Muxy %@", &["update".into()]),
+        "Codesh update"
+    );
+    super::set_language(None);
+}

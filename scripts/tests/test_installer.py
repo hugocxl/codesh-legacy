@@ -112,7 +112,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_pair()
         urls = (self.root / 'curl.log').read_text().splitlines()[-2:]
-        self.assertEqual(urls, [f'https://github.com/muxy-app/muxy/releases/download/v2.0.0/{name}'
+        self.assertEqual(urls, [f'https://github.com/hugocxl/codesh/releases/download/v2.0.0/{name}'
                                for name in (self.asset.name, 'SHA256SUMS')])
 
     def test_only_exact_release_versions_are_downloaded(self):
@@ -133,7 +133,7 @@ class InstallerTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assert_pair()
                     urls = (self.root / 'curl.log').read_text().splitlines()[-2:]
-                    self.assertEqual(urls, [f'https://github.com/muxy-app/muxy/releases/download/v{VERSION}/{name}'
+                    self.assertEqual(urls, [f'https://github.com/hugocxl/codesh/releases/download/v{VERSION}/{name}'
                                            for name in (self.asset.name, 'SHA256SUMS')])
 
     def test_replacement_requires_opt_in_and_switches_one_generation(self):
@@ -150,7 +150,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual((old / 'muxy').read_bytes(), b'client-v1')
 
     def test_bundle_links_refused_and_explicit_replace_never_changes_bundle(self):
-        bundle = self.root / 'Muxy Beta.app'
+        bundle = self.root / 'Codesh Beta.app'
         bundle.mkdir()
         self.dest.mkdir()
         for name in ('muxy', 'muxy-server'):

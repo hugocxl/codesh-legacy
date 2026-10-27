@@ -120,7 +120,7 @@ fn identity(bundle: &Path) -> io::Result<String> {
 fn lease_directory() -> io::Result<PathBuf> {
     let home =
         std::env::home_dir().ok_or_else(|| io::Error::other("Home directory unavailable"))?;
-    Ok(home.join("Library/Application Support/Muxy Runtime/leases"))
+    Ok(home.join("Library/Application Support/Codesh Runtime/leases"))
 }
 
 fn lease_file(directory: &Path, identity: &str) -> io::Result<File> {
@@ -144,8 +144,10 @@ mod tests {
     #[test]
     fn only_executables_inside_an_app_bundle_have_one() {
         assert_eq!(
-            containing(Path::new("/Applications/Muxy.app/Contents/MacOS/muxy-app")),
-            Some(Path::new("/Applications/Muxy.app"))
+            containing(Path::new(
+                "/Applications/Codesh.app/Contents/MacOS/muxy-app"
+            )),
+            Some(Path::new("/Applications/Codesh.app"))
         );
         assert_eq!(containing(Path::new("/repo/target/debug/muxy-app")), None);
     }
@@ -154,7 +156,7 @@ mod tests {
     fn leases_follow_bundle_identity_through_replacement_without_holding_installation_lock()
     -> io::Result<()> {
         let root = tempfile::tempdir()?;
-        let current = root.path().join("Muxy Beta.app");
+        let current = root.path().join("Codesh Beta.app");
         let retired = root.path().join("previous.app");
         fs::create_dir(&current)?;
         let lease = lease_file(root.path(), &identity(&current)?)?;

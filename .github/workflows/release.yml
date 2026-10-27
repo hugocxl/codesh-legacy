@@ -1,7 +1,6 @@
 name: Release
 
-# Promotes a published beta to a stable release: the latest GitHub release,
-# which Muxy 2 and Muxy 1.x both update to, and the Homebrew cask and formula.
+# Promotes a published Codesh beta to the latest stable GitHub release.
 on:
   workflow_dispatch:
     inputs:
@@ -37,7 +36,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.repository == 'muxy-app/muxy'
+    if: github.repository == 'hugocxl/codesh'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -127,22 +126,6 @@ jobs:
           RELEASE_NOTES: ${{ inputs.changelog }}
         run: bash scripts/publish-release.sh "$VERSION" artifacts
 
-  # Runs main's script: the promoted beta's checkout may predate it.
-  notify-discord:
-    needs: release
-    if: ${{ !inputs.draft }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - name: Notify Discord
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: v${{ inputs.version }}
-        run: python3 scripts/notify-discord.py "$TAG"
-
   bump-beta-version:
     needs: release
     runs-on: ubuntu-latest
@@ -166,11 +149,3 @@ jobs:
           fi
           git commit -m "Bump BETA_VERSION to $NEXT"
           git push origin main
-
-  update-homebrew-tap:
-    needs: release
-    if: ${{ !inputs.draft }}
-    uses: ./.github/workflows/update-homebrew-tap.yml
-    with:
-      tag: v${{ inputs.version }}
-    secrets: inherit

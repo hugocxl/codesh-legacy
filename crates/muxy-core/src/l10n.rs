@@ -231,9 +231,22 @@ pub fn translate(key: &str) -> Cow<'_, str> {
     match active::get() {
         Some(language) => match language.strings.get(key) {
             Some(text) => Cow::Owned(text.clone()),
-            None => Cow::Borrowed(key),
+            None => brand(key),
         },
-        None => Cow::Borrowed(key),
+        None => brand(key),
+    }
+}
+
+/// Keep legacy imports and the mobile companion's name unchanged.
+fn brand(text: &str) -> Cow<'_, str> {
+    if !text.contains("Muxy")
+        || ["Muxy 1.x", "Muxy 2", "Muxy app"]
+            .into_iter()
+            .any(|name| text.contains(name))
+    {
+        Cow::Borrowed(text)
+    } else {
+        Cow::Owned(text.replace("Muxy", "Codesh"))
     }
 }
 
@@ -247,12 +260,17 @@ fn takes_no_arguments(key: &str) -> bool {
 
 /// Formats the active translation of `key` with `args`.
 pub fn format(key: &str, args: &[Arg<'_>]) -> String {
-    if let Some(language) = active::get() {
-        return language.format(key, args);
+    let out = if let Some(language) = active::get() {
+        language.format(key, args)
+    } else {
+        let mut out = String::new();
+        write_english(&mut out, key, args);
+        out
+    };
+    match brand(&out) {
+        Cow::Borrowed(_) => out,
+        Cow::Owned(out) => out,
     }
-    let mut out = String::new();
-    write_english(&mut out, key, args);
-    out
 }
 
 /// Lowercased text to search for `key`: its English source and, when

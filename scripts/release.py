@@ -11,10 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BETA_PATTERN = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)-beta\.([1-9][0-9]*)")
 STABLE_PATTERN = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-# Each channel installs as its own app. Stable replaces Muxy 1.x, which shares its identity.
-APPS = {"beta": ("Muxy Beta", "com.muxy-beta.app"), "stable": ("Muxy", "com.muxy.app")}
-# Muxy 1.x's Sparkle only installs an update that keeps 1.x's EdDSA public key.
-SPARKLE_PUBLIC_KEY = "X5YPWvD11Qthw+41DPZQRK8aOYBlPjjfeWW2k3510cY="
+# Each channel installs as its own app, separate from Muxy.
+APPS = {"beta": ("Codesh Beta", "com.hugocorta.codesh-beta"), "stable": ("Codesh", "com.hugocorta.codesh")}
 
 
 def build_metadata(root=ROOT):
@@ -130,7 +128,6 @@ def bundle_info(version, build):
         raise ValueError("build number must be a positive commit count")
     if channel(version) == "beta" and build != build_number(version):
         raise ValueError("a beta's build number is its commit count")
-    sparkle = {"SUPublicEDKey": SPARKLE_PUBLIC_KEY} if channel(version) == "stable" else {}
     return {
         "CFBundleDevelopmentRegion": "en",
         "CFBundleDisplayName": name,
@@ -149,11 +146,10 @@ def bundle_info(version, build):
         "NSHighResolutionCapable": True,
         "NSSupportsAutomaticGraphicsSwitching": True,
         "NSPrincipalClass": "NSApplication",
-        "NSMicrophoneUsageDescription": "Muxy uses your microphone to dictate text into Composer.",
-        "NSSpeechRecognitionUsageDescription": "Muxy transcribes your dictation on this device and inserts it into Composer.",
-        "NSLocalNetworkUsageDescription": "Commands you run in Muxy terminals can connect to devices on your local network.",
+        "NSMicrophoneUsageDescription": "Codesh uses your microphone to dictate text into Composer.",
+        "NSSpeechRecognitionUsageDescription": "Codesh transcribes your dictation on this device and inserts it into Composer.",
+        "NSLocalNetworkUsageDescription": "Commands you run in Codesh terminals can connect to devices on your local network.",
         "NSAppTransportSecurity": {"NSAllowsArbitraryLoadsInWebContent": True},
-        **sparkle,
     }
 
 
@@ -163,7 +159,7 @@ def update_metadata(version, repository, directory):
         raise ValueError("invalid GitHub repository")
     platforms = {}
     for platform, arch in (("macos-aarch64", "arm64"), ("macos-x86_64", "x86_64")):
-        filename = f"Muxy-{version}-{arch}.dmg"
+        filename = f"Codesh-{version}-{arch}.dmg"
         if arch == "x86_64" and not (directory / filename).exists():
             continue
         size = (directory / filename).stat().st_size

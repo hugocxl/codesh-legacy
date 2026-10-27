@@ -56,23 +56,12 @@ for ARCH in arm64 x86_64; do
     DEB_PACKAGE=muxy-desktop
     [[ "$CHANNEL" != beta ]] || DEB_PACKAGE=muxy-desktop-beta
     ASSETS+=("${DEB_PACKAGE}_${VERSION}_${DEB_ARCH}.deb")
-    # A beta may skip Intel; a stable release is also how Intel Macs leave Muxy 1.x.
-    if [[ "$CHANNEL" == beta && "$ARCH" == x86_64 && ! -e "Muxy-${VERSION}-${ARCH}.dmg" && ! -e "muxy-${VERSION}-macos-${ARCH}.zip" ]]; then
+    # A beta may skip Intel; a stable release supports both Mac architectures.
+    if [[ "$CHANNEL" == beta && "$ARCH" == x86_64 && ! -e "Codesh-${VERSION}-${ARCH}.dmg" && ! -e "muxy-${VERSION}-macos-${ARCH}.zip" ]]; then
         continue
     fi
-    ASSETS+=("Muxy-${VERSION}-${ARCH}.dmg" "muxy-${VERSION}-macos-${ARCH}.zip")
-    if [[ "$CHANNEL" == stable ]]; then
-        ASSETS+=("appcast-${ARCH}.xml")
-    fi
+    ASSETS+=("Codesh-${VERSION}-${ARCH}.dmg" "muxy-${VERSION}-macos-${ARCH}.zip")
 done
-if [[ "$CHANNEL" == stable ]]; then
-    # Muxy 1.x builds from before per-architecture feeds read appcast.xml.
-    if [[ -f appcast-arm64.xml ]]; then
-        cp appcast-arm64.xml appcast.xml
-    fi
-    ASSETS+=(appcast.xml)
-fi
-ASSETS+=("muxy-mobile-${VERSION}-ios.zip" "muxy-mobile-${VERSION}-android.zip" "muxy-mobile-${VERSION}.json")
 for ASSET in "${ASSETS[@]}"; do
     if [[ ! -f "$ASSET" || ! -s "$ASSET" || -L "$ASSET" ]]; then
         echo "Error: missing regular release asset: $ASSET" >&2
@@ -125,7 +114,7 @@ else
         DRAFT_FLAGS+=(--prerelease)
     fi
     gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SOURCE" \
-        --title "Muxy $VERSION" "${DRAFT_FLAGS[@]}" --notes-file release-notes.md
+        --title "Codesh $VERSION" "${DRAFT_FLAGS[@]}" --notes-file release-notes.md
 fi
 
 # A failed upload leaves a resumable draft, never a half-populated public release.
@@ -146,9 +135,9 @@ if [[ "$CHANNEL" == beta ]]; then
         --draft=false --prerelease --latest=false
     python3 "$ROOT/scripts/publish-update.py" "$VERSION"
 elif [[ "${DRAFT:-false}" == true ]]; then
-    echo "==> $TAG is a complete draft. Publishing it as the latest release updates Muxy 1.x and 2.x."
+    echo "==> $TAG is a complete draft. Publishing it as the latest release updates Codesh stable builds."
 else
-    # The latest release is the stable feed of Muxy 2.x and of Muxy 1.x's updater.
+    # The latest release is the Codesh stable feed.
     gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SOURCE" \
         --draft=false --prerelease=false --latest
 fi

@@ -514,9 +514,9 @@ fn default_directory_does_not_touch_other_channels() -> TestResult {
         "Library/Application Support"
     });
     let [development, beta, stable] = if linux {
-        ["muxy-dev", "muxy-beta", "muxy"]
+        ["codesh-dev", "codesh-beta", "codesh"]
     } else {
-        ["Muxy Dev", "Muxy Beta", "Muxy 2"]
+        ["Codesh Dev", "Codesh Beta", "Codesh"]
     };
     let release = muxy_core::release::Version::current().filter(|_| !cfg!(debug_assertions));
     let current = match release.map(muxy_core::release::Version::channel) {

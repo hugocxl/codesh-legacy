@@ -69,7 +69,7 @@ else
 fi
 
 ARCHIVE=muxy-$VERSION-$PLATFORM-$ARCH.$EXT
-BASE=https://github.com/muxy-app/muxy/releases/download/v$VERSION
+BASE=https://github.com/hugocxl/codesh/releases/download/v$VERSION
 TEMP=$(mktemp -d "${TMPDIR:-/tmp}/muxy-install.XXXXXX")
 LOCK=
 STAGE=

@@ -16,6 +16,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from release import APPS, build_number, bundle_info, channel
+
 ROOT = Path(__file__).resolve().parent.parent
 BINARIES = ("muxy", "muxy-server")
 
@@ -78,17 +80,19 @@ def host_target():
 
 def signing_identity(requested):
     identities = re.findall(
-        r'([A-Fa-f0-9]{40}) "(Developer ID Application: [^"]+)"',
+        r'([A-Fa-f0-9]{40}) "((?:Developer ID Application|Apple Development): [^"]+)"',
         output("security", "find-identity", "-v", "-p", "codesigning"),
     )
     matches = [digest for digest, name in identities if not requested or requested in (digest, name)]
     if len(matches) != 1:
-        raise ValueError("Select one installed Developer ID Application certificate with --sign-identity.")
+        raise ValueError("Select one installed Developer ID Application or Apple Development certificate with --sign-identity.")
     return matches[0]
 
 
 def package_app(directory, binaries, version, identity):
-    app = directory / "Muxy Beta.app"
+    release_channel = "beta" if version == "2.0.0-beta-0" else channel(version)
+    app_name = APPS[release_channel][0]
+    app = directory / f"{app_name}.app"
     contents = app / "Contents"
     executables = contents / "MacOS"
     resources = contents / "Resources"
@@ -96,14 +100,15 @@ def package_app(directory, binaries, version, identity):
     resources.mkdir()
     for name in (*BINARIES, "muxy-app"):
         shutil.copy2(binaries / name, executables / name)
-    from release import build_number, bundle_info
     if version == "2.0.0-beta-0":
         # Keep unstamped local builds identifiable without stamping the source checkout.
         info = bundle_info("2.0.0-beta.1", "1")
         info.update(CFBundleVersion="0", MuxyVersion=version,
-                    CFBundleGetInfoString="Muxy Beta " + version)
+                    CFBundleGetInfoString=f"{app_name} {version}")
     else:
-        info = bundle_info(version, build_number(version))
+        build = (build_number(version) if release_channel == "beta"
+                 else output("git", "-C", ROOT, "rev-list", "--count", "HEAD"))
+        info = bundle_info(version, build)
     (contents / "Info.plist").write_bytes(plistlib.dumps(info))
     (contents / "PkgInfo").write_bytes(b"APPL????")
     (resources / "LICENSE").write_bytes(b"\n".join((ROOT / path).read_bytes() for path in (
@@ -115,7 +120,7 @@ def package_app(directory, binaries, version, identity):
     for size in (16, 32, 128, 256, 512):
         for scale, suffix in ((1, ""), (2, "@2x")):
             run("sips", "-z", size * scale, size * scale,
-                ROOT / "packaging/macos/AppIconBeta.png", "--out",
+                ROOT / "packaging/macos" / ("AppIconBeta.png" if release_channel == "beta" else "AppIcon.png"), "--out",
                 iconset / f"icon_{size}x{size}{suffix}.png", stdout=subprocess.DEVNULL)
     run("iconutil", "--convert", "icns", "--output", resources / "AppIcon.icns", iconset)
     sign = ("codesign", "--force", "--sign", identity, "--options", "runtime", "--timestamp")
@@ -135,12 +140,12 @@ def remove(path):
         shutil.rmtree(path)
 
 
-def install(artifact, bin_dir, app_dir=None):
+def install(artifact, bin_dir, app_dir=None, *, notarized=False):
     """Stage replacements on their destination filesystem and roll back failures."""
     bin_dir.mkdir(parents=True, exist_ok=True)
     with (bin_dir / ".muxy-build-install.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        destination = app_dir / "Muxy Beta.app" if app_dir else bin_dir / ".muxy-local"
+        destination = app_dir / artifact.name if app_dir else bin_dir / ".muxy-local"
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.is_symlink() or (destination.exists() and not destination.is_dir()):
             raise ValueError(f"Expected a regular installation directory: {destination}")
@@ -157,7 +162,8 @@ def install(artifact, bin_dir, app_dir=None):
             if app_dir:
                 # Preserve the signature, resources and stapled notarization ticket.
                 run("ditto", artifact, staged)
-                run("xcrun", "stapler", "validate", staged)
+                if notarized:
+                    run("xcrun", "stapler", "validate", staged)
                 run("codesign", "--verify", "--deep", "--strict", staged)
                 executable_dir = destination / "Contents/MacOS"
             else:
@@ -201,7 +207,7 @@ def main():
         "existing shell variables and command-line options take precedence. "
         "macOS credentials: set NOTARY_KEYCHAIN_PROFILE, or APPLE_ID, "
         "APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID. Replaces the installed "
-        "Muxy bundle and commands. Does not launch the app or restart servers."
+        "Codesh bundle and commands. Does not launch the app or restart servers."
     ))
     parser.add_argument("--install-dir", type=Path, default=Path.home() / ".local/bin")
     parser.add_argument("--app-dir", type=Path, default=Path("/Applications"))
@@ -214,10 +220,9 @@ def main():
         if not shutil.which(tool):
             raise ValueError(f"Required build tool is missing: {tool}")
     identity = signing_identity(args.sign_identity) if system == "Darwin" else None
-    if system == "Darwin" and not args.build_only and not args.keychain_profile:
-        for key in ("APPLE_ID", "APPLE_APP_SPECIFIC_PASSWORD", "APPLE_TEAM_ID"):
-            if not os.environ.get(key):
-                raise ValueError(f"Set --keychain-profile or {key} before building.")
+    notarized = system == "Darwin" and not args.build_only and bool(
+        args.keychain_profile or all(os.environ.get(key) for key in (
+            "APPLE_ID", "APPLE_APP_SPECIFIC_PASSWORD", "APPLE_TEAM_ID")))
     env = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"),
                LIBGHOSTTY_VT_SYS_OPTIMIZE="ReleaseFast")
     if system == "Darwin":
@@ -236,7 +241,7 @@ def main():
     directory = Path(tempfile.mkdtemp(prefix=target + "-", dir=builds))
     if system == "Darwin":
         artifact = package_app(directory, binaries, metadata[0]["version"], identity)
-        if not args.build_only:
+        if notarized:
             if args.keychain_profile:
                 env["NOTARY_KEYCHAIN_PROFILE"] = args.keychain_profile
             run("bash", ROOT / "scripts/notarize-release.sh", artifact, env=env)
@@ -248,10 +253,11 @@ def main():
     print(f"Built {artifact}", flush=True)
     if not args.build_only:
         install(artifact, args.install_dir.expanduser().resolve(),
-                args.app_dir.expanduser().resolve() if system == "Darwin" else None)
+                args.app_dir.expanduser().resolve() if system == "Darwin" else None,
+                notarized=notarized)
         if str(args.install_dir.expanduser().resolve()) not in os.environ.get("PATH", "").split(os.pathsep):
             print(f"Add {args.install_dir.expanduser().resolve()} to PATH to run muxy.")
-        print("Reopen Muxy to use the new build. Existing servers and sessions were left running.")
+        print("Reopen Codesh to use the new build. Existing servers and sessions were left running.")
 
 
 if __name__ == "__main__":
