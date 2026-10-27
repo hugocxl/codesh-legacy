@@ -1009,9 +1009,10 @@ impl Render for AppModel {
                             .overflow_hidden()
                             .child(content),
                     )
-                    .when(self.appearance.status_bar_visible, |column| {
-                        column.child(status_bar::status_bar(self, cx))
-                    }),
+                    .when(
+                        super::codesh::style::STATUS_BAR && self.appearance.status_bar_visible,
+                        |column| column.child(status_bar::status_bar(self, cx)),
+                    ),
             )
             .child(titlebar::navigation(self, sidebar_width, window, cx))
             .map(|body| {

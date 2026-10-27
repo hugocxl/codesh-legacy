@@ -8,6 +8,8 @@ pub(crate) const HEADER: f32 = 36.0;
 pub(crate) const BASE_TERMINAL_PADDING: f32 = 2.0;
 pub(crate) const BODY_PADDING: f32 = 12.0;
 pub(crate) const SIDEBAR_PADDING: f32 = 16.0;
+/// Codesh never shows the status bar; the setting stays for upstream code paths.
+pub(crate) const STATUS_BAR: bool = false;
 
 fn blend(foreground: Hsla, background: Hsla, amount: f32) -> Hsla {
     let top: Rgba = foreground.into();
