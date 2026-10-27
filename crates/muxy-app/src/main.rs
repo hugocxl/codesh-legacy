@@ -30,6 +30,7 @@ mod views {
     pub(crate) mod command_palette;
     pub(crate) mod confirm;
     pub(crate) mod disconnected;
+    pub(crate) mod files_panel;
     pub(crate) mod font_picker;
     pub(crate) mod git;
     pub(crate) mod menu;
