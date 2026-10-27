@@ -1,3 +1,4 @@
+use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, Context, FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement,
     SharedString, Styled, div, px,
@@ -80,7 +81,16 @@ pub(crate) fn render(
     } else {
         IconGlyph::new(icon, m.scaled(16.0), theme.fg_muted).into_any_element()
     };
-    let mut controls = div().flex().flex_none().items_center().gap(m.scaled(8.0));
+    let mut controls = div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .gap(m.scaled(8.0))
+        .when(model.active_pane() != Some(id), |controls| {
+            controls
+                .invisible()
+                .group_hover("pane-card", Styled::visible)
+        });
     for (name, icon, tooltip, action) in [
         ("right", Icon::Columns, "Split Right", Action::Right),
         ("down", Icon::Rows, "Split Down", Action::Down),
@@ -127,6 +137,7 @@ pub(crate) fn render(
         );
     }
     div()
+        .group("pane-card")
         .debug_selector(move || format!("pane-card-{id}"))
         .flex()
         .flex_col()
@@ -141,6 +152,7 @@ pub(crate) fn render(
         .child(
             div()
                 .id(SharedString::from(format!("pane-header-{id}")))
+                .debug_selector(move || format!("pane-header-{id}"))
                 .flex()
                 .flex_none()
                 .items_center()

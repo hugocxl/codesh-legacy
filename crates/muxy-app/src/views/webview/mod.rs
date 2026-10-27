@@ -407,7 +407,10 @@ impl Webview {
             }
             cx.notify();
         }
-        self.radius = radius;
+        if (self.radius - radius).abs() > f64::EPSILON {
+            self.radius = radius;
+            cx.notify();
+        }
         if focus_change == Some(true) {
             self.native.focus();
         }

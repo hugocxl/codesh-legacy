@@ -413,6 +413,11 @@ fn card_controls_target_their_own_pane_and_keep_the_close_workflow(cx: &mut Test
         let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
         view.update(cx, |model, cx| attach_panes(model, &panes, cx));
         cx.run_until_parked();
+        let header = cx
+            .debug_bounds(format!("pane-header-{}", panes[0]).leak())
+            .ok_or("missing pane header")?;
+        cx.simulate_mouse_move(header.center(), None, Modifiers::default());
+        cx.run_until_parked();
         let split = cx
             .debug_bounds(format!("pane-{}-right", panes[0]).leak())
             .ok_or("missing split control")?;
@@ -431,6 +436,14 @@ fn card_controls_target_their_own_pane_and_keep_the_close_workflow(cx: &mut Test
             assert_eq!(model.active_pane(), Some(leaves[1]));
             Ok(())
         })?;
+        // The split focuses its new pane. Hover the original card again to
+        // reveal its controls without changing the active pane.
+        let header_after_split = cx
+            .debug_bounds(format!("pane-header-{}", panes[0]).leak())
+            .ok_or("missing original pane header")?;
+        assert_eq!(header.size.height, header_after_split.size.height);
+        cx.simulate_mouse_move(header_after_split.center(), None, Modifiers::default());
+        cx.run_until_parked();
         let zoom = cx
             .debug_bounds(format!("pane-{}-zoom", panes[0]).leak())
             .ok_or("missing zoom control")?;

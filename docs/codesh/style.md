@@ -35,6 +35,8 @@ The whole grid receives one 12px inset, inside auxiliary panel composition.
 - `splits::pane_element()` wraps every pane kind exactly once in `pane_card`;
   zoom adds no extra frame. Header buttons focus their own PaneId before acting;
   close uses `AppModel::close_pane()`. Headers focus but never initiate drags.
+  Actions retain their layout space and appear only on the active pane or while
+  its card is hovered. Browser and extension page clicks also set the active pane.
 - The body shrinks below the header with real layout padding. Workspace terminal
   padding adds only `max(configured - 2, 0)` per edge: the upstream default 2px
   is absorbed into the 12px card inset. Quick terminal padding is unchanged.
@@ -43,6 +45,12 @@ The whole grid receives one 12px inset, inside auxiliary panel composition.
   terminal focus borders and zoom-only rounding are removed.
 - Native browser/extension canvases measure their frames inside the body below
   the header and sync the shared 10px radius through existing host code.
+  Pinned extension panels instead share the sidebar's window background and
+  16px horizontal inset, with no frame, separator or shadow. Their header uses
+  the titlebar height and muted 12px semibold section titles. Web content fills
+  the remaining space with zero native corner radius; the pane grid retains its
+  12px inset. Right and bottom placements share this chrome; floating panels
+  retain their existing appearance and all placements retain resize grips.
 - `workspace::render()` hides both main header variants and their separator;
   group strips are also hidden. Legacy renderers remain for the separate tab
   policy work. Sidebar chrome reserves native titlebar space and retains window

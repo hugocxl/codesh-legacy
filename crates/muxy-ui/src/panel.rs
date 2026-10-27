@@ -325,11 +325,23 @@ impl PanelSizing {
 pub struct PanelStyle {
     pub theme: Theme,
     pub metrics: Metrics,
+    sidebar_padding: Option<gpui::Pixels>,
 }
 
 impl PanelStyle {
     pub fn new(theme: Theme, metrics: Metrics) -> Self {
-        Self { theme, metrics }
+        Self {
+            theme,
+            metrics,
+            sidebar_padding: None,
+        }
+    }
+
+    /// Uses borderless sidebar chrome with the given horizontal content inset.
+    #[must_use]
+    pub fn sidebar(mut self, padding: gpui::Pixels) -> Self {
+        self.sidebar_padding = Some(padding);
+        self
     }
 }
 
@@ -480,6 +492,7 @@ pub struct PanelChrome {
     trailing_actions: Vec<PanelAction>,
     theme: Theme,
     metrics: Metrics,
+    sidebar_padding: Option<gpui::Pixels>,
 }
 
 impl PanelChrome {
@@ -506,6 +519,7 @@ impl PanelChrome {
             trailing_actions: Vec::new(),
             theme: style.theme,
             metrics: style.metrics,
+            sidebar_padding: style.sidebar_padding,
         }
     }
 
@@ -549,6 +563,11 @@ impl RenderOnce for PanelChrome {
                 .text_size(self.metrics.font_body())
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(self.theme.fg)
+                .when(self.sidebar_padding.is_some(), |title| {
+                    title
+                        .text_size(self.metrics.scaled(12.0))
+                        .text_color(self.theme.fg_muted)
+                })
                 .child(self.title),
         );
 
@@ -562,6 +581,12 @@ impl RenderOnce for PanelChrome {
             .pr(self.metrics.spacing2())
             .border_b_1()
             .border_color(self.theme.border)
+            .when(self.sidebar_padding.is_some(), |header| {
+                header
+                    .h(self.metrics.title_bar_height())
+                    .px_0()
+                    .border_b_0()
+            })
             .track_focus(&self.focus_handle)
             .child(title)
             .children(
@@ -685,6 +710,7 @@ pub struct PanelFrame {
     on_resize: PanelResizeHandler,
     theme: Theme,
     metrics: Metrics,
+    sidebar_padding: Option<gpui::Pixels>,
 }
 
 impl PanelFrame {
@@ -705,6 +731,7 @@ impl PanelFrame {
             on_resize: Rc::new(on_resize),
             theme: style.theme,
             metrics: style.metrics,
+            sidebar_padding: style.sidebar_padding,
         }
     }
 
@@ -789,6 +816,7 @@ impl RenderOnce for PanelFrame {
         let selector = group.clone();
         let separator = div()
             .absolute()
+            .when(self.sidebar_padding.is_some(), Styled::invisible)
             .bg(if resize_state.is_active() {
                 self.theme.accent
             } else {
@@ -851,6 +879,7 @@ impl RenderOnce for PanelFrame {
             .min_h(px(0.0))
             .bg(self.theme.bg)
             .border_color(self.theme.border)
+            .when_some(self.sidebar_padding, Styled::px)
             .child(self.chrome)
             .child(
                 div()
@@ -865,12 +894,14 @@ impl RenderOnce for PanelFrame {
             .child(resize_listener);
 
         match (self.placement.position, self.placement.mode) {
-            (PanelPosition::Right, PanelMode::Pinned) => {
-                frame.w(px(dimension + 1.0)).h_full().border_l_1()
-            }
-            (PanelPosition::Bottom, PanelMode::Pinned) => {
-                frame.w_full().h(px(dimension + 1.0)).border_t_1()
-            }
+            (PanelPosition::Right, PanelMode::Pinned) => frame
+                .w(px(dimension + 1.0))
+                .h_full()
+                .when(self.sidebar_padding.is_none(), Styled::border_l_1),
+            (PanelPosition::Bottom, PanelMode::Pinned) => frame
+                .w_full()
+                .h(px(dimension + 1.0))
+                .when(self.sidebar_padding.is_none(), Styled::border_t_1),
             (PanelPosition::Right, PanelMode::Floating) => frame
                 .absolute()
                 .top_0()

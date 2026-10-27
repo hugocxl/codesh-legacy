@@ -8,6 +8,7 @@ use muxy_ui::panel::{
 };
 
 use crate::model::AppModel;
+use crate::views::codesh::style;
 
 impl AppModel {
     pub(crate) fn webview_panel_content(
@@ -35,7 +36,7 @@ impl AppModel {
                 panel.resize.clone(),
             );
             let extent = px(sizing.layout().dimension() + 1.0);
-            let style = PanelStyle::new(self.theme.clone(), self.metrics);
+            let style = self.webview_panel_style(pinned);
             let chrome = self
                 .webview_panel_chrome(id, cx)
                 .map_or_else(|| div().into_any_element(), IntoElement::into_any_element);
@@ -200,7 +201,7 @@ impl AppModel {
             self.webview_panel_action(id, PanelControl::Move(panel.placement.position), 1, cx),
             self.webview_panel_action(id, PanelControl::Mode(panel.placement.mode), 2, cx),
             self.webview_panel_action(id, PanelControl::Close, 3, cx),
-            PanelStyle::new(self.theme.clone(), self.metrics),
+            self.webview_panel_style(panel.placement.mode == PanelMode::Pinned),
         );
         if hides(Hidden::Position) {
             chrome = chrome.without_move_action();
@@ -239,6 +240,15 @@ impl AppModel {
             ));
         }
         Some(chrome)
+    }
+
+    fn webview_panel_style(&self, pinned: bool) -> PanelStyle {
+        let style = PanelStyle::new(self.theme.clone(), self.metrics);
+        if pinned {
+            style.sidebar(self.metrics.scaled(style::SIDEBAR_PADDING))
+        } else {
+            style
+        }
     }
 
     fn webview_panel_action(
