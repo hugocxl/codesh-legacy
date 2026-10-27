@@ -122,6 +122,15 @@ fn show(output: &mut impl Write, state: &AppState) -> io::Result<()> {
                     PaneContent::Servers => {
                         writeln!(output, "    Pane {} — remote servers", pane.id)?;
                     }
+                    PaneContent::Editor { ref path } => {
+                        writeln!(output, "    Pane {} — editor, {path}", pane.id)?;
+                    }
+                    PaneContent::Diff { ref path, staged } => writeln!(
+                        output,
+                        "    Pane {} — diff, {path}{}",
+                        pane.id,
+                        if staged { " (staged)" } else { "" }
+                    )?,
                 }
             }
         }

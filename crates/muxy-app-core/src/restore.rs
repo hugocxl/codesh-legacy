@@ -43,7 +43,9 @@ pub fn plan(state: &AppState, server: ServerId, sessions: &[SessionInfo]) -> Res
             | PaneContent::Settings
             | PaneContent::Webview(_)
             | PaneContent::Browser(_)
-            | PaneContent::Servers => {}
+            | PaneContent::Servers
+            | PaneContent::Editor { .. }
+            | PaneContent::Diff { .. } => {}
         }
     }
     plan

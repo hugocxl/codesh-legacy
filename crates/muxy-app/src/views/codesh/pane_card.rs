@@ -48,6 +48,8 @@ pub(crate) fn render(
                     PaneContent::Webview(_) => Icon::Puzzle,
                     PaneContent::Servers => Icon::Network,
                     PaneContent::Settings => Icon::Settings,
+                    PaneContent::Editor { .. } => Icon::File,
+                    PaneContent::Diff { .. } => Icon::GitBranch,
                 },
             )
         },

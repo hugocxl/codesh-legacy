@@ -1517,7 +1517,9 @@ impl AppModel {
                 PaneContent::Settings
                 | PaneContent::Webview(_)
                 | PaneContent::Browser(_)
-                | PaneContent::Servers => None,
+                | PaneContent::Servers
+                | PaneContent::Editor { .. }
+                | PaneContent::Diff { .. } => None,
             })
     }
 

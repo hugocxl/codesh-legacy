@@ -92,7 +92,9 @@ pub(super) fn tab_status(tab: &Tab, model: &AppModel) -> Status {
             PaneContent::Settings
             | PaneContent::Webview(_)
             | PaneContent::Browser(_)
-            | PaneContent::Servers => None,
+            | PaneContent::Servers
+            | PaneContent::Editor { .. }
+            | PaneContent::Diff { .. } => None,
         })
         .collect();
     resolve(
@@ -171,7 +173,9 @@ fn project_scope_status(id: ProjectId, include_children: bool, model: &AppModel)
             PaneContent::Settings
             | PaneContent::Webview(_)
             | PaneContent::Browser(_)
-            | PaneContent::Servers => None,
+            | PaneContent::Servers
+            | PaneContent::Editor { .. }
+            | PaneContent::Diff { .. } => None,
         })
         .collect();
     let completion = panes
