@@ -41,16 +41,10 @@ const SUBMENU_GRACE: Duration = Duration::from_millis(250);
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Command {
     Tab(muxy_app_core::TabId, super::tab_menu::Action),
-    Layout(muxy_app_core::settings::AppLayout),
-    AgentsPanel(bool),
-    FocusProject(bool),
-    SelectWorkspace(Option<muxy_app_core::WorkspaceId>),
-    SelectRemoteServers,
     NewWorkspace(Option<muxy_app_core::ProjectId>),
-    RenameWorkspace(muxy_app_core::WorkspaceId),
-    DeleteWorkspace(muxy_app_core::WorkspaceId),
     ToggleWorkspaceMember(muxy_app_core::WorkspaceId, muxy_app_core::ProjectId),
-    SortProjects(muxy_app_core::settings::ProjectOrder),
+    SidebarHost(muxy_app_core::settings::SidebarHost),
+    SidebarServers,
     Worktrees(muxy_app_core::ProjectId),
     NewWorktree(muxy_app_core::ProjectId),
     NewProjectTab(muxy_app_core::ProjectId),
@@ -562,27 +556,10 @@ impl AppModel {
                     Action::CloseTabs(scope) => self.close_tabs(id, scope, cx),
                 }
             }
-            Command::Layout(layout) => self.set_layout(layout, cx),
-            Command::AgentsPanel(true) => {
-                self.toggle_agents_panel(window, cx);
-                return;
-            }
-            Command::AgentsPanel(false) => {
-                self.hide_agents_panel(window, cx);
-                return;
-            }
-            Command::FocusProject(focused) => self.set_project_focus(focused, cx),
-            Command::SelectWorkspace(workspace) => self.select_workspace(workspace, cx),
-            Command::SelectRemoteServers => self.select_remote_servers(cx),
             Command::NewWorkspace(project) => {
                 self.open_new_workspace_editor(project, position, window, cx);
                 return;
             }
-            Command::RenameWorkspace(id) => {
-                self.open_workspace_editor(id, position, window, cx);
-                return;
-            }
-            Command::DeleteWorkspace(id) => self.confirm_delete_workspace(id, cx),
             Command::ToggleWorkspaceMember(workspace, project) => {
                 let member = self
                     .state
@@ -593,10 +570,14 @@ impl AppModel {
                     cx,
                 );
             }
-            Command::SortProjects(order) => {
-                self.appearance.sidebar_project_order = order;
+            Command::SidebarHost(host) => {
+                self.appearance.sidebar_host = host;
                 self.save_appearance(cx);
                 cx.notify();
+            }
+            Command::SidebarServers => {
+                self.toggle_remote_popover(window, cx);
+                return;
             }
             Command::NewWorktree(id) => {
                 self.open_git_form(id, true, cx);

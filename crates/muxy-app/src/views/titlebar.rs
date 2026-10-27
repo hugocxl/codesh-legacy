@@ -1,4 +1,3 @@
-use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, InteractiveElement, IntoElement,
     MouseButton, ParentElement, SharedString, Stateful, StatefulInteractiveElement, Styled, Window,
@@ -40,72 +39,6 @@ pub(super) fn top_corners<T: Styled>(element: T, window: &Window, left: bool, ri
         let _ = (window, left, right);
         element
     }
-}
-
-pub(super) fn actions(model: &AppModel, window: &Window, cx: &mut Context<AppModel>) -> (Div, f32) {
-    #[cfg(not(target_os = "linux"))]
-    let _ = window;
-    let project = model.state.current_project();
-    let available = project.status() == muxy_app_core::ProjectStatus::Available;
-    let existing_count = if available {
-        model.existing_terminal_count()
-    } else {
-        0
-    };
-    let browser = available && model.browser_enabled();
-    let layouts = available && model.has_project_layouts();
-    let zoom_tab = project.tabs.iter().find(|tab| {
-        available
-            && Some(tab.id) == model.active_tab()
-            && (tab.zoomed.is_some() || tab.panes.len() > 1)
-    });
-    let controls = 1
-        + u8::from(existing_count > 0)
-        + u8::from(browser)
-        + u8::from(zoom_tab.is_some())
-        + u8::from(layouts);
-    let width = f32::from(controls)
-        * f32::from(model.metrics.control_medium() + model.metrics.spacing2())
-        + model.extension_toolbar_width();
-    let bar = div()
-        .debug_selector(|| "titlebar-actions".into())
-        .flex()
-        .flex_none()
-        .items_center()
-        .when(existing_count > 0, |bar| {
-            bar.child(super::tab_strip::existing_terminals_button(
-                existing_count,
-                model,
-                cx,
-            ))
-        })
-        .when(browser, |bar| {
-            bar.child(super::tab_strip::browser_button(model, cx))
-        })
-        .when_some(zoom_tab, |bar, tab| {
-            bar.child(super::tab_strip::zoom_control(
-                tab.zoomed.is_some(),
-                model,
-                cx,
-            ))
-        })
-        .when(layouts, |bar| {
-            bar.child(super::project_layouts::button(model, cx))
-        })
-        .child(model.extension_toolbar(cx))
-        .child(super::agent_sessions::button(model, cx));
-    #[cfg(target_os = "linux")]
-    if let Some(controls) = linux::controls(
-        window,
-        &model.theme,
-        cx.listener(|model, _, _, cx| model.quit(cx)),
-    ) {
-        return (
-            bar.child(controls.border_l_1().border_color(model.theme.border)),
-            width + linux::controls_width(window) + 1.0,
-        );
-    }
-    (bar, width)
 }
 
 #[derive(Clone, PartialEq, Debug, gpui::Action)]
@@ -255,53 +188,4 @@ pub(super) fn navigation_width(model: &AppModel, _: &Window) -> f32 {
     } else {
         arrows
     })
-}
-
-pub(crate) fn arrow(model: &AppModel, forward: bool, cx: &mut Context<AppModel>) -> AnyElement {
-    let m = model.metrics;
-    let theme = &model.theme;
-    let enabled = model.can_navigate(forward);
-    let id = if forward { "nav-forward" } else { "nav-back" };
-    let color = if enabled {
-        theme.fg_muted
-    } else {
-        gpui::Hsla {
-            a: theme.fg_muted.a * 0.35,
-            ..theme.fg_muted
-        }
-    };
-    let glyph = IconGlyph::new(
-        if forward {
-            Icon::ChevronRight
-        } else {
-            Icon::ChevronLeft
-        },
-        m.font_body(),
-        color,
-    );
-    let arrow = div()
-        .id(id)
-        .debug_selector(move || id.into())
-        .group(id)
-        .flex()
-        .flex_none()
-        .items_center()
-        .justify_center()
-        .size(m.scaled(22.0))
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation());
-    if enabled {
-        arrow
-            .cursor_pointer()
-            .on_click(cx.listener(move |model, _, _, cx| {
-                cx.stop_propagation();
-                model.navigate(forward, cx);
-            }))
-            .child(glyph.hover_in_group(id, theme.fg))
-            .into_any_element()
-    } else {
-        arrow
-            .on_click(|_, _, cx| cx.stop_propagation())
-            .child(glyph)
-            .into_any_element()
-    }
 }

@@ -6,7 +6,7 @@ pub(crate) use filters::providers;
 use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, Context, Div, Focusable, Hsla, InteractiveElement, IntoElement, MouseDownEvent,
-    ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, px,
+    ParentElement, SharedString, Styled, Window, div, px,
 };
 use muxy_ui::components::{IconButton, IconGlyph};
 use muxy_ui::icon::Icon;
@@ -20,29 +20,6 @@ use muxy_ui::tr;
 use super::tab_activity::provider_icon;
 use crate::model::AppModel;
 use crate::model::agent_sessions::PANEL;
-
-pub(crate) fn button(model: &AppModel, cx: &mut Context<AppModel>) -> impl IntoElement {
-    let toggle = model.agent_sessions.toggle.clone();
-    super::titlebar::icon_button(
-        "toggle-agent-sessions",
-        Icon::History,
-        tr!("Agent Sessions"),
-        model,
-    )
-    .debug_selector(|| "toggle-agent-sessions".into())
-    .child(
-        canvas(
-            move |bounds, _, _| toggle.set(Some(bounds)),
-            |_, (), _, _| {},
-        )
-        .absolute()
-        .size_full(),
-    )
-    .on_click(cx.listener(|model, _, window, cx| {
-        cx.stop_propagation();
-        model.toggle_agent_sessions(window, cx);
-    }))
-}
 
 pub(crate) fn panel_content(
     content: AnyElement,

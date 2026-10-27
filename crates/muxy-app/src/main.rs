@@ -38,7 +38,6 @@ mod views {
     pub(crate) mod new_tab;
     pub(crate) mod overlays;
     pub(crate) mod project_editor;
-    pub(crate) mod project_layouts;
     pub(crate) mod project_menu;
     pub(crate) mod project_picker;
     pub(crate) mod proxy;

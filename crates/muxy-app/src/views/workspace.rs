@@ -913,6 +913,10 @@ impl AppModel {
                     && self.composer.view.is_none()
                     && self.webviews.panels.is_empty()
                     && !self.agents_panel.focus.contains_focused(window, cx)
+                    && !self
+                        .sidebar_filter_input
+                        .focus_handle(cx)
+                        .contains_focused(window, cx)
                     && !(self.appearance.agent_sessions_visible
                         && self.agent_sessions.input.as_ref().is_some_and(|input| {
                             input.focus_handle(cx).contains_focused(window, cx)
@@ -1010,6 +1014,25 @@ impl Render for AppModel {
                     }),
             )
             .child(titlebar::navigation(self, sidebar_width, window, cx))
+            .map(|body| {
+                #[cfg(target_os = "linux")]
+                if let Some(controls) = titlebar::linux::controls(
+                    window,
+                    &self.theme,
+                    cx.listener(|model, _, _, cx| model.quit(cx)),
+                ) {
+                    return body.child(
+                        div()
+                            .absolute()
+                            .top_0()
+                            .right_0()
+                            .h(self.metrics.title_bar_height())
+                            .w(px(titlebar::linux::controls_width(window)))
+                            .child(controls),
+                    );
+                }
+                body
+            })
             .when(self.appearance.sidebar_expanded, |body| {
                 body.child(sidebar::resize_handle(self, cx))
             })
@@ -1039,9 +1062,13 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
     let theme = &model.theme;
     let m = model.metrics;
     let missing = model.state.current_project().status() == muxy_app_core::ProjectStatus::Missing;
-    div()
-        .bg(theme.bg)
+    // The empty project sits in the same card frame as an open pane.
+    let card = div()
         .size_full()
+        .rounded(px(super::codesh::style::RADIUS))
+        .border_1()
+        .border_color(super::codesh::style::border(theme))
+        .bg(super::codesh::style::card(theme))
         .flex()
         .flex_col()
         .items_center()
@@ -1056,7 +1083,7 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
             div()
                 .text_size(m.font_headline())
                 .font_weight(FontWeight::SEMIBOLD)
-                .child(if missing { tr!("Project folder is missing") } else { tr!("No tabs in %@", &model.state.current_project().name) }),
+                .child(if missing { tr!("Project folder is missing") } else { tr!("Nothing open in %@", &model.state.current_project().name) }),
         )
         .child(
             div()
@@ -1064,7 +1091,7 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
                 .text_center()
                 .text_size(m.font_body())
                 .text_color(theme.fg_muted)
-                .child(if missing { tr!("This project’s folder could not be found. Remove the project from the sidebar to clear its tabs.") } else { tr!("Open a new terminal tab to start working in this project.") }),
+                .child(if missing { tr!("This project’s folder could not be found. Remove the project from the sidebar to clear its tabs.") } else { tr!("Open a terminal to start working in this project.") }),
         )
         .when(!missing, |view| view.child(
             div()
@@ -1089,6 +1116,11 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
                         .opacity(0.72)
                         .child(chord.to_string()),
                 )),
-        ))
+        ));
+    div()
+        .size_full()
+        .p(px(super::codesh::style::GUTTER))
+        .bg(theme.bg)
+        .child(card)
         .into_any_element()
 }

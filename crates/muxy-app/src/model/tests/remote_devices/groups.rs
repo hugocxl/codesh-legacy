@@ -16,6 +16,18 @@ pub(super) fn press(cx: &mut VisualTestContext, selector: String) {
     press_with(cx, selector, Modifiers::none());
 }
 
+pub(super) fn manage_hosts(cx: &mut VisualTestContext) {
+    press(cx, "sidebar-host".into());
+    let mut last = 2;
+    while cx
+        .debug_bounds(format!("menu-item-{}", last + 1).leak())
+        .is_some()
+    {
+        last += 1;
+    }
+    press(cx, format!("menu-item-{last}"));
+}
+
 pub(super) fn press_with(cx: &mut VisualTestContext, selector: String, modifiers: Modifiers) {
     let at = bounds(cx, selector);
     cx.simulate_click(at, modifiers);
@@ -92,7 +104,7 @@ fn a_server_removed_from_the_popover_menu_takes_only_its_projects(cx: &mut TestA
         model.receive((devbox, 1, Update::Catalog(Ok(catalog))), cx);
         model.disconnect_remote_servers(&[devbox], cx);
     });
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     right_click(cx, format!("remote-server-{devbox}"));
     press(cx, "menu-item-5".into());
     cx.simulate_prompt_answer("Forget");
@@ -123,7 +135,7 @@ fn the_ungrouped_heading_removes_only_ungrouped_servers(cx: &mut TestAppContext)
         connect_local(model, cx);
         model.disconnect_remote_servers(&[team, loose, other], cx);
     });
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     right_click(cx, "remote-group-".into());
     press(cx, "menu-item-1".into());
     cx.simulate_prompt_answer("Forget");
@@ -151,7 +163,7 @@ fn group_headings_rename_and_delete_and_rows_start_new_groups(cx: &mut TestAppCo
         model.disconnect_remote_servers(&[api, db, devbox], cx);
     });
 
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     right_click(cx, "remote-group-Production".into());
     press(cx, "menu-item-1".into());
     cx.simulate_input("Prod");
@@ -162,7 +174,7 @@ fn group_headings_rename_and_delete_and_rows_start_new_groups(cx: &mut TestAppCo
         [in_group("api", "Prod"), in_group("db", "Prod")]
     );
 
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     right_click(cx, format!("remote-server-{devbox}"));
     open_submenu(cx, "menu-item-4".into());
     press(cx, "menu-item-1-2".into());
@@ -177,7 +189,7 @@ fn group_headings_rename_and_delete_and_rows_start_new_groups(cx: &mut TestAppCo
     cx.run_until_parked();
     assert_eq!(groups(&path)[2], in_group("devbox", "Personal"));
 
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     right_click(cx, "remote-group-Prod".into());
     press(cx, "menu-item-2".into());
     assert!(cx.has_pending_prompt());
@@ -215,7 +227,7 @@ fn a_rows_edit_button_opens_its_form(cx: &mut TestAppContext) {
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     cx.simulate_resize(size(px(1000.0), px(1000.0)));
     view.update(cx, connect_local);
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     press(cx, format!("remote-server-edit-{devbox}"));
     view.read_with(cx, |model, _| {
         assert!(matches!(model.overlay, Some(Overlay::ServerForm(_))));

@@ -110,6 +110,7 @@ fn agents_panel_settings_toggle_applies_and_persists_without_changing_placement(
 
     let (mut boot, _requests) = stub_boot(AppState::bootstrap().expect("state"));
     boot.settings.appearance.sidebar_expanded = true;
+    boot.settings.appearance.agents_panel_visible = true;
     let path = boot.state_path.with_file_name("settings.toml");
     let (model, settings) = settings_window(boot, cx);
     click_preference(settings, "settings-category-Appearance");
@@ -128,7 +129,11 @@ fn agents_panel_settings_toggle_applies_and_persists_without_changing_placement(
         for visible in [false, true] {
             click_preference(settings, "settings-toggle-agents-panel");
             model.read_with(settings, |model, cx| {
-                assert_eq!(model.agents_panel_shown(), visible);
+                assert_eq!(
+                    model.agents_panel_shown(),
+                    visible
+                        && (detached || dock == muxy_app_core::settings::AgentsPanelDock::Right)
+                );
                 assert_eq!(model.appearance.agents_panel_visible, visible);
                 assert_eq!(model.settings.appearance.agents_panel_visible, visible);
                 assert_eq!(
@@ -138,7 +143,7 @@ fn agents_panel_settings_toggle_applies_and_persists_without_changing_placement(
                     } else if dock == muxy_app_core::settings::AgentsPanelDock::Right {
                         Placement::Right
                     } else {
-                        Placement::Docked
+                        Placement::Popup
                     }
                 );
                 assert_eq!(

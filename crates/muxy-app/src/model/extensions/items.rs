@@ -250,14 +250,23 @@ impl AppModel {
         }
     }
 
-    pub(crate) fn extension_toolbar_width(&self) -> f32 {
-        f32::from(u16::try_from(self.topbar_items().len()).unwrap_or(u16::MAX))
-            * f32::from(self.metrics.control_medium() + self.metrics.spacing2())
+    pub(crate) fn sidebar_extension_toolbar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let items = self.topbar_items();
+        let selected = [("files", "toggle-files"), ("git", "toggle-scm")]
+            .into_iter()
+            .filter_map(|(owner, command)| {
+                items
+                    .iter()
+                    .find(|item| item.owner == owner && item.command == command)
+                    .cloned()
+            })
+            .collect();
+        self.toolbar_items(selected, cx)
     }
 
-    pub(crate) fn extension_toolbar(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn toolbar_items(&self, items: Vec<Item>, cx: &mut Context<Self>) -> AnyElement {
         let mut bar = div().flex().flex_none().items_center();
-        for item in self.topbar_items() {
+        for item in items {
             let key = format!("top:{}:{}", item.owner, item.id);
             let anchor = self.extensions.items.anchor(&key);
             let icon = self.extension_icon(
@@ -266,10 +275,17 @@ impl AppModel {
                 self.metrics.icon_md(),
                 self.theme.fg_muted,
             );
+            let bright = self.extension_icon(
+                &item.root,
+                &item.icon,
+                self.metrics.icon_md(),
+                self.theme.fg,
+            );
             let element_id =
                 gpui::SharedString::from(format!("extension-toolbar-{}-{}", item.owner, item.id));
             bar = bar.child(
                 titlebar::action_button(element_id, item.tooltip.clone(), self)
+                    .group("extension-toolbar-button")
                     .debug_selector(|| "extension-toolbar-item".into())
                     .button_interaction(cx.listener(move |model, _, window, cx| {
                         cx.stop_propagation();
@@ -283,7 +299,18 @@ impl AppModel {
                         .absolute()
                         .size_full(),
                     )
-                    .child(icon),
+                    .child(
+                        div()
+                            .group_hover("extension-toolbar-button", Styled::invisible)
+                            .child(icon),
+                    )
+                    .child(
+                        div()
+                            .absolute()
+                            .invisible()
+                            .group_hover("extension-toolbar-button", Styled::visible)
+                            .child(bright),
+                    ),
             );
         }
         bar.into_any_element()

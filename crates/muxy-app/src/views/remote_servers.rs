@@ -7,7 +7,7 @@ use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, AppContext, Context, Entity, Focusable, FontWeight, Hsla, InteractiveElement,
     IntoElement, ParentElement, SharedString, StatefulInteractiveElement, Styled, Subscription,
-    Window, canvas, div, px,
+    Window, div, px,
 };
 use muxy_app_core::ServerId;
 use muxy_ui::command_palette::{Command, Registry};
@@ -136,62 +136,6 @@ pub(crate) fn dot(color: Hsla, model: &AppModel) -> gpui::Div {
 
 /// How many servers are offline, and whether one failed: the footer speaks
 /// up only when something needs a look.
-fn offline(servers: &[RemoteServer]) -> (usize, bool) {
-    let offline: Vec<_> = servers
-        .iter()
-        .filter(|server| server.status == ServerStatus::Disconnected)
-        .collect();
-    let failed = offline.iter().any(|server| server.error.is_some());
-    (offline.len(), failed)
-}
-
-/// The bottom of the sidebar, level with the status bar: the remote servers,
-/// which open their popover above it.
-pub(crate) fn section(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
-    let m = model.metrics;
-    let theme = &model.theme;
-    let anchor = model.remote_anchor.clone();
-    let open = matches!(model.overlay, Some(Overlay::RemoteServers));
-    let (offline, failed) = offline(&model.remote_servers());
-    let color = if failed { theme.danger } else { theme.fg_muted };
-    let tooltip = if offline > 0 {
-        format!(
-            "{} · {}",
-            tr!("Remote Servers"),
-            tr!("%lld offline", offline)
-        )
-    } else {
-        tr!("Remote Servers").to_string()
-    };
-    div()
-        .id("remote-servers-section")
-        .debug_selector(|| "remote-servers-section".into())
-        .relative()
-        .flex()
-        .flex_none()
-        .items_center()
-        .justify_center()
-        .size(m.control_medium())
-        .rounded(m.radius_sm())
-        .when(open, |row| row.bg(theme.hover))
-        .cursor_pointer()
-        .hover(|style| style.bg(theme.hover))
-        .tooltip(super::status_bar::tooltip(tooltip, model))
-        .button_interaction(cx.listener(|model, _, window, cx| {
-            model.toggle_remote_popover(window, cx);
-        }))
-        .child(
-            canvas(
-                move |bounds, _, _| anchor.set(Some(bounds)),
-                |_, (), _, _| {},
-            )
-            .absolute()
-            .inset_0(),
-        )
-        .child(IconGlyph::new(Icon::Network, m.scaled(16.0), color))
-        .into_any_element()
-}
-
 /// One server in the popover: its state, then why it failed or how to fix it.
 fn server_row(server: &RemoteServer, model: &AppModel, cx: &mut Context<AppModel>) -> gpui::Div {
     let m = model.metrics;

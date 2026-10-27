@@ -110,6 +110,10 @@ struct CloseRequest {
 
 pub(crate) struct AppModel {
     pub(crate) extensions: extensions::Runtime,
+    pub(crate) sidebar_filter_input: Entity<muxy_ui::text_input::TextInput>,
+    /// Lowercased once per edit, shared by all project comparisons.
+    pub(crate) sidebar_filter: String,
+    _sidebar_filter_subscription: Subscription,
     pub(crate) sidebar_view: Entity<crate::views::cached::CachedView<Self>>,
     pub(crate) webviews: webviews::Webviews,
     pub(crate) browsers: browsers::Browsers,
@@ -231,6 +235,12 @@ impl AppModel {
         let previous_colors = self.palette.terminal_colors();
         let (theme, palette) = self.themes.resolve(&self.appearance, self.dark);
         self.theme = theme;
+        self.sidebar_filter_input.update(cx, |input, cx| {
+            input.set_style(
+                muxy_ui::text_input::InputStyle::compact(&self.theme, &self.metrics),
+                cx,
+            );
+        });
         self.palette = palette.with_options(&self.terminal.options);
         if previous_colors != self.palette.terminal_colors() {
             for server in self.servers.ids() {
@@ -395,14 +405,6 @@ impl AppModel {
         })
     }
 
-    pub(crate) fn can_navigate(&self, forward: bool) -> bool {
-        self.navigation
-            .target(forward, |(project, tab)| {
-                self.navigation_target_exists(project, tab)
-            })
-            .is_some()
-    }
-
     fn activation_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.window_active = window.is_window_active();
         self.update_shortcut_hints(
@@ -496,7 +498,33 @@ impl AppModel {
             muxy_core::capability::Feature::Notifications,
             notifications.capability(),
         );
+        let sidebar_filter_input = cx.new(|cx| {
+            muxy_ui::text_input::TextInput::new(
+                muxy_ui::text_input::InputStyle::compact(&theme, &Metrics::new(1.0)),
+                cx,
+            )
+            .with_placeholder("Filter")
+        });
+        let sidebar_filter_subscription =
+            cx.subscribe(&sidebar_filter_input, |model, input, event, cx| {
+                use muxy_ui::text_input::InputEvent;
+                match event {
+                    InputEvent::Changed => {
+                        model.sidebar_filter = input.read(cx).text().to_lowercase();
+                        cx.notify();
+                    }
+                    InputEvent::Cancelled => {
+                        input.update(cx, |input, cx| input.set_text("", cx));
+                        model.sidebar_filter.clear();
+                        cx.notify();
+                    }
+                    InputEvent::Submitted => {}
+                }
+            });
         let mut model = Self {
+            sidebar_filter_input,
+            sidebar_filter: String::new(),
+            _sidebar_filter_subscription: sidebar_filter_subscription,
             extensions: extensions::Runtime::new(
                 boot.state_path
                     .parent()

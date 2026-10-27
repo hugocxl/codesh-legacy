@@ -154,7 +154,7 @@ pub(super) fn group(
         .flex_col()
         .child(super::project_row(project, index, shortcut, model, cx));
     if model.appearance.sidebar_expanded
-        && model.expanded_worktrees.contains(&project.id)
+        && (model.expanded_worktrees.contains(&project.id) || !model.sidebar_filter.is_empty())
         && model.has_worktrees(project)
         && project.status() == ProjectStatus::Available
     {
@@ -164,8 +164,14 @@ pub(super) fn group(
             .gap(model.metrics.scaled(1.0))
             .pt(model.metrics.spacing1())
             .pb(model.metrics.spacing2())
-            .child(row(project, true, model, cx));
-        for child in model.worktree_children(project.id) {
+            .when(model.sidebar_name_matches(project), |rows| {
+                rows.child(row(project, true, model, cx))
+            });
+        for child in model
+            .worktree_children(project.id)
+            .into_iter()
+            .filter(|child| model.sidebar_name_matches(child))
+        {
             worktrees = worktrees.child(row(child, false, model, cx));
         }
         for (index, creation) in model.worktree_creations(project.id).enumerate() {

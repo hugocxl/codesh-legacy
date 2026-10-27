@@ -1,5 +1,5 @@
 use gpui::{AnyWindowHandle, AsyncApp, Context};
-use muxy_app_core::{AppState, Project, ProjectId, ProjectStatus, WorkspaceId};
+use muxy_app_core::{AppState, Project, ProjectId, ProjectStatus};
 use muxy_ui::dialog::ConfirmationResponse;
 use muxy_ui::l10n::tr_key;
 use muxy_ui::tr;
@@ -221,30 +221,6 @@ impl AppModel {
                     model.leave_worktree(project, cx);
                 }
                 model.remove_project_confirmed(project, cx);
-            },
-        );
-    }
-
-    pub(crate) fn confirm_delete_workspace(
-        &mut self,
-        workspace: WorkspaceId,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(record) = self.state.workspace(workspace) else {
-            return;
-        };
-        let message = tr!(
-            "Delete “%@”? Its projects will not be removed.",
-            &record.name
-        )
-        .to_string();
-        self.confirm(
-            tr_key!("Delete Workspace?"),
-            message,
-            tr_key!("Delete"),
-            cx,
-            move |model, cx| {
-                model.edit_workspaces(|state| state.delete_workspace(workspace), cx);
             },
         );
     }

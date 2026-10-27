@@ -1,4 +1,4 @@
-use super::groups::{grouped, groups, in_group, press, press_with, right_click};
+use super::groups::{grouped, groups, in_group, manage_hosts, press, press_with, right_click};
 use super::*;
 
 fn open_tab(view: &Entity<AppModel>, cx: &mut VisualTestContext) {
@@ -25,7 +25,7 @@ fn tab_window(
 fn manage_servers_opens_one_remote_servers_tab(cx: &mut TestAppContext) {
     let devbox = ServerId::new();
     let (view, cx, _, _) = tab_window(vec![grouped(devbox, "devbox", None)], cx);
-    press(cx, "remote-servers-section".into());
+    manage_hosts(cx);
     press(cx, "remote-manage-servers".into());
     open_tab(&view, cx);
     view.read_with(cx, |model, _| {

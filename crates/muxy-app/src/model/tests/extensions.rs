@@ -61,10 +61,20 @@ fn extension_permissions_shortcuts_and_toolbar_follow_enable_disable_and_unload(
         assert_eq!(model.extension_keystrokes().len(), 1);
     });
     cx.run_until_parked();
-    let button = cx
-        .debug_bounds("extension-toolbar-item")
-        .expect("enabled extension toolbar button in tab-focused layout");
-    assert!(button.size.width > px(0.0) && button.size.height > px(0.0));
+    assert!(
+        cx.debug_bounds("extension-toolbar-item").is_none(),
+        "sidebar reserves its toolbar for Files and Source Control"
+    );
+    view.read_with(cx, |model, _| {
+        assert_eq!(
+            model
+                .topbar_items()
+                .iter()
+                .map(|item| item.owner.as_str())
+                .collect::<Vec<_>>(),
+            ["reader"]
+        );
+    });
     finish_extension(
         view.update(cx, |model, cx| {
             model.set_extension_enabled("reader", false, cx)

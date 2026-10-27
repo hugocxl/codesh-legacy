@@ -58,6 +58,7 @@ impl AppModel {
         self.refresh_session_picker(cx);
     }
 
+    #[cfg(test)]
     pub(crate) fn existing_terminal_count(&self) -> usize {
         self.available_sessions(self.state.current_project().id)
             .len()

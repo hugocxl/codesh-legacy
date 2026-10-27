@@ -38,13 +38,6 @@ pub(crate) struct LayoutPicker {
 }
 
 impl AppModel {
-    pub(crate) fn has_project_layouts(&self) -> bool {
-        self.project_layouts
-            .listings
-            .get(&self.state.current_project().id)
-            .is_some_and(|listing| !listing.entries.is_empty())
-    }
-
     pub(super) fn sync_project_layouts(&mut self, cx: &mut Context<Self>) {
         let server = self.state.current_project().server_id;
         if !self.ready(server)

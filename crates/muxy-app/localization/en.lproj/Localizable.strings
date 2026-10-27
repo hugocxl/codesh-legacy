@@ -59,12 +59,10 @@
 "%@; this app needs a version that speaks protocol V%lld, like %@. %@" = "%@; this app needs a version that speaks protocol V%lld, like %@. %@";
 "%@?" = "%@?";
 "%lld Changes" = "%lld Changes";
-"%lld Existing Terminals" = "%lld Existing Terminals";
 "%lld failing" = "%lld failing";
 "%lld need input" = "%lld need input";
 "%lld of %lld" = "%lld of %lld";
 "%lld of %lld…" = "%lld of %lld…";
-"%lld offline" = "%lld offline";
 "%lld passed" = "%lld passed";
 "%lld running" = "%lld running";
 "%lld selected" = "%lld selected";
@@ -77,7 +75,6 @@
 "%lldh ago" = "%lldh ago";
 "%lldm ago" = "%lldm ago";
 "1 Change" = "1 Change";
-"1 Existing Terminal" = "1 Existing Terminal";
 "1 unread notification" = "1 unread notification";
 "A Git action is already pending" = "A Git action is already pending";
 "A Unicode range, such as U+E000-U+F8FF." = "A Unicode range, such as U+E000-U+F8FF.";
@@ -130,7 +127,6 @@
 "Adjust the space to the left and right of terminal text." = "Adjust the space to the left and right of terminal text.";
 "Agent Sessions" = "Agent Sessions";
 "Agents" = "Agents";
-"Agents Focused" = "Agents Focused";
 "Agents Panel" = "Agents Panel";
 "Agents panel rows" = "Agents panel rows";
 "All Projects" = "All Projects";
@@ -520,7 +516,6 @@
 "Cut" = "Cut";
 "Cyan" = "Cyan";
 "Dark theme" = "Dark theme";
-"Date Added" = "Date Added";
 "Decrease Font Size" = "Decrease Font Size";
 "Decrease font size" = "Decrease font size";
 "Default" = "Default";
@@ -534,10 +529,7 @@
 "Delete" = "Delete";
 "Delete Group?" = "Delete Group?";
 "Delete Group…" = "Delete Group…";
-"Delete Workspace?" = "Delete Workspace?";
-"Delete Workspace…" = "Delete Workspace…";
 "Delete “%@”?" = "Delete “%@”?";
-"Delete “%@”? Its projects will not be removed." = "Delete “%@”? Its projects will not be removed.";
 "Delete “%@”? Its servers will not be removed." = "Delete “%@”? Its servers will not be removed.";
 "Deny & Remember" = "Deny & Remember";
 "Desktop notifications are not available on this platform yet." = "Desktop notifications are not available on this platform yet.";
@@ -649,13 +641,11 @@
 "Finish recording to transcribe." = "Finish recording to transcribe.";
 "Finished working" = "Finished working";
 "Float Panel" = "Float Panel";
-"Focus Current Project" = "Focus Current Project";
 "Focus Pane Down" = "Focus Pane Down";
 "Focus Pane Left" = "Focus Pane Left";
 "Focus Pane Right" = "Focus Pane Right";
 "Focus Pane Up" = "Focus Pane Up";
 "Focus Project" = "Focus Project";
-"Focused Project" = "Focused Project";
 "Folder" = "Folder";
 "Folder is empty" = "Folder is empty";
 "Folder is required." = "Folder is required.";
@@ -690,7 +680,6 @@
 "Hide Others" = "Hide Others";
 "Hide Tips" = "Hide Tips";
 "Hide Tips?" = "Hide Tips?";
-"Hide agents panel" = "Hide agents panel";
 "Hides the panel" = "Hides the panel";
 "Hiding apps is not available on this platform." = "Hiding apps is not available on this platform.";
 "History & Bookmarks" = "History & Bookmarks";
@@ -836,7 +825,6 @@
 "Manage extensions marketplace installed unpacked" = "Manage extensions marketplace installed unpacked";
 "Manage scheduled update…" = "Manage scheduled update…";
 "Manage the local server that keeps your terminal sessions running." = "Manage the local server that keeps your terminal sessions running.";
-"Manual Order" = "Manual Order";
 "Maximize" = "Maximize";
 "Maximize Pane" = "Maximize Pane";
 "Merge" = "Merge";
@@ -901,8 +889,6 @@
 "Muxy will update and restart when all %lld terminal session end, including idle and detached sessions. Keep Muxy open to finish the update." = "Muxy will update and restart when all %lld terminal session end, including idle and detached sessions. Keep Muxy open to finish the update.";
 "Muxy will update and restart when all %lld terminal sessions end, including idle and detached sessions. Keep Muxy open to finish the update." = "Muxy will update and restart when all %lld terminal sessions end, including idle and detached sessions. Keep Muxy open to finish the update.";
 "Name" = "Name";
-"Name (A–Z)" = "Name (A–Z)";
-"Name (Z–A)" = "Name (Z–A)";
 "Needs input" = "Needs input";
 "Needs your attention" = "Needs your attention";
 "Neither" = "Neither";
@@ -974,7 +960,6 @@
 "No speech detected. Try again or press Esc to close." = "No speech detected. Try again or press Esc to close.";
 "No speech detected. Try dictation again." = "No speech detected. Try dictation again.";
 "No symbols found" = "No symbols found";
-"No tabs in %@" = "No tabs in %@";
 "No update for this platform" = "No update for this platform";
 "Not Now" = "Not Now";
 "Not assigned" = "Not assigned";
@@ -985,6 +970,7 @@
 "Not supported" = "Not supported";
 "Notes about imported terminal settings. Your original configuration is preserved." = "Notes about imported terminal settings. Your original configuration is preserved.";
 "Nothing is staged. Stage changes first or include unstaged changes." = "Nothing is staged. Stage changes first or include unstaged changes.";
+"Nothing open in %@" = "Nothing open in %@";
 "Notifications are turned off for Muxy in System Settings." = "Notifications are turned off for Muxy in System Settings.";
 "OK" = "OK";
 "Off" = "Off";
@@ -996,7 +982,6 @@
 "On" = "On";
 "On-device speech recognition is unavailable for this language. Choose another dictation language." = "On-device speech recognition is unavailable for this language. Choose another dictation language.";
 "Open" = "Open";
-"Open Browser Tab" = "Open Browser Tab";
 "Open Project" = "Open Project";
 "Open Project…" = "Open Project…";
 "Open Quick Terminal" = "Open Quick Terminal";
@@ -1005,7 +990,7 @@
 "Open a Copy" = "Open a Copy";
 "Open a live terminal before sending." = "Open a live terminal before sending.";
 "Open a live terminal before starting dictation." = "Open a live terminal before starting dictation.";
-"Open a new terminal tab to start working in this project." = "Open a new terminal tab to start working in this project.";
+"Open a terminal to start working in this project." = "Open a terminal to start working in this project.";
 "Open configuration files in the system editor. Restart Muxy after editing app settings. Terminal settings reload when Muxy or Settings becomes active." = "Open configuration files in the system editor. Restart Muxy after editing app settings. Terminal settings reload when Muxy or Settings becomes active.";
 "Open files with" = "Open files with";
 "Open in Default Browser" = "Open in Default Browser";
@@ -1076,7 +1061,6 @@
 "Profiles keep cookies and logins apart. New browser panes use the default profile." = "Profiles keep cookies and logins apart. New browser panes use the default profile.";
 "Project" = "Project";
 "Project %lld" = "Project %lld";
-"Project Focused" = "Project Focused";
 "Project edit is pending: %@" = "Project edit is pending: %@";
 "Project editor" = "Project editor";
 "Project folder is missing" = "Project folder is missing";
@@ -1113,7 +1097,6 @@
 "Reattach to Sidebar" = "Reattach to Sidebar";
 "Rebase" = "Rebase";
 "Rebase and Merge" = "Rebase and Merge";
-"Recently Active" = "Recently Active";
 "Reconnect" = "Reconnect";
 "Reconnect %lld Servers" = "Reconnect %lld Servers";
 "Reconnect to load project layouts" = "Reconnect to load project layouts";
@@ -1165,8 +1148,6 @@
 "Rename Group…" = "Rename Group…";
 "Rename Project" = "Rename Project";
 "Rename Tab" = "Rename Tab";
-"Rename Workspace" = "Rename Workspace";
-"Rename Workspace…" = "Rename Workspace…";
 "Rename Worktree…" = "Rename Worktree…";
 "Rename to Name Below" = "Rename to Name Below";
 "Rename…" = "Rename…";
@@ -1380,7 +1361,6 @@
 "System editor exited with %@" = "System editor exited with %@";
 "System language" = "System language";
 "Tab %lld" = "Tab %lld";
-"Tab Focused" = "Tab Focused";
 "Tab closed; server cleanup is pending: %@" = "Tab closed; server cleanup is pending: %@";
 "Tab type: %@" = "Tab type: %@";
 "Teal" = "Teal";

@@ -5,7 +5,7 @@ use gpui::{
     AnyElement, AppContext, Context, Entity, Focusable, InteractiveElement, IntoElement,
     ParentElement, Pixels, Point, StatefulInteractiveElement, Styled, Window, div, px, size,
 };
-use muxy_app_core::{ProjectId, ProjectStatus, TabId, WorkspaceId};
+use muxy_app_core::{ProjectId, ProjectStatus, TabId};
 use muxy_ui::text_input::{InputEvent, InputStyle, TextInput};
 use muxy_ui::tr;
 
@@ -23,7 +23,6 @@ pub(crate) enum Field {
 enum Target {
     Project(ProjectId),
     Tab(TabId),
-    Workspace(WorkspaceId),
     NewWorkspace(Option<ProjectId>),
     /// A new remote server group for these servers.
     NewServerGroup(Servers),
@@ -76,19 +75,6 @@ impl AppModel {
         };
         let text = tab.title(self.state.shown_pane(tab)).to_owned();
         self.open_metadata_editor(Target::Tab(id), text, position, window, cx);
-    }
-
-    pub(crate) fn open_workspace_editor(
-        &mut self,
-        id: WorkspaceId,
-        position: Point<Pixels>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(workspace) = self.state.workspace(id) {
-            let text = workspace.name.clone();
-            self.open_metadata_editor(Target::Workspace(id), text, position, window, cx);
-        }
     }
 
     /// Creates a workspace, adding `project` when it starts from a project menu.
@@ -168,9 +154,6 @@ impl AppModel {
         let saved = match target {
             Target::Tab(id) => self.edit_tab(|state| state.set_tab_title(id, Some(text)), cx),
             Target::Project(id) => self.edit_project(|state| state.rename_project(id, &text), cx),
-            Target::Workspace(id) => {
-                self.edit_workspaces(|state| state.rename_workspace(id, &text), cx)
-            }
             Target::NewWorkspace(project) => {
                 let created = self.create_workspace(&text, project, cx);
                 if project.is_none() && created.is_some() {
@@ -217,7 +200,6 @@ pub(crate) fn render(
             muxy_ui::popover::header(theme, m).child(match editor.target {
                 Target::Tab(_) => tr!("Rename Tab"),
                 Target::Project(_) => tr!("Rename Project"),
-                Target::Workspace(_) => tr!("Rename Workspace"),
                 Target::NewWorkspace(_) => tr!("New Workspace"),
                 Target::NewServerGroup(_) => tr!("New Group"),
                 Target::ServerGroup(_) => tr!("Rename Group"),

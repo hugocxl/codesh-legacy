@@ -12,6 +12,7 @@ use super::{tab_activity, tab_strip, titlebar};
 use crate::model::AppModel;
 
 impl AppModel {
+    #[cfg(test)]
     pub(crate) fn set_layout(&mut self, layout: AppLayout, cx: &mut Context<Self>) {
         if self.appearance.layout == layout {
             return;
@@ -730,20 +731,6 @@ fn close_tab_button(
                 )),
         )
         .into_any_element()
-}
-
-impl AppModel {
-    pub(crate) fn set_project_focus(&mut self, focused: bool, cx: &mut Context<Self>) {
-        self.appearance.sidebar_focus = focused;
-        if focused {
-            let project = self.state.current_project();
-            self.appearance
-                .tab_focused_expanded
-                .insert(project.id, true);
-        }
-        self.save_appearance(cx);
-        cx.notify();
-    }
 }
 
 fn tab_accessory(

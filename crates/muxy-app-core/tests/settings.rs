@@ -76,9 +76,10 @@ fn project_sort_modes_preserve_legacy_name_settings_and_unrelated_preferences() 
 fn agents_panel_visibility_preserves_saved_choices_and_older_settings() -> Result {
     let fixture = Fixture::new()?;
     for (source, visible) in [
-        ("[window]\nconfirm_running_process = false\n", true),
-        ("[appearance]\nstatus_bar_visible = false\n", true),
+        ("[window]\nconfirm_running_process = false\n", false),
+        ("[appearance]\nstatus_bar_visible = false\n", false),
         ("[appearance]\nagents_panel_visible = false\n", false),
+        ("[appearance]\nagents_panel_visible = true\n", true),
     ] {
         let path = fixture.write("settings.toml", source)?;
         let mut settings = Settings::load(&path)?;

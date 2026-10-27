@@ -7,6 +7,26 @@ use serde::{Deserialize, Serialize};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+/// Computer whose projects are shown in the sidebar.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SidebarHost {
+    #[default]
+    All,
+    Local,
+    Server(crate::ServerId),
+}
+
+impl SidebarHost {
+    pub fn matches(self, server: crate::ServerId) -> bool {
+        match self {
+            Self::All => true,
+            Self::Local => server.is_local(),
+            Self::Server(id) => id == server,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AppLayout {
@@ -70,6 +90,7 @@ pub struct Appearance {
     pub dark_theme: String,
     pub light_theme: String,
     pub sidebar_expanded: bool,
+    pub sidebar_host: SidebarHost,
     pub sidebar_vibrancy: bool,
     pub sidebar_vibrancy_level: u8,
     pub sidebar_expanded_width: Option<f32>,
@@ -113,6 +134,7 @@ impl Default for Appearance {
             dark_theme: "Muxy".into(),
             light_theme: "Muxy Light".into(),
             sidebar_expanded: true,
+            sidebar_host: SidebarHost::default(),
             sidebar_vibrancy: false,
             sidebar_vibrancy_level: 50,
             sidebar_expanded_width: None,
@@ -130,7 +152,7 @@ impl Default for Appearance {
             sidebar_project_order: ProjectOrder::default(),
             extension_sidebar: String::new(),
             language: String::new(),
-            agents_panel_visible: true,
+            agents_panel_visible: false,
             agents_panel_detached: false,
             agents_panel_dock: AgentsPanelDock::default(),
             agents_panel_right_width: None,
@@ -322,6 +344,32 @@ pub(super) fn read_document(path: &Path) -> Result<toml::Table> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sidebar_host_preserves_old_settings_and_round_trips_server_choices() -> Result<()> {
+        let local = crate::ServerId::local();
+        let first = crate::ServerId::new();
+        let second = crate::ServerId::new();
+        let old: Appearance = toml::from_str("sidebar_expanded = false")?;
+        assert_eq!(old.sidebar_host, SidebarHost::All);
+        for (host, expected) in [
+            (SidebarHost::All, [true, true, true]),
+            (SidebarHost::Local, [true, false, false]),
+            (SidebarHost::Server(first), [false, true, false]),
+        ] {
+            assert_eq!(
+                [local, first, second].map(|server| host.matches(server)),
+                expected
+            );
+            let appearance = Appearance {
+                sidebar_host: host,
+                ..Appearance::default()
+            };
+            let restored: Appearance = toml::from_str(&toml::to_string(&appearance)?)?;
+            assert_eq!(restored.sidebar_host, host);
+        }
+        Ok(())
+    }
 
     #[test]
     fn worktree_visibility_defaults_and_independent_saved_choices() -> Result<()> {

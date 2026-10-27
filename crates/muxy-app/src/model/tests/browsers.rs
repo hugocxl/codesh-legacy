@@ -32,7 +32,7 @@ fn browser_pane(model: &AppModel) -> Option<PaneId> {
 }
 
 #[gpui::test]
-fn topbar_opens_browser_panes_after_layout_and_group_requests(cx: &mut TestAppContext) {
+fn sidebar_footer_opens_browser_panes_after_layout_and_group_requests(cx: &mut TestAppContext) {
     use muxy_app_core::{Direction, settings::AppLayout};
 
     let mut state = AppState::bootstrap().expect("state");

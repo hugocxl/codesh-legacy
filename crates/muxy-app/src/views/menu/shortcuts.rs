@@ -11,7 +11,6 @@ use crate::model::AppModel;
 impl Command {
     pub(crate) fn shortcut(self, model: &AppModel, cx: &App) -> Option<String> {
         let action = match self {
-            Self::AgentsPanel(_) => Some(ShortcutId::ToggleAgentsPanel),
             Self::TerminalCopy(_) => Some(ShortcutId::Copy),
             Self::TerminalPaste(_) => Some(ShortcutId::Paste),
             Self::TerminalSelectCommandOutput(_) => Some(ShortcutId::SelectCommandOutput),

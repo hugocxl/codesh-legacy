@@ -54,6 +54,7 @@ fn agents(cx: &mut TestAppContext) -> (Entity<AppModel>, &mut VisualTestContext,
     };
     let (view, cx, sent) = connected(state, cx);
     view.update(cx, |model, cx| {
+        model.appearance.agents_panel_visible = true;
         let local = ServerId::local();
         model.receive_attached(local, root_pane, session(1), attachment(), true, cx);
         model.receive_attached(local, mirror, session(1), attachment(), false, cx);
@@ -307,7 +308,8 @@ fn long_agent_labels_stay_inside_the_card_in_every_placement(cx: &mut TestAppCon
                 model.appearance.agents_panel_grouping = grouping;
                 model.appearance.agents_panel_right_width = Some(220.0);
                 model.appearance.agents_panel_frame = Some([80.0, 80.0, 220.0, 360.0]);
-                model.overlay = (!expanded).then_some(Overlay::Agents);
+                model.overlay =
+                    (model.agents_panel_placement() == Placement::Popup).then_some(Overlay::Agents);
                 cx.notify();
             });
             cx.update(|window, _| window.refresh());
@@ -364,7 +366,7 @@ fn the_shortcut_shows_and_focuses_then_hides_and_keys_open_only_live_panes(
 
     cx.simulate_keystrokes(ShortcutId::ToggleAgentsPanel.definition().keys[0]);
     view.read_with(cx, |model, _| {
-        assert_eq!(model.agents_panel_placement(), Placement::Docked);
+        assert_eq!(model.agents_panel_placement(), Placement::Popup);
         assert!(model.agents_panel_shown());
     });
     assert!(focused(&view, cx), "a hidden panel shows with focus");
@@ -409,57 +411,21 @@ fn the_shortcut_shows_and_focuses_then_hides_and_keys_open_only_live_panes(
 }
 
 #[gpui::test]
-fn the_layout_menu_shows_and_hides_the_panel_without_changing_layout(cx: &mut TestAppContext) {
-    let (view, cx, _fixture) = agents(cx);
-    let click = |selector: &'static str, cx: &mut VisualTestContext| {
-        cx.update(|window, _| window.refresh());
-        cx.run_until_parked();
-        let bounds = cx.debug_bounds(selector).expect(selector);
-        cx.simulate_click(bounds.center(), Modifiers::none());
-        cx.run_until_parked();
-    };
-    for detached in [false, true] {
-        view.update_in(cx, |model, window, cx| {
-            model.appearance.layout = AppLayout::TabFocused;
-            model.appearance.sidebar_expanded = true;
-            model.appearance.agents_panel_visible = false;
-            model.appearance.agents_panel_detached = detached;
-            model.focus_active(window, cx);
-            cx.notify();
-        });
-        click("layout-menu", cx);
-        view.read_with(cx, |model, _| {
-            assert_eq!(
-                model.menu_outline()[0].last().map(String::as_str),
-                Some("Show agents panel")
-            );
-        });
-        click("menu-item-3", cx);
-        view.update_in(cx, |model, window, cx| {
-            assert!(model.overlay.is_none());
-            assert!(model.agents_panel_shown());
-            assert!(model.settings.appearance.agents_panel_visible);
-            assert!(model.agents_panel.focus.contains_focused(window, cx));
-            assert_eq!(model.appearance.layout, AppLayout::TabFocused);
-            model.focus_active(window, cx);
-        });
-
-        click("layout-menu", cx);
-        view.read_with(cx, |model, _| {
-            assert_eq!(
-                model.menu_outline()[0].last().map(String::as_str),
-                Some("Hide agents panel")
-            );
-        });
-        click("menu-item-3", cx);
-        view.update_in(cx, |model, window, cx| {
-            assert!(model.overlay.is_none());
-            assert!(!model.agents_panel_shown());
-            assert!(!model.settings.appearance.agents_panel_visible);
-            assert!(!model.agents_panel.focus.contains_focused(window, cx));
-            assert_eq!(model.appearance.layout, AppLayout::TabFocused);
-        });
-    }
+fn sidebar_agents_shortcut_uses_a_popup_without_changing_layout(cx: &mut TestAppContext) {
+    let (view, cx, _) = agents(cx);
+    view.update_in(cx, |model, window, cx| {
+        model.appearance.layout = AppLayout::TabFocused;
+        model.appearance.sidebar_expanded = true;
+        model.appearance.agents_panel_detached = false;
+        model.appearance.agents_panel_dock = AgentsPanelDock::Left;
+        model.appearance.agents_panel_visible = false;
+        model.toggle_agents_panel(window, cx);
+        assert!(matches!(model.overlay, Some(Overlay::Agents)));
+        assert!(model.agents_panel_shown());
+        assert_eq!(model.appearance.layout, AppLayout::TabFocused);
+        model.hide_agents_panel(window, cx);
+        assert!(!model.agents_panel_shown());
+    });
 }
 
 #[gpui::test]
@@ -605,6 +571,7 @@ fn keyboard_navigation_keeps_the_active_card_until_confirmed(cx: &mut TestAppCon
     view.update_in(cx, |model, window, cx| {
         model.appearance.sidebar_expanded = true;
         model.appearance.agents_panel_visible = true;
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         cx.notify();
     });
@@ -630,6 +597,7 @@ fn keyboard_navigation_keeps_the_active_card_until_confirmed(cx: &mut TestAppCon
     });
     cx.simulate_keystrokes("escape");
     view.update_in(cx, |model, window, cx| {
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         let entries = model.agents_panel_entries();
         assert_eq!(
@@ -647,6 +615,7 @@ fn keyboard_navigation_keeps_the_active_card_until_confirmed(cx: &mut TestAppCon
     });
     view.update_in(cx, |model, window, cx| {
         model.select_project(fixture.root, cx);
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         let entries = model.agents_panel_entries();
         assert_eq!(
@@ -673,6 +642,7 @@ fn keyboard_navigation_uses_the_highlighted_row_after_selection_changes(cx: &mut
     view.update_in(cx, |model, window, cx| {
         model.appearance.sidebar_expanded = true;
         model.appearance.agents_panel_visible = true;
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         cx.notify();
     });
@@ -691,6 +661,7 @@ fn keyboard_navigation_uses_the_highlighted_row_after_selection_changes(cx: &mut
             .snapshot
             .agents
             .retain(|agent| agent.session != SessionId::new(2).expect("session"));
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         cx.notify();
     });
@@ -703,6 +674,7 @@ fn keyboard_navigation_uses_the_highlighted_row_after_selection_changes(cx: &mut
 
     view.update_in(cx, |model, window, cx| {
         model.appearance.agents_panel_grouping = AgentsPanelGrouping::Worktrees;
+        model.overlay = Some(Overlay::Agents);
         model.focus_agents_panel(window);
         cx.notify();
     });
@@ -732,9 +704,11 @@ fn header_controls_move_between_sides_and_reattach_to_the_last_side(cx: &mut Tes
         AppLayout::TabFocused,
         AppLayout::AgentsFocused,
     ] {
-        view.update(cx, |model, cx| {
+        view.update_in(cx, |model, window, cx| {
             model.appearance.layout = layout;
             model.appearance.sidebar_expanded = true;
+            model.overlay = Some(Overlay::Agents);
+            model.focus_agents_panel(window);
             cx.notify();
         });
         click("agents-panel-move", cx);
@@ -951,8 +925,8 @@ fn appearance_merges_keep_the_panel_host_in_sync_with_another_windows_dock_choic
             model.save_appearance(cx);
             assert_eq!(model.appearance.agents_panel_dock, dock);
             assert!(
-                model.agents_panel_shown(),
-                "merging a dock choice must not lose the panel"
+                model.appearance.agents_panel_visible,
+                "merging a dock choice must not hide the panel preference"
             );
             assert_eq!(model.panels.is_empty(), dock == AgentsPanelDock::Left);
         }
@@ -1095,63 +1069,4 @@ fn the_floating_panel_moves_by_its_header_and_resizes_by_its_corner(cx: &mut Tes
         "the header moves it: {x},{y}"
     );
     assert!((width - 380.0).abs() < 0.5, "moving keeps the size");
-}
-
-#[gpui::test]
-fn the_docked_panel_resizes_by_its_top_edge_and_scrolls_by_its_thumb(cx: &mut TestAppContext) {
-    let (view, cx, _fixture) = agents(cx);
-    cx.simulate_resize(size(px(1200.0), px(800.0)));
-    let drag = |selector: &'static str, by: gpui::Pixels, cx: &mut VisualTestContext| {
-        cx.update(|window, _| window.refresh());
-        cx.run_until_parked();
-        let start = cx.debug_bounds(selector).expect(selector).center();
-        let end = start + gpui::point(px(0.0), by);
-        cx.simulate_mouse_down(start, gpui::MouseButton::Left, Modifiers::none());
-        cx.simulate_mouse_move(end, Some(gpui::MouseButton::Left), Modifiers::none());
-        cx.simulate_mouse_up(end, gpui::MouseButton::Left, Modifiers::none());
-        cx.run_until_parked();
-    };
-
-    let scrolled = |view: &Entity<AppModel>, cx: &mut VisualTestContext| {
-        view.read_with(cx, |model, _| -model.agents_panel.scroll.offset().y)
-    };
-    for layout in [
-        AppLayout::ProjectFocused,
-        AppLayout::TabFocused,
-        AppLayout::AgentsFocused,
-    ] {
-        view.update(cx, |model, cx| {
-            model.appearance.layout = layout;
-            model.appearance.sidebar_expanded = true;
-            model.appearance.agents_panel_visible = true;
-            model.appearance.agents_panel_docked_height =
-                Some(crate::model::agents_panel::MIN_HEIGHT);
-            model
-                .agents_panel
-                .scroll
-                .set_offset(gpui::point(px(0.0), px(0.0)));
-            cx.notify();
-        });
-        cx.update(|window, _| window.refresh());
-        cx.run_until_parked();
-        assert!(
-            view.read_with(cx, |model, _| model.agents_panel.scroll.max_offset().height) > px(0.0),
-            "the short panel overflows in {layout:?}"
-        );
-        drag("agents-panel-scrollbar", px(40.0), cx);
-        assert!(
-            scrolled(&view, cx) > px(0.0),
-            "the thumb scrolls the list in {layout:?}"
-        );
-
-        drag("agents-panel-docked-resize", px(-60.0), cx);
-        let height = view.read_with(cx, |model, _| {
-            model.settings.appearance.agents_panel_docked_height
-        });
-        let expected = crate::model::agents_panel::MIN_HEIGHT + 60.0;
-        assert!(
-            height.is_some_and(|height| (height - expected).abs() < 1.0),
-            "dragging the top edge up makes it taller and is saved in {layout:?}: {height:?}"
-        );
-    }
 }

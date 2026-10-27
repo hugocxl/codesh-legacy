@@ -236,17 +236,14 @@ fn switching_projects_during_discovery_and_remote_paths_do_not_leak_history(
 }
 
 #[gpui::test]
-fn titlebar_toggle_and_resize_persist_without_saving_during_drag(cx: &mut TestAppContext) {
+fn shortcut_toggle_and_resize_persist_without_saving_during_drag(cx: &mut TestAppContext) {
     let (boot, _requests) = stub_boot(AppState::bootstrap().expect("state"));
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     cx.simulate_resize(size(px(1200.0), px(800.0)));
     cx.run_until_parked();
-    let button = cx
-        .debug_bounds("toggle-agent-sessions")
-        .expect("titlebar toggle")
-        .center();
-    cx.simulate_mouse_down(button, gpui::MouseButton::Left, Modifiers::none());
-    cx.simulate_mouse_up(button, gpui::MouseButton::Left, Modifiers::none());
+    view.update_in(cx, |model, window, cx| {
+        model.toggle_agent_sessions(window, cx);
+    });
     cx.run_until_parked();
     let start = cx
         .debug_bounds("panel-resize-builtin:agent-sessions")
@@ -412,13 +409,19 @@ fn header_moves_pins_and_floats_the_panel(cx: &mut TestAppContext) {
         assert!(model.panels.placement(&panel).is_none());
     });
 
-    click(cx, "toggle-agent-sessions");
+    view.update_in(cx, |model, window, cx| {
+        model.toggle_agent_sessions(window, cx);
+    });
+    cx.run_until_parked();
     view.read_with(cx, |model, _| {
         let placement = model.panels.placement(&panel).expect("reopened");
         assert_eq!(placement.position, PanelPosition::Bottom);
         assert_eq!(placement.mode, PanelMode::Floating);
     });
-    click(cx, "toggle-agent-sessions");
+    view.update_in(cx, |model, window, cx| {
+        model.toggle_agent_sessions(window, cx);
+    });
+    cx.run_until_parked();
     view.read_with(cx, |model, _| {
         assert!(!model.appearance.agent_sessions_visible);
     });

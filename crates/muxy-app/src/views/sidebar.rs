@@ -140,7 +140,7 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
             .min_h(px(0.0))
             .bg(model.sidebar_background())
             .map(|sidebar| super::titlebar::top_corners(sidebar, window, true, false))
-            .child(div().h(m.title_bar_height() + m.scaled(32.0)).flex_none())
+            .child(div().h(m.title_bar_height()).flex_none())
             .children(model.webviews.sidebar.as_ref().map(|sidebar| {
                 div()
                     .flex()
@@ -173,7 +173,7 @@ pub(crate) fn sidebar(model: &AppModel, window: &Window, cx: &mut Context<AppMod
                 .min_h(px(0.0))
                 .bg(model.sidebar_background())
                 .map(|sidebar| super::titlebar::top_corners(sidebar, window, true, false))
-                .child(div().h(m.title_bar_height() + m.scaled(32.0)).flex_none())
+                .child(div().h(m.title_bar_height()).flex_none())
                 .child(contents)
                 .children(tips::footer(model, cx))
                 .children(super::agents_panel::collapsed_button(model, cx)),
@@ -322,21 +322,22 @@ impl AppModel {
         }
     }
 
-    pub(crate) fn sidebar_filter_label(&self) -> SharedString {
-        if self.appearance.sidebar_focus {
-            return tr!("Focused Project");
-        }
-        if self.state.remote_servers_selected() {
-            return tr!("Remote Servers");
-        }
-        self.state.active_workspace().map_or_else(
-            || tr!("All Projects"),
-            |workspace| workspace.name.clone().into(),
-        )
+    pub(crate) fn sidebar_name_matches(&self, project: &Project) -> bool {
+        self.sidebar_filter.is_empty() || project.name.to_lowercase().contains(&self.sidebar_filter)
     }
 
     /// Top-level projects the workspace filter lists, in sidebar order.
     pub(crate) fn listed_parents(&self) -> Vec<&Project> {
+        let matching_parents: std::collections::HashSet<_> = if self.sidebar_filter.is_empty() {
+            std::collections::HashSet::new()
+        } else {
+            self.state
+                .projects()
+                .iter()
+                .filter(|project| self.sidebar_name_matches(project))
+                .map(|project| project.parent_id.unwrap_or(project.id))
+                .collect()
+        };
         let mut parents: Vec<_> = self
             .state
             .projects()
@@ -345,6 +346,8 @@ impl AppModel {
                 project.parent_id.is_none()
                     && self.state.is_listed(project)
                     && self.project_listed(project)
+                    && self.appearance.sidebar_host.matches(project.server_id)
+                    && (self.sidebar_filter.is_empty() || matching_parents.contains(&project.id))
             })
             .collect();
         let server = |project: &Project| {
@@ -411,6 +414,9 @@ impl AppModel {
                     && self.worktrees_visible(parent.id)
                 {
                     self.worktree_children(parent.id)
+                        .into_iter()
+                        .filter(|child| self.sidebar_name_matches(child))
+                        .collect()
                 } else {
                     Vec::new()
                 };
@@ -418,177 +424,6 @@ impl AppModel {
             })
             .collect()
     }
-}
-
-pub(super) fn header(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
-    if !model.appearance.sidebar_expanded {
-        return div().into_any_element();
-    }
-    let m = model.metrics;
-    let theme = &model.theme;
-    div()
-        .flex()
-        .items_center()
-        .gap(m.spacing2())
-        .child(
-            div()
-                .id("sidebar-project-filter")
-                .debug_selector(|| "sidebar-project-filter".into())
-                .flex()
-                .items_center()
-                .justify_center()
-                .size(m.control_medium())
-                .rounded(m.radius_md())
-                .bg(theme.surface)
-                .cursor_pointer()
-                .hover(|style| style.bg(theme.hover))
-                .text_size(m.font_caption())
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(theme.fg_muted)
-                .on_click(cx.listener(|model, event: &gpui::ClickEvent, window, cx| {
-                    model.open_menu(filter_items(model), event.position(), window, cx);
-                }))
-                .tooltip(super::status_bar::tooltip(
-                    model.sidebar_filter_label().to_string(),
-                    model,
-                ))
-                .child(IconGlyph::new(Icon::Filter, m.font_body(), theme.fg_muted)),
-        )
-        .child(
-            div()
-                .id("sidebar-project-sort")
-                .debug_selector(|| "sidebar-project-sort".into())
-                .flex()
-                .items_center()
-                .justify_center()
-                .size(m.control_medium())
-                .rounded(m.radius_md())
-                .bg(theme.surface)
-                .cursor_pointer()
-                .hover(|style| style.bg(theme.hover))
-                .on_click(cx.listener(|model, event: &gpui::ClickEvent, window, cx| {
-                    model.open_menu(
-                        [
-                            (tr!("Manual Order"), ProjectOrder::Manual),
-                            (tr!("Name (A–Z)"), ProjectOrder::Name),
-                            (tr!("Name (Z–A)"), ProjectOrder::NameDescending),
-                            (tr!("Recently Active"), ProjectOrder::RecentlyActive),
-                            (tr!("Date Added"), ProjectOrder::DateAdded),
-                        ]
-                        .into_iter()
-                        .map(|(title, order)| {
-                            Item::action(title, Command::SortProjects(order))
-                                .checked_if(model.appearance.sidebar_project_order == order)
-                        })
-                        .collect(),
-                        event.position(),
-                        window,
-                        cx,
-                    );
-                }))
-                .child(IconGlyph::new(
-                    Icon::ArrowUpDown,
-                    m.font_body(),
-                    theme.fg_muted,
-                )),
-        )
-        .child(layout_selector(model, cx))
-        .into_any_element()
-}
-
-fn filter_items(model: &AppModel) -> Vec<Item> {
-    let focused = model.appearance.sidebar_focus;
-    let active = model.state.active_workspace().map(|workspace| workspace.id);
-    let remote = model.state.remote_servers_selected();
-    let mut items = vec![
-        Item::action(tr!("All Projects"), Command::SelectWorkspace(None))
-            .checked_if(!focused && !remote && active.is_none()),
-    ];
-    if model.remote_servers_offered() {
-        items.push(
-            Item::action(tr!("Remote Servers"), Command::SelectRemoteServers)
-                .checked_if(!focused && remote),
-        );
-    }
-    items.extend(model.state.workspaces().iter().map(|workspace| {
-        Item::action(
-            workspace.name.clone(),
-            Command::SelectWorkspace(Some(workspace.id)),
-        )
-        .checked_if(!focused && active == Some(workspace.id))
-    }));
-    items.push(
-        Item::action(tr!("Focus Current Project"), Command::FocusProject(true))
-            .checked_if(focused)
-            .separated(),
-    );
-    items.push(Item::action(tr!("New Workspace…"), Command::NewWorkspace(None)).separated());
-    if let Some(id) = active {
-        items.push(Item::action(
-            tr!("Rename Workspace…"),
-            Command::RenameWorkspace(id),
-        ));
-        items.push(Item::action(
-            tr!("Delete Workspace…"),
-            Command::DeleteWorkspace(id),
-        ));
-    }
-    items
-}
-
-fn layout_selector(model: &AppModel, cx: &mut Context<AppModel>) -> AnyElement {
-    let m = model.metrics;
-    let theme = &model.theme;
-    div()
-        .id("layout-menu")
-        .debug_selector(|| "layout-menu".into())
-        .group("layout-menu")
-        .flex()
-        .flex_none()
-        .items_center()
-        .justify_center()
-        .size(m.control_medium())
-        .rounded(m.radius_md())
-        .bg(theme.surface)
-        .hover(|style| style.bg(theme.hover))
-        .cursor_pointer()
-        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .on_click(cx.listener(|model, event: &gpui::ClickEvent, window, cx| {
-            cx.stop_propagation();
-            model.open_menu(
-                vec![
-                    Item::action(
-                        tr!("Project Focused"),
-                        Command::Layout(AppLayout::ProjectFocused),
-                    )
-                    .checked_if(model.appearance.layout == AppLayout::ProjectFocused),
-                    Item::action(tr!("Tab Focused"), Command::Layout(AppLayout::TabFocused))
-                        .checked_if(model.appearance.layout == AppLayout::TabFocused),
-                    Item::action(
-                        tr!("Agents Focused"),
-                        Command::Layout(AppLayout::AgentsFocused),
-                    )
-                    .checked_if(model.appearance.layout == AppLayout::AgentsFocused),
-                    Item::action(
-                        if model.appearance.agents_panel_visible {
-                            tr!("Hide agents panel")
-                        } else {
-                            tr!("Show agents panel")
-                        },
-                        Command::AgentsPanel(!model.appearance.agents_panel_visible),
-                    )
-                    .separated(),
-                ],
-                event.position(),
-                window,
-                cx,
-            );
-        }))
-        .child(
-            IconGlyph::new(Icon::Grid, m.font_body(), theme.fg_muted)
-                .hover_in_group("layout-menu", theme.fg),
-        )
-        .into_any_element()
 }
 
 struct DraggedProject {

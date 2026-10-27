@@ -49,12 +49,20 @@ The whole grid receives one 12px inset, inside auxiliary panel composition.
   dragging; a collapsed sidebar reserves top space for the toggle.
 - Sidebar project headers retain selection, disclosure, menus and drag ordering.
   Worktrees/leaf projects use 28px pills, activity glyphs and PRIMARY badges.
-  Home, New Worktree, Add Project and remote management retain their handlers.
-  The footer reuses Settings, terminal/browser, zoom, project-layout, extension
-  toolbar and agent-session controls, plus compact remote management. Filter,
-  sorting, app layout and history controls move there too. It wraps at narrow
-  widths and is also present with extension sidebars. Linux decorations and
-  window-control handlers remain cfg-gated.
+  The top row shares the native traffic-light row: sidebar toggle on the left,
+  then the Files and Source Control extensions' own topbar items on the right.
+  Missing/hidden extension items are omitted; commands and popover anchors use
+  the shared extension toolbar renderer.
+- The footer has 16px side padding and 8px vertical padding: host selector,
+  28px Filter pill, Add Project, New Browser. Collapsed sidebars stack the icon
+  controls and hide the text input. Host choice persists in Appearance (All,
+  Local, Server); the name query lives only in AppModel and Escape clears it.
+  Case-insensitive name filtering keeps parent headers with matching worktrees
+  and reveals matching rows without changing saved disclosure choices. The
+  host menu also opens the existing remote management popover.
+- Agents are hidden by default. The existing shortcut opens the left placement
+  as a popup; right and detached placements retain their existing behavior.
+  Saved visibility preferences are retained, without docking into the sidebar.
 
 Terminal `PaneView::element()` and sidebar caching remain intact. Titles/icons
 use cached state; there are no native title/process queries, animations, new
@@ -63,11 +71,11 @@ once when a terminal joins the workspace.
 
 ## Validation
 
-Formatting, diff whitespace checks, app-core checking, and the exact pure helper
-unit test in an isolated rustc harness pass locally. Added GPUI coverage checks
-inactive-card controls, zoom and close handling; drag assertions use card bounds
-and 12px gutters. App/UI compilation and runtime validation remain unverified on
-this machine as requested. On the build machine run:
+The sidebar iteration is validated with core tests, GPUI sidebar/filter tests,
+Clippy with warnings denied, and documentation with rustdoc warnings denied.
+Workspace integration tests also exercise sockets, subprocesses and SSH; those
+need a session that permits those operations. The debug app is built for manual
+visual review. The local validation commands are:
 
 ```sh
 cargo fmt --all --check
@@ -81,4 +89,3 @@ Compare one pane, nested splits and zoom to the references. Check inactive-card
 controls, confirmations, find, selection, IME, native scrolling/webviews, resizing
 and pane drops, collapsed/narrow sidebars, alternate themes and Linux controls.
 Measure idle CPU/memory and resize responsiveness with several active panes.
-Legacy tests that operate hidden tab strips need the separate tab-policy work.

@@ -1,4 +1,5 @@
 use super::*;
+use gpui::Focusable;
 use muxy_app_core::settings::{AppLayout, ProjectOrder, Settings};
 
 fn fixture() -> (AppState, [ProjectId; 4]) {
@@ -34,16 +35,10 @@ fn parent_ids(model: &AppModel) -> Vec<ProjectId> {
         .collect()
 }
 
-fn click(selector: &'static str, cx: &mut VisualTestContext) {
-    cx.update(|window, _| window.refresh());
-    cx.run_until_parked();
-    let bounds = cx.debug_bounds(selector).expect(selector);
-    cx.simulate_click(bounds.center(), Modifiers::none());
-    cx.run_until_parked();
-}
-
 #[gpui::test]
-fn project_sort_menu_updates_every_layout_navigation_and_new_tab_picker(cx: &mut TestAppContext) {
+fn sidebar_saved_project_sort_updates_every_layout_navigation_and_new_tab_picker(
+    cx: &mut TestAppContext,
+) {
     let (state, [ten, two_b, one, two_a]) = fixture();
     let home = state.home().id;
     let manual = [home, two_b, one, two_a, ten];
@@ -59,45 +54,18 @@ fn project_sort_menu_updates_every_layout_navigation_and_new_tab_picker(cx: &mut
         AppLayout::AgentsFocused,
     ] {
         view.update(cx, |model, cx| model.set_layout(layout, cx));
-        for (selector, order, expected) in [
-            (
-                "menu-item-1",
-                ProjectOrder::Name,
-                [home, one, two_a, two_b, ten],
-            ),
-            (
-                "menu-item-2",
-                ProjectOrder::NameDescending,
-                [home, ten, two_b, two_a, one],
-            ),
-            (
-                "menu-item-3",
-                ProjectOrder::RecentlyActive,
-                [home, two_a, two_b, one, ten],
-            ),
-            (
-                "menu-item-4",
-                ProjectOrder::DateAdded,
-                [home, ten, two_b, one, two_a],
-            ),
-            ("menu-item-0", ProjectOrder::Manual, manual),
+        for (order, expected) in [
+            (ProjectOrder::Name, [home, one, two_a, two_b, ten]),
+            (ProjectOrder::NameDescending, [home, ten, two_b, two_a, one]),
+            (ProjectOrder::RecentlyActive, [home, two_a, two_b, one, ten]),
+            (ProjectOrder::DateAdded, [home, ten, two_b, one, two_a]),
+            (ProjectOrder::Manual, manual),
         ] {
-            click("sidebar-project-sort", cx);
-            view.read_with(cx, |model, _| {
-                let rows = &model.menu_outline()[0];
-                for (row, title) in rows.iter().zip([
-                    "Manual Order",
-                    "Name (A–Z)",
-                    "Name (Z–A)",
-                    "Recently Active",
-                    "Date Added",
-                ]) {
-                    assert!(row.ends_with(title));
-                }
-                assert_eq!(rows.len(), 5);
-                assert_eq!(rows.iter().filter(|row| row.contains('✓')).count(), 1);
+            view.update(cx, |model, cx| {
+                model.appearance.sidebar_project_order = order;
+                model.save_appearance(cx);
+                cx.notify();
             });
-            click(selector, cx);
             view.read_with(cx, |model, _| {
                 assert_eq!(model.appearance.sidebar_project_order, order);
                 assert_eq!(parent_ids(model), expected);
@@ -260,5 +228,93 @@ fn project_sort_date_added_keeps_undated_projects_stable_ahead_of_new_projects(
             parent_ids(model),
             [model.state.home().id, one, two_a, ten, two_b]
         );
+    });
+}
+
+#[gpui::test]
+fn sidebar_host_and_name_filters_keep_matching_worktree_sections(cx: &mut TestAppContext) {
+    use muxy_app_core::settings::SidebarHost;
+    use muxy_ui::text_input::InputEvent;
+
+    let mut state = AppState::bootstrap().expect("state");
+    let local = state
+        .add_project(ServerId::local(), std::env::temp_dir())
+        .expect("local");
+    state.rename_project(local, "Local tools").expect("name");
+    let server = ServerId::new();
+    let other = ServerId::new();
+    let [home, parent, child, other_home, other_project] =
+        std::array::from_fn(|_| ProjectId::new());
+    let mut page = servers::page(2, home, &[(parent, "Remote tools")]);
+    let mut worktree = servers::descriptor(child, false, "Feature-ÄBC");
+    worktree.parent_id = Some(parent);
+    worktree.kind = Some(muxy_app_core::ProjectKind::Worktree);
+    page.projects.push(worktree);
+    state.apply_catalog(server, &page).expect("remote");
+    state
+        .apply_catalog(
+            other,
+            &servers::page(3, other_home, &[(other_project, "Other tools")]),
+        )
+        .expect("other");
+    let (boot, _, _remotes) = remote_boot(
+        state,
+        vec![
+            servers::entry(server, "Dev"),
+            servers::entry(other, "Other"),
+        ],
+    );
+    cx.update(|cx| cx.bind_keys(muxy_ui::text_input::key_bindings()));
+    let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+    view.update(cx, |model, cx| {
+        acknowledge_catalog(model, cx);
+        model.sidebar_filter = "TOOLS".to_lowercase();
+        for (host, expected) in [
+            (SidebarHost::All, vec![local, parent, other_project]),
+            (SidebarHost::Local, vec![local]),
+            (SidebarHost::Server(server), vec![parent]),
+            (SidebarHost::Server(ServerId::new()), vec![]),
+        ] {
+            model.appearance.sidebar_host = host;
+            assert_eq!(parent_ids(model), expected);
+        }
+        model.appearance.sidebar_host = SidebarHost::Server(server);
+        model.save_appearance(cx);
+        assert_eq!(
+            Settings::load(&model.path.with_file_name("settings.toml"))
+                .expect("saved")
+                .appearance
+                .sidebar_host,
+            SidebarHost::Server(server)
+        );
+        let input = model.sidebar_filter_input.clone();
+        input.update(cx, |input, cx| {
+            input.set_text("äBc", cx);
+            cx.emit(InputEvent::Changed);
+        });
+    });
+    cx.run_until_parked();
+    assert!(
+        cx.debug_bounds(format!("worktree-{child}").leak())
+            .is_some(),
+        "search reveals a matching worktree without expanding its section"
+    );
+    assert!(
+        cx.debug_bounds(format!("worktree-{parent}").leak())
+            .is_none(),
+        "the unmatched primary checkout is filtered out"
+    );
+    view.update_in(cx, |model, window, cx| {
+        assert_eq!(parent_ids(model), [parent]);
+        assert!(!model.sidebar_name_matches(model.state.project(parent).expect("parent")));
+        assert!(model.sidebar_name_matches(model.state.project(child).expect("child")));
+        model.sidebar_filter_input.focus_handle(cx).focus(window);
+    });
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    view.read_with(cx, |model, cx| {
+        assert!(model.sidebar_filter.is_empty());
+        assert!(model.sidebar_filter_input.read(cx).text().is_empty());
+        assert_eq!(parent_ids(model), [parent]);
     });
 }
