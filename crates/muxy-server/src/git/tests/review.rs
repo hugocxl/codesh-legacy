@@ -249,6 +249,16 @@ fn preview_and_commit_refuse_unresolved_conflicts() {
         })
         .unwrap_err();
     assert!(error.message().contains("Resolve merge conflicts"));
+    let head = repo.summary().head;
+    for message in ["Amended", ""] {
+        let error = repo
+            .git(GitAction::Amend {
+                message: message.into(),
+            })
+            .unwrap_err();
+        assert!(error.message().contains("Resolve merge conflicts"));
+        assert_eq!(repo.summary().head, head);
+    }
     assert!(repo.path.join(".git/MERGE_HEAD").exists());
 }
 

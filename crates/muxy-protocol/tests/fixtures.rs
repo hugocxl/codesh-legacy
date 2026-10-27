@@ -23,7 +23,7 @@ fn directory() -> PathBuf {
 
 #[test]
 fn every_sample_has_a_fixture() -> Result<(), Box<dyn Error>> {
-    for message in Message::samples() {
+    for message in samples() {
         let path = directory().join(fixture_name(&message)?);
         assert!(
             path.exists(),
@@ -78,13 +78,29 @@ fn every_fixture_decodes() -> Result<(), Box<dyn Error>> {
 #[ignore = "adds fixtures for new or changed samples; never rewrites existing ones"]
 fn generate_fixtures() -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(directory())?;
-    for message in Message::samples() {
+    for message in samples() {
         let path = directory().join(fixture_name(&message)?);
         if !path.exists() {
             fs::write(path, encoded(&message)?)?;
         }
     }
     Ok(())
+}
+
+fn samples() -> Vec<Message> {
+    let mut samples = Message::samples();
+    for message in ["Amended message", ""] {
+        samples.push(Message::Request {
+            id: muxy_protocol::RequestId(109),
+            body: muxy_protocol::RequestBody::Git(muxy_protocol::GitRequest {
+                project: muxy_protocol::ProjectId::from_u128(1),
+                action: muxy_protocol::GitAction::Amend {
+                    message: message.into(),
+                },
+            }),
+        });
+    }
+    samples
 }
 
 fn encoded(message: &Message) -> Result<Vec<u8>, WireError> {
