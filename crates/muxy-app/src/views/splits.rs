@@ -255,8 +255,11 @@ fn group_element(
             .size_full()
             .min_w(px(0.0))
             .min_h(px(0.0))
-            .child(super::tab_strip::group_strip(group, width, model, cx))
-            .child(div().h(px(1.0)).flex_none().bg(model.theme.border))
+            .when(!muxy_app_core::codesh::SINGLE_TAB, |element| {
+                element
+                    .child(super::tab_strip::group_strip(group, width, model, cx))
+                    .child(div().h(px(1.0)).flex_none().bg(model.theme.border))
+            })
             .child(
                 div()
                     .relative()

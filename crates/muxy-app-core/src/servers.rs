@@ -160,20 +160,58 @@ impl AppState {
             if let Some((stale, tab)) =
                 self.find_servers_tab(|project| project.status() != ProjectStatus::Available)
             {
-                self.close_tab(stale, tab)?;
+                if crate::codesh::SINGLE_TAB {
+                    let pane = self
+                        .project(stale)
+                        .and_then(|project| project.tabs.iter().find(|item| item.id == tab))
+                        .and_then(|tab| {
+                            tab.panes
+                                .iter()
+                                .find(|pane| pane.content == PaneContent::Servers)
+                        })
+                        .map(|pane| pane.id)
+                        .ok_or_else(|| AppError::InvalidState("missing servers pane".into()))?;
+                    self.remove_pane(pane)?;
+                } else {
+                    self.close_tab(stale, tab)?;
+                }
             }
             let here = self.project(project).is_some_and(|project| {
                 project.server_id.is_local() && project.status() == ProjectStatus::Available
             });
             let project = if here { project } else { self.home().id };
-            let tab = Tab::with_content(PaneContent::Servers, title);
-            let id = tab.id;
-            let near = self.window.selected_tab.get(&project).copied();
-            self.add_tab(project, tab, near)?;
+            let id = if crate::codesh::SINGLE_TAB {
+                let pane = Pane {
+                    id: PaneId::new(),
+                    title: title.into(),
+                    content: PaneContent::Servers,
+                    proxy: false,
+                };
+                self.open_pane_in_container(project, pane, self.window.active_pane)?
+                    .0
+            } else {
+                let tab = Tab::with_content(PaneContent::Servers, title);
+                let id = tab.id;
+                let near = self.window.selected_tab.get(&project).copied();
+                self.add_tab(project, tab, near)?;
+                id
+            };
             (project, id)
         };
         self.select_project(project)?;
         self.select_tab(project, tab)?;
+        if let Some(pane) = self
+            .project(project)
+            .and_then(|project| project.tabs.iter().find(|item| item.id == tab))
+            .and_then(|tab| {
+                tab.panes
+                    .iter()
+                    .find(|pane| pane.content == PaneContent::Servers)
+            })
+            .map(|pane| pane.id)
+        {
+            self.focus_pane(pane)?;
+        }
         Ok(tab)
     }
 

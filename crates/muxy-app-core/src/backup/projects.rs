@@ -224,6 +224,7 @@ impl AppState {
         }
         restored.ensure_home()?;
         restored.focus_selected_tab();
+        restored.normalize_projects();
         restored.validate()?;
         Ok(restored)
     }
@@ -469,6 +470,7 @@ pub fn import_projects(
         report.imported += 1;
     }
     state.ensure_home()?;
+    state.normalize_projects();
     state.validate()?;
     Ok((state, report))
 }

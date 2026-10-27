@@ -182,11 +182,12 @@ fn matching_project_directories_keep_local_identity_and_remap_project_preference
     let state = backup.restore_configuration(&current).unwrap();
     assert_eq!(state.projects().len(), 2);
     assert!(state.project(backup_id).is_none());
-    assert_eq!(state.project(current_id).unwrap().tabs.len(), 2);
+    assert_eq!(state.project(current_id).unwrap().tabs.len(), 1);
+    assert_eq!(state.project(current_id).unwrap().tabs[0].panes.len(), 2);
     assert_ne!(state.window().selected_tab[&current_id], tab);
     assert_eq!(
         state.window().selected_tab[&current_id],
-        state.project(current_id).unwrap().tabs[1].id
+        state.project(current_id).unwrap().tabs[0].id
     );
     let mut settings = Settings::default();
     settings.appearance.hidden_worktrees.insert(backup_id);

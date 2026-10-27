@@ -212,7 +212,23 @@ impl AppState {
         browser: BrowserPane,
         select: bool,
     ) -> Result<(TabId, PaneId), AppError> {
-        let tab = Tab::with_content(PaneContent::Browser(browser), "New Tab");
+        if crate::codesh::SINGLE_TAB {
+            let pane = Pane {
+                id: PaneId::new(),
+                title: "New Browser".into(),
+                content: PaneContent::Browser(browser),
+                proxy: false,
+            };
+            let (tab, pane) =
+                self.open_pane_in_container(project, pane, self.window.active_pane)?;
+            if select {
+                self.select_project(project)?;
+                self.select_tab(project, tab)?;
+                self.focus_pane(pane)?;
+            }
+            return Ok((tab, pane));
+        }
+        let tab = Tab::with_content(PaneContent::Browser(browser), "New Browser");
         let id = tab.id;
         let pane = tab.panes[0].id;
         let near = self.window.selected_tab.get(&project).copied();
@@ -233,18 +249,13 @@ impl AppState {
         browser: BrowserPane,
         focus: bool,
     ) -> Result<PaneId, AppError> {
-        let tab = self.pane_tab_mut(pane)?;
         let new = Pane {
             id: PaneId::new(),
-            title: "New Tab".into(),
+            title: "New Browser".into(),
             content: PaneContent::Browser(browser),
             proxy: false,
         };
-        tab.layout.split(pane, new.id, Direction::Right);
-        tab.layout.equalize_parent(new.id);
-        let id = new.id;
-        tab.zoomed = None;
-        tab.panes.push(new);
+        let id = self.insert_split_pane(pane, new, Direction::Right)?;
         if focus {
             self.focus_pane(id)?;
         }

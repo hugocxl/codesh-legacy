@@ -38,6 +38,9 @@ impl AppModel {
         previous: Option<TabId>,
         cx: &mut Context<Self>,
     ) {
+        if muxy_app_core::codesh::SINGLE_TAB {
+            return;
+        }
         if self.close_request.is_some() {
             return;
         }

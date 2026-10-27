@@ -139,6 +139,7 @@ impl TryFrom<StoredState> for AppState {
             .focus_history
             .retain(|pane| panes.contains(pane));
         state.validate()?;
+        state.normalize_projects();
         let legacy_settings: Vec<_> = state
             .projects
             .iter()
@@ -421,6 +422,20 @@ impl AppState {
         near: Option<TabId>,
     ) -> Result<TabId, AppError> {
         self.project_mut(project)?.require_available()?;
+        if crate::codesh::SINGLE_TAB {
+            let pane = Pane {
+                id: PaneId::new(),
+                title: "Terminal".into(),
+                content: PaneContent::Terminal { session: None },
+                proxy: false,
+            };
+            let (tab, pane) =
+                self.open_pane_in_container(project, pane, self.window.active_pane)?;
+            self.window.selected_tab.insert(project, tab);
+            self.window.current_project = project;
+            self.window.activate(Some(pane));
+            return Ok(tab);
+        }
         let tab = Tab::terminal();
         let id = tab.id;
         self.window.activate(tab.layout.leaves().first().copied());
@@ -450,6 +465,9 @@ impl AppState {
                     project,
                     tab: anchor,
                 })?;
+        if crate::codesh::SINGLE_TAB {
+            return self.open_terminal_tab_near(project, Some(anchor));
+        }
         let boundary = target.tabs.iter().take_while(|tab| tab.pinned).count();
         let index = (index + usize::from(side == crate::TabSide::Right)).max(boundary);
         let id = self.open_terminal_tab_near(project, Some(anchor))?;
@@ -623,7 +641,8 @@ impl AppState {
         Ok(())
     }
 
-    fn remove_pane(&mut self, pane: PaneId) -> Result<(), AppError> {
+    /// Internal cleanup also works for projects whose directories are unavailable.
+    pub(crate) fn remove_pane(&mut self, pane: PaneId) -> Result<(), AppError> {
         let (project, tab) = self
             .projects
             .iter()
@@ -670,19 +689,30 @@ impl AppState {
     }
 
     pub fn split_pane(&mut self, pane: PaneId, edge: Direction) -> Result<PaneId, AppError> {
-        let tab = self.pane_tab_mut(pane)?;
         let new = Pane {
             id: PaneId::new(),
             title: "Terminal".into(),
             content: PaneContent::Terminal { session: None },
             proxy: false,
         };
+        let id = self.insert_split_pane(pane, new, edge)?;
+        self.focus_pane(id)?;
+        Ok(id)
+    }
+
+    /// Shared typed-pane insertion, including split layout hooks.
+    pub(crate) fn insert_split_pane(
+        &mut self,
+        pane: PaneId,
+        new: Pane,
+        edge: Direction,
+    ) -> Result<PaneId, AppError> {
+        let tab = self.pane_tab_mut(pane)?;
         tab.layout.split(pane, new.id, edge);
         tab.layout.equalize_parent(new.id);
         let id = new.id;
         tab.zoomed = None;
         tab.panes.push(new);
-        self.focus_pane(id)?;
         Ok(id)
     }
 

@@ -676,7 +676,9 @@ pub(super) fn titlebar(
                 .child(model.project_title(project)),
         )
         .when(
-            project.status() == ProjectStatus::Available && project.groups().is_none(),
+            !muxy_app_core::codesh::SINGLE_TAB
+                && project.status() == ProjectStatus::Available
+                && project.groups().is_none(),
             |bar| bar.child(tab_strip::new_tab_button(None, model, cx)),
         )
         .child(actions)

@@ -157,7 +157,7 @@ pub(super) fn new_tab_button(
         || SharedString::from("new-tab"),
         |anchor| SharedString::from(format!("new-tab-{anchor}")),
     );
-    titlebar::icon_button(id, Icon::Plus, tr!("New Tab (⌘T)"), model)
+    titlebar::icon_button(id, Icon::Plus, tr!("New Terminal (⌘T)"), model)
         .ml(model.metrics.spacing2())
         .debug_selector(move || {
             if anchor.is_some() {

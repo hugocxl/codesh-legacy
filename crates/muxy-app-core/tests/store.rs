@@ -66,7 +66,7 @@ fn removed_tab_groups_load_as_ordinary_tabs_without_losing_panes() -> TestResult
     state.split_pane(pane, muxy_app_core::Direction::Down)?;
     let home = state.home().id;
     let first = state.home().tabs[0].id;
-    let second = state.home().tabs[1].id;
+    let second = first;
     state.select_tab(home, second)?;
     let mut value = serde_json::to_value(&state)?;
     value["window"]["tab_layouts"] = json!({
@@ -148,10 +148,6 @@ fn malformed_domain_state_is_rejected_with_the_path() -> TestResult {
     for (pointer, replacement) in [
         ("/window/active_pane", json!(PaneId::new())),
         (
-            "/projects/0/tabs/0/id",
-            valid["projects"][0]["tabs"][1]["id"].clone(),
-        ),
-        (
             "/projects/0/tabs/0/panes/0/content",
             json!({"type": "unknown"}),
         ),
@@ -164,11 +160,13 @@ fn malformed_domain_state_is_rejected_with_the_path() -> TestResult {
         *value.pointer_mut(pointer).ok_or("missing fixture field")? = replacement;
         invalid_states.push(value);
     }
-    let mut duplicate_pane = valid.clone();
-    let pane = duplicate_pane["projects"][0]["tabs"][0]["panes"][0]["id"].clone();
-    duplicate_pane["projects"][0]["tabs"][1]["active_pane"] = pane.clone();
-    duplicate_pane["projects"][0]["tabs"][1]["panes"][0]["id"] = pane;
-    invalid_states.push(duplicate_pane);
+    let mut duplicate_tab = valid.clone();
+    let tab = valid["projects"][0]["tabs"][0].clone();
+    duplicate_tab["projects"][0]["tabs"]
+        .as_array_mut()
+        .ok_or("tabs")?
+        .push(tab);
+    invalid_states.push(duplicate_tab);
     for value in invalid_states {
         fixture.write(&value)?;
         let error = store::load(fixture.path())
@@ -260,6 +258,26 @@ fn older_files_keep_everything_and_move_server_state_to_the_local_entry() -> Tes
         let mut expected = legacy.clone();
         let home = std::env::home_dir().ok_or("home directory")?;
         expected["projects"][0]["directory"] = json!(home.as_os_str().as_bytes());
+        // Expected migration combines whole subtrees while retaining every pane.
+        for project in expected["projects"].as_array_mut().ok_or("projects")? {
+            let mut model: muxy_app_core::Project = serde_json::from_value(project.clone())?;
+            muxy_app_core::codesh::normalize(&mut model);
+            *project = serde_json::to_value(model)?;
+        }
+        let selected: Vec<_> = expected["projects"]
+            .as_array()
+            .ok_or("projects")?
+            .iter()
+            .map(|project| {
+                (
+                    project["id"].as_str().unwrap_or_default().to_owned(),
+                    project["tabs"][0]["id"].clone(),
+                )
+            })
+            .collect();
+        for (project, tab) in selected {
+            expected["window"]["selected_tab"][project] = tab;
+        }
         for key in [
             "projects",
             "quick_terminal",

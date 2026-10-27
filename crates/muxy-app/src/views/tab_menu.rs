@@ -23,8 +23,7 @@ pub(crate) fn items(project: &Project, id: TabId) -> Vec<Item> {
     };
     let item = |label: gpui::SharedString, action| Item::action(label, Command::Tab(id, action));
     let mut items = vec![
-        item(tr!("New Tab to the Left"), Action::New(TabSide::Left)),
-        item(tr!("New Tab to the Right"), Action::New(TabSide::Right)),
+        item(tr!("New Terminal"), Action::New(TabSide::Right)),
         item(tr!("Rename Tab"), Action::Rename).separated(),
     ];
     if tab.custom_title.is_some() {

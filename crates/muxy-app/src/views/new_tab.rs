@@ -1,4 +1,4 @@
-//! New Tab in Project: every top-level project, this computer's then other
+//! New Terminal in Project: every top-level project, this computer's then other
 //! computers', where a new terminal tab can open.
 
 use std::rc::Rc;
@@ -17,7 +17,7 @@ pub(crate) const PAGE_ID: &str = "new_tab_in_project";
 /// Local projects, then each remote server, by its name, and its projects.
 pub(crate) fn command(cx: &Context<AppModel>) -> Command<Handler> {
     let model = cx.weak_entity();
-    Command::list(PAGE_ID, tr!("New Tab in Project…"), move |cx| {
+    Command::list(PAGE_ID, tr!("New Terminal in Project…"), move |cx| {
         let mut commands = Registry::default();
         let Some(model) = model.upgrade() else {
             return commands;
@@ -47,7 +47,7 @@ pub(crate) fn command(cx: &Context<AppModel>) -> Command<Handler> {
         }
         commands
     })
-    .keywords("New Tab in Project")
+    .keywords("New Terminal in Project")
 }
 
 /// `server`'s top-level projects in the sidebar's order, Home first.
@@ -76,7 +76,7 @@ fn project_command(project: &Project, title: String, badge: &SharedString) -> Co
 }
 
 impl AppModel {
-    /// Opens New Tab in Project, or closes it when it is open.
+    /// Opens New Terminal in Project, or closes it when it is open.
     pub(crate) fn toggle_new_tab_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(Overlay::Commands { palette, .. }) = &self.overlay
             && palette.read(cx).is_page(PAGE_ID)

@@ -380,10 +380,10 @@ fn menus() -> Vec<Menu> {
         Menu {
             name: tr!("File"),
             items: vec![
-                MenuItem::action(tr!("New Tab"), NewTab),
-                MenuItem::action(tr!("New Browser Tab"), NewBrowserTab),
-                MenuItem::action(tr!("New Home Tab"), NewHomeTab),
-                MenuItem::action(tr!("New Tab in Project…"), NewTabInProject),
+                MenuItem::action(tr!("New Terminal"), NewTab),
+                MenuItem::action(tr!("New Browser Pane"), NewBrowserTab),
+                MenuItem::action(tr!("New Home Terminal"), NewHomeTab),
+                MenuItem::action(tr!("New Terminal in Project…"), NewTabInProject),
                 MenuItem::action(tr!("New Worktree…"), NewWorktree),
                 MenuItem::action(tr!("Switch Worktree…"), SwitchWorktree),
                 MenuItem::action(tr!("Open Project…"), AddProject),

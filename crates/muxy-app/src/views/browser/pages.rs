@@ -31,7 +31,7 @@ pub(super) fn start(
             div()
                 .text_size(metrics.font_headline())
                 .text_color(theme.fg)
-                .child(tr!("New Tab")),
+                .child(tr!("New Browser")),
         )
         .child(
             div()

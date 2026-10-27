@@ -858,3 +858,26 @@ fn project_and_agent_lists_use_main_shapes(cx: &mut TestAppContext) {
     );
     assert_eq!(rename["error"], "permission denied (projects:write)");
 }
+
+#[gpui::test]
+fn extension_terminal_command_targets_new_split_in_existing_container(cx: &mut TestAppContext) {
+    let mut state = AppState::bootstrap().expect("state");
+    let tab = state.open_terminal_tab(state.home().id).expect("tab");
+    let original = state.window().active_pane.expect("pane");
+    let (boot, _requests) = stub_boot(state);
+    let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+    view.update(cx, |model, cx| {
+        let result = model
+            .extension_open_tab(
+                &serde_json::json!({"kind": "terminal", "command": "cargo test"}),
+                cx,
+            )
+            .expect("terminal request");
+        let pane = model.active_pane().expect("new pane");
+        assert_ne!(pane, original);
+        assert_eq!(result, serde_json::json!(tab.to_string()));
+        assert_eq!(model.state.current_project().tabs.len(), 1);
+        assert_eq!(model.state.startup_command(pane), Some("cargo test"));
+        assert_eq!(model.state.startup_command(original), None);
+    });
+}

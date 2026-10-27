@@ -133,7 +133,7 @@ fn move_items(groups: &[&str], servers: Servers, members: &[&RemoteServer]) -> V
 fn single_server_items(server: &RemoteServer, groups: &[&str], controls: bool) -> Vec<Item> {
     let servers = Servers::One(server.entry.id);
     let mut items = vec![
-        item(tr!("New Tab"), servers, Action::NewTab),
+        item(tr!("New Terminal"), servers, Action::NewTab),
         item(tr!("Add Project…"), servers, Action::AddProject),
     ];
     items.extend(

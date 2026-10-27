@@ -8,12 +8,11 @@ fn rapid_editor_and_project_switches_preserve_terminal_attachment_and_input(
     let (mut state, first, second, first_pane, second_pane) = projects::two_projects();
     let mut targets = Vec::new();
     for (project, pane, id) in [(first, first_pane, 41), (second, second_pane, 42)] {
-        let terminal = state.project(project).expect("project").tabs[0].id;
         let session = SessionId::new(id).expect("session");
         state
             .set_pane_session(pane, Some(session))
             .expect("session");
-        let (editor, _) = state
+        let (_, editor) = state
             .open_webview(
                 project,
                 WebviewDescriptor {
@@ -25,7 +24,7 @@ fn rapid_editor_and_project_switches_preserve_terminal_attachment_and_input(
                 false,
             )
             .expect("editor");
-        targets.push((project, terminal, editor, pane, session));
+        targets.push((project, editor, pane, session));
     }
     let (boot, requests) = stub_boot(state);
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
@@ -34,19 +33,22 @@ fn rapid_editor_and_project_switches_preserve_terminal_attachment_and_input(
         acknowledge_catalog(model, cx);
     });
     for round in 0..20 {
-        let (project, terminal, editor, pane, session) = targets[round % targets.len()];
+        let (project, editor, pane, session) = targets[round % targets.len()];
         view.update(cx, |model, cx| {
             model.select_project(project, cx);
-            model.select_tab(terminal, cx);
+            model.focus_pane(pane, cx);
         });
         cx.run_until_parked();
-        view.update(cx, |model, cx| model.select_tab(editor, cx));
+        view.update(cx, |model, cx| model.focus_pane(editor, cx));
         let mut late = attachment();
         late.channel = muxy_protocol::ChannelId(u32::try_from(round * 2 + 1).unwrap());
         view.update(cx, |model, cx| {
             model.receive_attached(ServerId::local(), pane, session, late, false, cx);
-            assert!(model.terminal(&pane).is_none());
-            model.select_tab(terminal, cx);
+            assert!(
+                model.terminal(&pane).is_some(),
+                "terminal stays visible beside editor"
+            );
+            model.focus_pane(pane, cx);
         });
         cx.run_until_parked();
         let channel = muxy_protocol::ChannelId(u32::try_from(round * 2 + 2).unwrap());

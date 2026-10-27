@@ -764,11 +764,11 @@ pub(crate) fn register_commands(
             .is_none_or(|tab| tab.panes.len() < 2);
     register_composer_commands(registry, model);
     for command in [
-        action(model, ShortcutId::NewTab, tr_key!("New Tab"), NewTab).disabled(missing),
+        action(model, ShortcutId::NewTab, tr_key!("New Terminal"), NewTab).disabled(missing),
         action(
             model,
             ShortcutId::NewHomeTab,
-            tr_key!("New Home Tab"),
+            tr_key!("New Home Terminal"),
             NewHomeTab,
         ),
         action(model, ShortcutId::CloseTab, tr_key!("Close Tab"), CloseTab)
@@ -850,7 +850,7 @@ pub(crate) fn register_browser_commands(
         super::command_palette::action(
             model,
             ShortcutId::NewBrowserTab,
-            tr_key!("New Browser Tab"),
+            tr_key!("New Browser Pane"),
             NewBrowserTab,
         )
         .disabled(missing || !model.browser_enabled()),
@@ -1126,7 +1126,7 @@ fn empty(model: &AppModel, cx: &mut Context<AppModel>) -> gpui::AnyElement {
                 .cursor_pointer()
                 .hover(|style| style.opacity(0.85))
                 .on_click(cx.listener(|model, _, _, cx| model.new_tab(cx)))
-                .child(tr!("New Tab"))
+                .child(tr!("New Terminal"))
                 .when_some(model.settings.keymap.chord(ShortcutId::NewTab), |element, chord| element.child(
                     div()
                         .text_size(m.font_footnote())

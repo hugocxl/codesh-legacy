@@ -145,6 +145,20 @@ impl AppState {
                 return Ok((tab, pane));
             }
         }
+        if crate::codesh::SINGLE_TAB {
+            let pane = crate::Pane {
+                id: PaneId::new(),
+                title: title.into(),
+                content: PaneContent::Webview(descriptor),
+                proxy: false,
+            };
+            let (tab, pane) =
+                self.open_pane_in_container(project, pane, self.window.active_pane)?;
+            self.select_project(project)?;
+            self.select_tab(project, tab)?;
+            self.focus_pane(pane)?;
+            return Ok((tab, pane));
+        }
         let tab = Tab::with_content(PaneContent::Webview(descriptor), title);
         let id = tab.id;
         let pane = tab.panes[0].id;

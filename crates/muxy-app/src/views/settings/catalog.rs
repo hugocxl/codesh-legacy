@@ -49,7 +49,7 @@ pub(super) const SETTINGS: &[Setting] = &[
         id: "browser-profiles",
         label: tr_key!("Profiles"),
         description: tr_key!(
-            "Profiles keep cookies and logins apart. New tabs use the default profile."
+            "Profiles keep cookies and logins apart. New browser panes use the default profile."
         ),
         category: Category::Browser,
         section: tr_key!("Profiles"),

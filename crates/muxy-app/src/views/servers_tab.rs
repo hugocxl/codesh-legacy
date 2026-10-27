@@ -721,7 +721,7 @@ fn row_text(server: &RemoteServer, model: &AppModel) -> AnyElement {
         .into_any_element()
 }
 
-/// New Tab, Edit, and more, shown on a hovered row.
+/// New Terminal, Edit, and more, shown on a hovered row.
 fn row_actions(
     id: ServerId,
     group: SharedString,
@@ -740,7 +740,7 @@ fn row_actions(
         .child(icon_button(
             format!("servers-new-tab-{id}"),
             Icon::Terminal,
-            tr!("New Tab"),
+            tr!("New Terminal"),
             model,
             cx.listener(move |model, _, _, cx| model.new_remote_home_tab(id, cx)),
         ))

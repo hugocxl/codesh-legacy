@@ -593,12 +593,8 @@ impl AppModel {
                 .map_err(|error| error.to_string())?;
             let pane = self
                 .state
-                .projects()
-                .iter()
-                .flat_map(|project| &project.tabs)
-                .find(|candidate| candidate.id == tab)
-                .and_then(|tab| tab.panes.first())
-                .map(|pane| pane.id)
+                .window()
+                .active_pane
                 .ok_or("could not create tab")?;
             if let Some(directory) = directory {
                 self.initial_directories.insert(pane, directory);

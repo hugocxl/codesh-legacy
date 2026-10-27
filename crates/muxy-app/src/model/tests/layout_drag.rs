@@ -10,7 +10,10 @@ fn state() -> (AppState, [TabId; 2], [PaneId; 4]) {
     let first = state.window().active_pane.expect("pane");
     let second = state.split_pane(first, Direction::Right).expect("split");
     let third = state.split_pane(second, Direction::Down).expect("split");
-    let b = state.open_terminal_tab(state.home().id).expect("tab");
+    let other = state
+        .add_project(ServerId::local(), std::env::temp_dir())
+        .expect("project");
+    let b = state.open_terminal_tab(other).expect("tab");
     let fourth = state.window().active_pane.expect("pane");
     for (index, pane) in [first, second, third, fourth].iter().enumerate() {
         state

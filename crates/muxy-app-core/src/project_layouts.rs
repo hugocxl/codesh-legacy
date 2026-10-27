@@ -92,6 +92,20 @@ impl Config {
         let mut tabs = vec![tab];
         for terminal in &self.extra_tabs {
             let pane = terminal.build(&mut commands);
+            if crate::codesh::SINGLE_TAB {
+                let primary = &mut tabs[0];
+                primary.layout = Layout::Split {
+                    axis: Axis::Horizontal,
+                    ratio: 0.5,
+                    first: Box::new(std::mem::replace(
+                        &mut primary.layout,
+                        Layout::Leaf(pane.id),
+                    )),
+                    second: Box::new(Layout::Leaf(pane.id)),
+                };
+                primary.panes.push(pane);
+                continue;
+            }
             let mut tab = Tab::terminal();
             tab.custom_title = Some(pane.title.clone());
             tab.layout = Layout::Leaf(pane.id);
@@ -281,6 +295,7 @@ impl AppState {
             self.close_tab(project, tab)?;
         }
         self.project_mut(project)?.tabs = tabs;
+        crate::codesh::normalize(self.project_mut(project)?);
         self.startup_commands.extend(commands);
         self.window.current_project = project;
         self.window.selected_tab.insert(project, selected);

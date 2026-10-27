@@ -127,7 +127,7 @@ fn the_panel_lists_each_shown_session_once_most_urgent_first(cx: &mut TestAppCon
 }
 
 #[gpui::test]
-fn the_active_card_follows_tabs_and_projects_without_a_fallback(cx: &mut TestAppContext) {
+fn the_active_card_follows_containers_and_projects_without_a_fallback(cx: &mut TestAppContext) {
     let (view, cx, fixture) = agents(cx);
     view.update_in(cx, |model, window, cx| {
         let active = |model: &AppModel| model.active_agents_entry(&model.agents_panel_entries());
@@ -141,7 +141,14 @@ fn the_active_card_follows_tabs_and_projects_without_a_fallback(cx: &mut TestApp
         model.select_tab(root_tab, cx);
         assert_eq!(active(model), Some(key(1)));
 
-        let tab = model.state.open_terminal_tab(fixture.root).expect("tab");
+        let plain_project = model
+            .state
+            .projects()
+            .iter()
+            .find(|project| project.parent_id == Some(fixture.root) && project.tabs.is_empty())
+            .expect("empty worktree")
+            .id;
+        let tab = model.state.open_terminal_tab(plain_project).expect("tab");
         assert_eq!(active(model), None, "a plain terminal has no active agent");
         let pane = model.active_pane().expect("pane");
         model.receive_attached(
@@ -171,6 +178,12 @@ fn the_active_card_follows_tabs_and_projects_without_a_fallback(cx: &mut TestApp
             "an agent that stops leaves no stale highlight"
         );
         model.appearance.agents_panel_grouping = AgentsPanelGrouping::Worktrees;
+        assert_eq!(
+            active(model),
+            None,
+            "an unlisted container has no active card"
+        );
+        model.select_project(fixture.root, cx);
         assert_eq!(active(model), Some(EntryKey::Worktree(fixture.root)));
         model.select_project(fixture.worktree, cx);
         assert_eq!(active(model), Some(EntryKey::Worktree(fixture.worktree)));

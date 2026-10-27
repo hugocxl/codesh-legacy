@@ -46,13 +46,13 @@ fn mixed_restore_identifies_dead_panes_without_mutating_selection() -> TestResul
         .home()
         .tabs
         .iter()
-        .map(|tab| tab.panes[0].id)
+        .flat_map(|tab| tab.panes.iter().map(|pane| pane.id))
         .collect();
     let live = SessionId::new(11).ok_or("zero ID")?;
     let missing = SessionId::new(22).ok_or("zero ID")?;
     state.set_pane_session(panes[0], Some(live))?;
     state.set_pane_session(panes[1], Some(missing))?;
-    state.select_tab(home, state.home().tabs[1].id)?;
+    state.focus_pane(panes[1])?;
     let before = state.clone();
     let plan = restore::plan(
         &state,
@@ -73,6 +73,6 @@ fn mixed_restore_identifies_dead_panes_without_mutating_selection() -> TestResul
         vec![(panes[0], live), (panes[1], missing)]
     );
     assert!(all_missing.attach.is_empty());
-    assert_eq!(state.home().tabs.len(), 3);
+    assert_eq!(state.home().tabs.len(), 1);
     Ok(())
 }

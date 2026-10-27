@@ -158,26 +158,21 @@ fn window_owns_focus_and_closing_chooses_neighbors_without_stealing_focus() -> R
     let last = state.split_pane(middle, Direction::Right)?;
     state.close_pane(last)?;
     assert_eq!(state.window().active_pane, Some(middle));
-    let second_tab = state.open_terminal_tab(home)?;
-    let second_first = state.window().active_pane.ok_or("focus")?;
-    let second_last = state.split_pane(second_first, Direction::Right)?;
-    state.toggle_zoom(second_last)?;
-    state.select_tab(home, first_tab)?;
+    let container = state.open_terminal_tab(home)?;
+    assert_eq!(container, first_tab);
+    let added = state.window().active_pane.ok_or("focus")?;
+    let right = state.split_pane(added, Direction::Right)?;
     state.focus_pane(middle)?;
-    state.close_tab(home, first_tab)?;
-    assert_eq!(state.window().active_pane, Some(second_first));
-    assert_eq!(
-        state.home().tabs[0].visible_panes(),
-        [second_first, second_last]
-    );
-    let third_tab = state.open_terminal_tab(home)?;
-    let third_first = state.window().active_pane.ok_or("focus")?;
-    state.close_pane(second_last)?;
-    assert_eq!(state.window().active_pane, Some(third_first));
-    state.close_tab(home, second_tab)?;
-    assert_eq!(state.window().active_pane, Some(third_first));
-    state.close_tab(home, third_tab)?;
-    assert_eq!(state.window().active_pane, None);
+    state.close_pane(first)?;
+    assert_eq!(state.window().active_pane, Some(middle));
+    let other = state.add_project(ServerId::local(), std::env::current_dir()?)?;
+    state.open_terminal_tab(other)?;
+    let other_pane = state.window().active_pane;
+    state.close_pane(right)?;
+    assert_eq!(state.window().active_pane, other_pane);
+    state.close_tab(home, container)?;
+    assert_eq!(state.window().active_pane, other_pane);
+    assert!(state.home().tabs.is_empty());
     Ok(())
 }
 
@@ -187,15 +182,14 @@ fn closing_tabs_in_a_missing_project_keeps_saved_window_state_loadable() -> Resu
     let directory = std::env::temp_dir().join(format!("muxy-missing-{}", PaneId::new()));
     std::fs::create_dir(&directory)?;
     let project = state.add_project(ServerId::local(), directory.clone())?;
-    let first = state.open_terminal_tab(project)?;
-    let second = state.open_terminal_tab(project)?;
-    state.select_tab(project, first)?;
+    let container = state.open_terminal_tab(project)?;
+    assert_eq!(state.open_terminal_tab(project)?, container);
     std::fs::remove_dir(&directory)?;
     state.refresh_project_statuses();
-    state.close_tab(project, first)?;
+    state.close_tab(project, container)?;
     let restored: AppState = serde_json::from_value(serde_json::to_value(&state)?)?;
     assert_eq!(restored, state);
-    state.close_tab(project, second)?;
+    assert!(state.project(project).ok_or("project")?.tabs.is_empty());
     assert_eq!(state.window().active_pane, None);
     let restored: AppState = serde_json::from_value(serde_json::to_value(&state)?)?;
     assert_eq!(restored, state);

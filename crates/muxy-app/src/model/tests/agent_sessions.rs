@@ -85,7 +85,13 @@ fn filters_persist_and_sessions_share_the_panel_host(cx: &mut TestAppContext) {
 #[gpui::test]
 fn resume_is_transactional_and_uses_the_selected_project(cx: &mut TestAppContext) {
     let directory = tempfile::tempdir().expect("directory");
-    let (boot, requests) = stub_boot(AppState::bootstrap().expect("state"));
+    let mut state = AppState::bootstrap().expect("state");
+    let tab = state.open_terminal_tab(state.home().id).expect("tab");
+    state
+        .set_tab_title(tab, Some("Container".into()))
+        .expect("title");
+    let original = state.window().active_pane.expect("pane");
+    let (boot, requests) = stub_boot(state);
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update_in(cx, |model, window, cx| {
         model.toggle_agent_sessions(window, cx);
@@ -98,8 +104,25 @@ fn resume_is_transactional_and_uses_the_selected_project(cx: &mut TestAppContext
         assert_eq!(model.state.current_project().tabs.len(), tabs);
         model.path = path;
         model.resume_agent_session(&session, cx);
-        assert_eq!(model.state.current_project().tabs.len(), tabs + 1);
+        assert_eq!(model.state.current_project().tabs.len(), tabs);
+        assert_eq!(model.state.current_project().tabs[0].panes.len(), 2);
+        assert_eq!(
+            model.state.current_project().tabs[0]
+                .custom_title
+                .as_deref(),
+            Some("Container")
+        );
         let pane = model.active_pane().expect("pane");
+        assert_ne!(pane, original);
+        assert_eq!(
+            model.state.current_project().tabs[0]
+                .panes
+                .iter()
+                .find(|item| item.id == pane)
+                .expect("pane")
+                .title,
+            session.title
+        );
         assert_eq!(
             model.state.startup_command(pane),
             Some("codex resume session-123")
@@ -112,7 +135,7 @@ fn resume_is_transactional_and_uses_the_selected_project(cx: &mut TestAppContext
         model.resume_agent_session(&session, cx);
         assert_eq!(
             model.state.current_project().tabs.len(),
-            tabs + 1,
+            tabs,
             "stale rows cannot resume"
         );
     });

@@ -510,10 +510,10 @@ fn server_command(server: &RemoteServer, model: gpui::WeakEntity<AppModel>) -> C
         actions.register(
             Command::new(
                 "new-tab",
-                tr!("New Tab"),
+                tr!("New Terminal"),
                 handler(|model, id, _, cx| model.new_remote_home_tab(id, cx)),
             )
-            .keywords("New Tab"),
+            .keywords("New Terminal"),
         );
         actions.register(
             Command::new(

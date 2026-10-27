@@ -517,7 +517,10 @@ fn the_remote_servers_tab_moves_to_home_when_its_folder_is_gone() -> TestResult 
     let mut state = AppState::bootstrap()?;
     let home = state.home().id;
     let project = state.add_project(LOCAL, folder.clone())?;
+    let terminal_tab = state.open_terminal_tab(project)?;
+    let terminal = state.window().active_pane.ok_or("terminal")?;
     let first = state.show_servers_tab(project, "Remote Servers")?;
+    assert_eq!(first, terminal_tab);
     assert_eq!(state.servers_tab(), Some((project, first)));
 
     std::fs::rename(&folder, directory.path().join("moved"))?;
@@ -535,6 +538,9 @@ fn the_remote_servers_tab_moves_to_home_when_its_folder_is_gone() -> TestResult 
         "the tab in the folder that came back was closed"
     );
     let project = state.project(project).ok_or("project")?;
-    assert!(project.tabs.iter().all(|tab| tab.id != first));
+    assert_eq!(project.tabs.len(), 1);
+    assert_eq!(project.tabs[0].id, terminal_tab);
+    assert_eq!(project.tabs[0].panes.len(), 1);
+    assert_eq!(project.tabs[0].panes[0].id, terminal);
     Ok(())
 }

@@ -53,7 +53,7 @@ fn layout_titles_are_filtered_without_changing_startup_commands() {
             .home()
             .tabs
             .iter()
-            .map(|tab| tab.title(None))
+            .flat_map(|tab| tab.panes.iter().map(|pane| pane.title.as_str()))
             .collect::<Vec<_>>(),
         ["日本語", "Terminal", "./build"]
     );

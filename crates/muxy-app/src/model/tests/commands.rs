@@ -102,3 +102,36 @@ fn palette_queries_still_run_the_commands_they_found_first(cx: &mut TestAppConte
         assert!(tab.expect("tab").zoomed.is_some());
     });
 }
+
+#[gpui::test]
+fn custom_command_titles_only_the_new_terminal_pane(cx: &mut TestAppContext) {
+    let mut state = AppState::bootstrap().expect("state");
+    let tab = state.open_terminal_tab(state.home().id).expect("tab");
+    state
+        .set_tab_title(tab, Some("Container".into()))
+        .expect("title");
+    let original = state.window().active_pane.expect("pane");
+    let (boot, _requests) = stub_boot(state);
+    let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
+    view.update(cx, |model, cx| {
+        let command =
+            muxy_app_core::settings::CustomCommand::new("Build".into(), "cargo build".into());
+        let id = command.id.clone();
+        model.settings.commands.push(command);
+        model.run_custom_command(&id, cx);
+        let pane = model.active_pane().expect("new pane");
+        assert_ne!(pane, original);
+        let container = &model.state.current_project().tabs[0];
+        assert_eq!(container.custom_title.as_deref(), Some("Container"));
+        assert_eq!(
+            container
+                .panes
+                .iter()
+                .find(|item| item.id == pane)
+                .expect("pane")
+                .title,
+            "Build"
+        );
+        assert_eq!(model.state.startup_command(pane), Some("cargo build"));
+    });
+}

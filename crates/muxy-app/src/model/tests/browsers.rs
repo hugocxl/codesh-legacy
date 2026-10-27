@@ -32,7 +32,7 @@ fn browser_pane(model: &AppModel) -> Option<PaneId> {
 }
 
 #[gpui::test]
-fn topbar_opens_browser_tabs_after_layout_and_group_changes(cx: &mut TestAppContext) {
+fn topbar_opens_browser_panes_after_layout_and_group_requests(cx: &mut TestAppContext) {
     use muxy_app_core::{Direction, settings::AppLayout};
 
     let mut state = AppState::bootstrap().expect("state");
@@ -60,7 +60,10 @@ fn topbar_opens_browser_tabs_after_layout_and_group_changes(cx: &mut TestAppCont
             view.update(cx, |model, cx| model.set_layout(layout, cx));
             cx.run_until_parked();
             let (count, previous) = view.read_with(cx, |model, _| {
-                (model.state.current_project().tabs.len(), model.active_tab())
+                (
+                    model.state.current_project().tabs[0].panes.len(),
+                    model.active_pane(),
+                )
             });
             let button = cx
                 .debug_bounds("browser-button")
@@ -69,18 +72,19 @@ fn topbar_opens_browser_tabs_after_layout_and_group_changes(cx: &mut TestAppCont
             cx.run_until_parked();
             view.read_with(cx, |model, _| {
                 let project = model.state.current_project();
-                assert_eq!(project.tabs.len(), count + 1);
-                let active = model.active_tab().expect("new tab selected");
-                assert_ne!(Some(active), previous);
+                assert_eq!(project.tabs.len(), 1);
+                assert_eq!(project.tabs[0].panes.len(), count + 1);
+                assert_eq!(model.active_tab(), Some(first));
                 let pane = model.active_pane().expect("new pane selected");
+                assert_ne!(Some(pane), previous);
                 assert!(model.state.browser(pane).is_some());
-                if grouped {
-                    assert!(
-                        project
-                            .group_tabs(active)
-                            .contains(&previous.expect("previous tab"))
-                    );
-                }
+                assert!(project.groups().is_none());
+                assert_eq!(
+                    project.tabs[0]
+                        .layout
+                        .neighbor(previous.expect("previous pane"), Direction::Right),
+                    Some(pane)
+                );
                 assert!(model.error.is_none(), "{:?}", model.error);
             });
         }

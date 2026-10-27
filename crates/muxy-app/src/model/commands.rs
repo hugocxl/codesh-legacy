@@ -74,16 +74,14 @@ impl AppModel {
         let command = command.clone();
         let previous = self.state.clone();
         let result = (|| {
-            let tab = self
-                .state
-                .open_terminal_tab(self.state.current_project().id)?;
             self.state
-                .set_tab_title(tab, Some(command.name.trim().into()))?;
+                .open_terminal_tab(self.state.current_project().id)?;
             let pane = self
                 .state
                 .window()
                 .active_pane
                 .ok_or_else(|| "could not create command pane".to_owned())?;
+            self.state.set_pane_title(pane, command.name.trim())?;
             self.state.set_startup_command(pane, &command.command)?;
             Ok::<_, Box<dyn std::error::Error>>(())
         })();

@@ -38,12 +38,19 @@ fn attach_panes(model: &mut AppModel, panes: &[PaneId], cx: &mut Context<AppMode
 }
 
 #[gpui::test]
-fn zoom_and_tab_switch_detach_only_hidden_leaves_and_restore_all(cx: &mut TestAppContext) {
-    let (state, first_tab, panes) = split_state();
+fn zoom_and_project_switch_detach_only_hidden_leaves_and_restore_all(cx: &mut TestAppContext) {
+    let (mut state, _, panes) = split_state();
+    let home = state.home().id;
+    let other = state
+        .add_project(ServerId::local(), std::env::temp_dir())
+        .expect("project");
+    state.open_terminal_tab(other).expect("other container");
+    state.select_project(home).expect("home");
     let (boot, requests) = stub_boot(state);
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update(cx, |model, cx| {
         assert_eq!(model.grids.len(), 3);
+        acknowledge_catalog(model, cx);
         attach_panes(model, &panes, cx);
         let _ = requests.try_iter().collect::<Vec<_>>();
         model.toggle_zoom_pane(cx);
@@ -91,7 +98,7 @@ fn zoom_and_tab_switch_detach_only_hidden_leaves_and_restore_all(cx: &mut TestAp
         assert!(attached.contains(&(panes[1], model.pane_session(panes[1]))));
         attach_panes(model, &panes, cx);
         let _ = requests.try_iter().collect::<Vec<_>>();
-        model.new_tab(cx);
+        model.select_project(other, cx);
         assert_eq!(model.grids.len(), 1);
         assert_eq!(
             requests
@@ -100,7 +107,7 @@ fn zoom_and_tab_switch_detach_only_hidden_leaves_and_restore_all(cx: &mut TestAp
                 .count(),
             3
         );
-        model.select_tab(first_tab, cx);
+        model.select_project(home, cx);
         assert_eq!(model.grids.len(), 3);
         assert_eq!(model.active_pane(), Some(panes[2]));
     });
@@ -180,8 +187,8 @@ fn scroll_first_pane(model: &mut AppModel, panes: &[PaneId], cx: &mut Context<Ap
 }
 
 #[gpui::test]
-fn a_hidden_tab_comes_back_scrolled_where_it_was_left(cx: &mut TestAppContext) {
-    let (state, first_tab, panes) = split_state();
+fn a_pane_hidden_by_zoom_comes_back_scrolled_where_it_was_left(cx: &mut TestAppContext) {
+    let (state, _, panes) = split_state();
     let (boot, _requests) = stub_boot(state);
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update(cx, |model, cx| {
@@ -195,9 +202,9 @@ fn a_hidden_tab_comes_back_scrolled_where_it_was_left(cx: &mut TestAppContext) {
         scroll_first_pane(model, &panes, cx);
         let left = top_row(model, panes[0], cx);
         assert_eq!(left[0].text, "6");
-        model.new_tab(cx);
+        model.toggle_zoom_pane(cx);
         assert_eq!(model.grids.len(), 1);
-        model.select_tab(first_tab, cx);
+        model.toggle_zoom_pane(cx);
         assert_eq!(top_row(model, panes[0], cx), left);
         attach_panes(model, &panes, cx);
         assert_eq!(top_row(model, panes[0], cx), left);
@@ -207,16 +214,18 @@ fn a_hidden_tab_comes_back_scrolled_where_it_was_left(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn scroll_on_output_notices_output_attached_while_the_tab_was_hidden_again(
+fn scroll_on_output_notices_output_attached_while_the_pane_was_hidden_by_zoom(
     cx: &mut TestAppContext,
 ) {
-    let (state, first_tab, panes) = split_state();
+    let (state, _, panes) = split_state();
     let (boot, _requests) = stub_boot(state);
     let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
     view.update(cx, |model, cx| {
         scroll_first_pane(model, &panes, cx);
         model.terminal.options.scroll_on_output = true;
-        model.new_tab(cx);
+        model.toggle_zoom_pane(cx);
+        assert!(!model.grids.contains_key(&panes[0]));
+        assert!(model.scrolls.contains_key(&panes[0]));
         let session = model.pane_session(panes[0]).expect("session");
         let mut output = attachment();
         output.grid.rows[1] = output.grid.rows[0].clone();
@@ -227,7 +236,7 @@ fn scroll_on_output_notices_output_attached_while_the_tab_was_hidden_again(
             created: false,
         };
         model.receive((ServerId::local(), 1, attached()), cx);
-        model.select_tab(first_tab, cx);
+        model.toggle_zoom_pane(cx);
         model.receive((ServerId::local(), 1, attached()), cx);
         let pane = model.terminal(&panes[0]).expect("terminal").view.read(cx);
         assert!(pane.channel().is_some());

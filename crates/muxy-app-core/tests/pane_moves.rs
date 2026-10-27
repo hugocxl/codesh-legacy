@@ -4,8 +4,15 @@ use muxy_app_core::{AppState, Direction, TabId};
 
 fn tabs() -> (AppState, [TabId; 3]) {
     let mut state = AppState::bootstrap().unwrap();
-    let ids = std::array::from_fn(|_| state.open_terminal_tab(state.home().id).unwrap());
-    (state, ids)
+    let first = state.open_terminal_tab(state.home().id).unwrap();
+    let project = state
+        .add_project(
+            muxy_app_core::ServerId::local(),
+            std::env::current_dir().unwrap(),
+        )
+        .unwrap();
+    let other = state.open_terminal_tab(project).unwrap();
+    (state, [first, other, other])
 }
 
 #[test]
@@ -35,7 +42,7 @@ fn pane_moves_and_center_swaps_never_change_pane_identity_or_content() {
         state
             .move_pane(
                 first,
-                state.home().tabs[1].panes[0].id,
+                state.projects()[1].tabs[0].panes[0].id,
                 Some(Direction::Left)
             )
             .is_err()

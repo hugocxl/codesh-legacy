@@ -3145,14 +3145,26 @@ mod tests {
         state
             .set_pane_session(pane, Some(session))
             .expect("session");
-        let other = state.open_terminal_tab(state.home().id).expect("other tab");
+        let other_project = state
+            .add_project(ServerId::local(), std::env::temp_dir())
+            .expect("project");
+        let other = state.open_terminal_tab(other_project).expect("other tab");
         let (boot, requests) = stub_boot(state);
         let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
         view.update(cx, |model, cx| {
             model.receive((ServerId::local(), 1, Update::Connected(vec![])), cx);
             acknowledge_catalog(model, cx);
             model.close_tab(tab, cx);
-            assert_eq!(model.state.home().tabs.len(), 1);
+            assert!(model.state.home().tabs.is_empty());
+            assert_eq!(
+                model
+                    .state
+                    .project(other_project)
+                    .expect("project")
+                    .tabs
+                    .len(),
+                1
+            );
             assert_eq!(model.active_tab(), Some(other));
             assert_eq!(
                 store::load(&model.path)
@@ -3176,7 +3188,16 @@ mod tests {
                 ),
                 cx,
             );
-            assert_eq!(model.state.home().tabs.len(), 1);
+            assert!(model.state.home().tabs.is_empty());
+            assert_eq!(
+                model
+                    .state
+                    .project(other_project)
+                    .expect("project")
+                    .tabs
+                    .len(),
+                1
+            );
             assert_eq!(model.state.pending_discards(ServerId::local()), &[session]);
             assert!(model.error.is_none());
             model.connect(cx);
@@ -3399,7 +3420,10 @@ mod tests {
         state
             .set_pane_session(pane, Some(session))
             .expect("session");
-        state.open_terminal_tab(state.home().id).expect("second");
+        let other = state
+            .add_project(ServerId::local(), std::env::temp_dir())
+            .expect("project");
+        state.open_terminal_tab(other).expect("second");
         let (boot, requests) = stub_boot(state);
         let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
         for generation in 1..=2 {
@@ -3433,7 +3457,9 @@ mod tests {
                 model.close_tab(first, cx);
                 model.close_tab(first, cx);
                 assert_eq!(model.pending_close, Some(first));
-                assert_eq!(model.state.home().tabs.len(), 2);
+                assert_eq!(model.state.home().tabs.len(), 1);
+                let other = model.state.project(other).expect("other project");
+                assert_eq!(other.tabs.len(), 1);
                 assert!(model.state.pending_discards(ServerId::local()).is_empty());
                 let work: Vec<_> = requests.try_iter().map(|(_, work)| work).collect();
                 assert!(!work.iter().any(|work| matches!(work, Work::Discard(_, _))));
@@ -3474,7 +3500,9 @@ mod tests {
             cx.run_until_parked();
             assert!(!cx.has_pending_prompt());
             view.read_with(cx, |model, _| {
-                assert_eq!(model.state.home().tabs.len(), 2);
+                assert_eq!(model.state.home().tabs.len(), 1);
+                let other = model.state.project(other).expect("other project");
+                assert_eq!(other.tabs.len(), 1);
                 assert!(model.state.pending_discards(ServerId::local()).is_empty());
                 assert!(model.close_prompt.is_none());
             });
@@ -3632,6 +3660,9 @@ mod tests {
         state
             .select_tab(home, state.home().tabs[0].id)
             .expect("select");
+        // Keep focus on the surviving split, rather than a duplicate that exits.
+        state.focus_pane(neighbor).expect("focus live pane");
+        state.toggle_zoom(neighbor).expect("hide duplicate panes");
         let (boot, _) = stub_boot(state);
         let (view, cx) = cx.add_window_view(|window, cx| AppModel::new(boot, window, cx));
         view.update(cx, |model, cx| {
