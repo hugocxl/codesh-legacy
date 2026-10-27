@@ -3,7 +3,9 @@ use std::io::{self, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
-use crate::{AppError, AppState};
+use serde_json::Value;
+
+use crate::{AppError, AppState, PaneContent};
 
 pub fn default_path() -> Result<PathBuf, AppError> {
     muxy_core::dirs::muxy_dir()
@@ -41,10 +43,67 @@ pub fn load(path: impl AsRef<Path>) -> Result<AppState, AppError> {
             });
         }
     };
-    serde_json::from_slice(&bytes).map_err(|source| AppError::Json {
-        path: path.into(),
-        source,
-    })
+    serde_json::from_slice(&bytes)
+        .and_then(|mut value: Value| {
+            migrate_extension_panes(&mut value);
+            serde_json::from_value(value)
+        })
+        .map_err(|source| AppError::Json {
+            path: path.into(),
+            source,
+        })
+}
+
+/// Rewrites panes of the retired bundled `files` and `git` extensions as
+/// native editor and diff panes. Every other extension webview becomes a
+/// legacy settings pane, which loading closes and its split re-equalizes.
+/// Works on raw JSON so it outlives the webview pane type.
+fn migrate_extension_panes(state: &mut Value) {
+    let Some(projects) = state.get_mut("projects").and_then(Value::as_array_mut) else {
+        return;
+    };
+    let panes = projects
+        .iter_mut()
+        .filter_map(|project| project.get_mut("tabs").and_then(Value::as_array_mut))
+        .flatten()
+        .filter_map(|tab| tab.get_mut("panes").and_then(Value::as_array_mut))
+        .flatten();
+    for pane in panes {
+        let Some(content) = pane.get("content") else {
+            continue;
+        };
+        if content.get("type").and_then(Value::as_str) != Some("webview") {
+            continue;
+        }
+        let native = native_content(content);
+        let title = native.as_ref().and_then(PaneContent::native_title);
+        let content = native
+            .and_then(|native| serde_json::to_value(native).ok())
+            .unwrap_or_else(|| serde_json::json!({ "type": "settings" }));
+        pane["content"] = content;
+        if let Some(title) = title {
+            pane["title"] = Value::String(title);
+        }
+    }
+}
+
+fn native_content(webview: &Value) -> Option<PaneContent> {
+    let text = |key: &str| webview["data"][key].as_str();
+    match (webview["owner"].as_str()?, webview["kind"].as_str()?) {
+        ("files", "code-editor") => Some(PaneContent::Editor {
+            path: crate::pane::relative_path(text("filePath")?).ok()?,
+        }),
+        ("git", "diff-viewer") => Some(PaneContent::Diff {
+            path: crate::pane::relative_path(
+                text("focusPath")
+                    .or_else(|| text("filePath"))
+                    .or_else(|| text("path"))?,
+            )
+            .ok()?,
+            staged: webview["data"]["staged"].as_bool().unwrap_or(false),
+        }),
+        _ => None,
+    }
 }
 
 pub fn save(path: impl AsRef<Path>, state: &AppState) -> Result<(), AppError> {

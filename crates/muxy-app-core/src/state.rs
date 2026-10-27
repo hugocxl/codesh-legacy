@@ -135,6 +135,7 @@ impl TryFrom<StoredState> for AppState {
             .retain(|pane| panes.contains(pane));
         state.validate()?;
         state.normalize_projects();
+        // Also closes retired extension panes; see `store::load`.
         let legacy_settings: Vec<_> = state
             .projects
             .iter()
@@ -959,7 +960,9 @@ impl AppState {
             PaneContent::Settings
             | PaneContent::Webview(_)
             | PaneContent::Browser(_)
-            | PaneContent::Servers => Err(AppError::NotTerminal(pane)),
+            | PaneContent::Servers
+            | PaneContent::Editor { .. }
+            | PaneContent::Diff { .. } => Err(AppError::NotTerminal(pane)),
         }
     }
 

@@ -257,6 +257,15 @@ fn older_files_keep_everything_and_move_server_state_to_the_local_entry() -> Tes
         let mut expected = legacy.clone();
         let home = std::env::home_dir().ok_or("home directory")?;
         expected["projects"][0]["directory"] = json!(home.as_os_str().as_bytes());
+        // Loading closes third-party extension panes; their tab closes with them.
+        for project in expected["projects"].as_array_mut().ok_or("projects")? {
+            if let Some(tabs) = project["tabs"].as_array_mut() {
+                tabs.retain(|tab| tab["panes"][0]["content"]["type"] != "webview");
+            }
+        }
+        if let Some(history) = expected["window"]["focus_history"].as_array_mut() {
+            history.retain(|pane| pane != "3e4fb27624e644588d1fcf12084588f3");
+        }
         // Expected migration combines whole subtrees while retaining every pane.
         for project in expected["projects"].as_array_mut().ok_or("projects")? {
             let mut model: muxy_app_core::Project = serde_json::from_value(project.clone())?;
