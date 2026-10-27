@@ -29,6 +29,7 @@ mod views {
     pub(crate) mod codesh;
     pub(crate) mod command_palette;
     pub(crate) mod confirm;
+    pub(crate) mod diff_pane;
     pub(crate) mod disconnected;
     pub(crate) mod font_picker;
     pub(crate) mod git;
